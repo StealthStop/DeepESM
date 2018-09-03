@@ -1,6 +1,6 @@
 import os
 import tensorflow as tf
-import numpy
+import numpy as np
 import pandas as pd
 from DataGetter import DataGetter as dg
 from glob import glob
@@ -27,6 +27,19 @@ def create_adversary_model(mainModel, main_var, n_hidden_layers, n_last_layer, d
     adversaryModel = tf.keras.models.Model(inputs=inputs, outputs=A_layer)
     return adversaryModel
 
+# Define loss functions
+def make_loss_model(c):
+    def loss_model(y_true, y_pred):
+        #return c * tf.keras.backend.binary_crossentropy(y_pred, y_true)
+        return c * tf.keras.backend.binary_crossentropy(y_true, y_pred)
+    return loss_model
+
+def make_loss_adversary(c):
+    def loss_R(z_true, z_pred):
+        #return c * tf.keras.backend.categorical_crossentropy(z_pred, z_true)
+        return c * tf.keras.backend.categorical_crossentropy(z_true, z_pred)
+    return loss_R
+    
 # Takes training vars, signal and background files and returns training data
 def get_data(allVars, signalDataSet, backgroundDataSet):
     dgSig = dg.DefinedVariables(allVars, signal = True,  background = False)
@@ -42,22 +55,25 @@ def get_data(allVars, signalDataSet, backgroundDataSet):
     for data in trainDataArray:
         for key in data:
             if key in trainData:
-                trainData[key] = numpy.vstack([trainData[key], data[key][:minLen]])
+                trainData[key] = np.vstack([trainData[key], data[key][:minLen]])
             else:
                 trainData[key] = data[key][:minLen]
 
     # Randomly shuffle the signal and background 
-    perms = numpy.random.permutation(trainData["data"].shape[0])
+    perms = np.random.permutation(trainData["data"].shape[0])
     for key in trainData:
         trainData[key] = trainData[key][perms]
 
     # Rescale inputs to have unit variance centered at 0
     from sklearn.preprocessing import StandardScaler
-    scaler = StandardScaler()
-    scaler.fit(trainData["data"])
-    trainData["data"] = scaler.transform(trainData["data"])
-
-    return trainData    
+    def scale(data):
+        scaler = StandardScaler()
+        scaler.fit(data)
+        return scaler.transform(data)
+    trainData["data"] = scale(trainData["data"])
+    dataSig["data"] = scale(dataSig["data"])
+    dataBg["data"] = scale(dataBg["data"])
+    return trainData, dataSig, dataBg    
 
 def freeze_session(session, keep_var_names=None, output_names=None, clear_devices=True):
     from tensorflow.python.framework.graph_util import convert_variables_to_constants
@@ -118,17 +134,47 @@ if __name__ == '__main__':
     bgTrainSet = glob("EventShapeTrainingData_V2/trainingTuple_*_division_0_TT_training_0.h5")
     sgTestSet = glob("EventShapeTrainingData_V2/trainingTuple_*_division_2_rpv_stop_*_test_0.h5")
     bgTestSet = glob("EventShapeTrainingData_V2/trainingTuple_*_division_2_TT_test_0.h5")
-    trainData = get_data(allVars, sgTrainSet, bgTrainSet)
-    testData = get_data(allVars, sgTestSet, bgTestSet)
+
+    trainData, trainSg, trainBg = get_data(allVars, sgTrainSet, bgTrainSet)
+    testData, testSg, testBg = get_data(allVars, sgTestSet, bgTestSet)
 
     # Make and train model
-    model = create_main_model(n_var=trainData["data"].shape[1], n_first_layer=60, n_hidden_layers=[60,60,60], n_last_layer=1, drop_out=0.4)
-    adversay = create_adversary_model(mainModel=model, main_var=trainData["data"].shape[1], n_hidden_layers=[60,60,60], n_last_layer=1, drop_out=0.4)
+    model = create_main_model(n_var=trainData["data"].shape[1], n_first_layer=60, n_hidden_layers=[60], n_last_layer=1, drop_out=0.4)
     adagrad = tf.keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
-    model.compile(loss='binary_crossentropy', optimizer=adagrad)
+    model.compile(loss=make_loss_model(c=1.0), optimizer=adagrad)
     os.makedirs("TEST")
     log_model = tf.keras.callbacks.ModelCheckpoint('TEST/BestNN.hdf5', monitor='val_loss', verbose=1, save_best_only=True)
-    result_log = model.fit(trainData["data"], trainData["labels"][:,0], batch_size=2048, epochs=50, validation_data=(testData["data"], testData["labels"][:,0]), callbacks=[log_model])
+    
+    #########################################################################################################################################################
+    #lam = 1    
+    #adversary = create_adversary_model(mainModel=model, main_var=trainData["data"].shape[1], n_hidden_layers=[60,60,60], n_last_layer=1, drop_out=0.4)
+    #
+    #opt_DRf = tf.keras.optimizers.SGD(momentum=0)
+    #inputs = tf.keras.layers.Input(shape=(trainData["data"].shape[1],))
+    #DRf = tf.keras.models.Model(inputs=inputs, outputs=[model(inputs), adversary(inputs)])
+    #DRf.compile(loss=[make_loss_model(c=1.0), make_loss_model(c=-lam)], optimizer=adagrad)
+    #
+    #opt_DfR = tf.keras.optimizers.SGD(momentum=0)
+    #DfR = tf.keras.models.Model(inputs=inputs, outputs=adversary(inputs))
+    #DfR.compile(loss=[make_loss_model(c=1.0)], optimizer=adagrad)
+    #
+    ## Pretraining of model
+    #result_log = model.fit(trainData["data"], trainData["labels"][:,0], batch_size=2048, epochs=5, validation_data=(testData["data"], testData["labels"][:,0]), callbacks=[log_model])
+    ##model.fit(trainData["data"], trainData["labels"][:,0], epochs=5)
+    #
+    ## Pretraining of adversary
+    #DfR.fit(trainData["data"], trainData["domain"][:,0], epochs=5)
+    #
+    ## Adversarial training
+    #batch_size = 2048
+    #for i in range(11):
+    #    print(i)
+    #    indices = np.random.permutation(len(trainData["data"]))[:batch_size]
+    #    DRf.train_on_batch(trainData["data"][indices], [trainData["labels"][:,0][indices], trainData["domain"][:,0][indices]])
+    #    DfR.fit(trainData["data"], trainData["domain"], batch_size=batch_size, epochs=1, verbose=0)
+    #########################################################################################################################################################
+        
+    result_log = model.fit(trainData["data"], trainData["labels"][:,0], batch_size=2048, epochs=100, validation_data=(testData["data"], testData["labels"][:,0]), callbacks=[log_model])
     
     # Save trainig model as a protocol buffers file
     frozen_graph = freeze_session(tf.keras.backend.get_session(), output_names=[out.op.name for out in model.outputs])
@@ -139,6 +185,15 @@ if __name__ == '__main__':
     # Plot results
     import matplotlib.pyplot as plt
     from sklearn.metrics import roc_curve
+    sgValSet = glob("EventShapeTrainingData_V2/trainingTuple_*_division_1_rpv_stop_*_validation_0.h5")
+    bgValSet = glob("EventShapeTrainingData_V2/trainingTuple_*_division_1_TT_validation_0.h5")
+    valData, valSg, valBg = get_data(allVars, sgValSet, bgValSet)
+    y_Val = model.predict(valData["data"]).ravel()
+    y_Val_Sg = model.predict(valSg["data"]).ravel()
+    y_Val_Bg = model.predict(valBg["data"]).ravel()    
+    y_Train = model.predict(trainData["data"]).ravel()
+    y_Train_Sg = model.predict(trainSg["data"]).ravel()
+    y_Train_Bg = model.predict(trainBg["data"]).ravel()
     
     # Plot loss of training vs test
     #print(result_log.history.keys())
@@ -150,19 +205,30 @@ if __name__ == '__main__':
     plt.legend(['train', 'test'], loc='upper left')
     plt.show()
     
-    # Plot validation roc curve
-    sgValSet = glob("EventShapeTrainingData_V2/trainingTuple_*_division_1_rpv_stop_*_validation_0.h5")
-    bgValSet = glob("EventShapeTrainingData_V2/trainingTuple_*_division_1_TT_validation_0.h5")
-    valData = get_data(allVars, sgValSet, bgValSet)
-    y_pred_keras = model.predict(valData["data"]).ravel()
-    fpr_keras, tpr_keras, thresholds_keras = roc_curve(valData["labels"][:,0], y_pred_keras)
+    # Plot discriminator distribution
+    bins = np.linspace(0, 1, 30)
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.set_title('')
+    ax.set_ylabel('Events')
+    ax.set_xlabel('Discriminator')
+    plt.hist(y_Train_Sg, bins, color='xkcd:red', alpha=0.9, histtype='step', lw=2, label='Sg Train', normed=1)
+    plt.hist(y_Train_Bg, bins, color='xkcd:blue', alpha=0.9, histtype='step', lw=2, label='Bg Train', normed=1)
+    plt.hist(y_Val_Sg, bins, color='xkcd:green', alpha=0.9, histtype='step', lw=2, label='Sg Val', normed=1)
+    plt.hist(y_Val_Bg, bins, color='xkcd:magenta', alpha=0.9, histtype='step', lw=2, label='Bg Val', normed=1)
+    ax.legend(loc='right', frameon=False)
+    plt.show()
     
+    # Plot validation roc curve
+    fpr_Val, tpr_Val, thresholds_Val = roc_curve(valData["labels"][:,0], y_Val)
+    fpr_Train, tpr_Train, thresholds_Train = roc_curve(trainData["labels"][:,0], y_Train)
     from sklearn.metrics import auc
-    auc_keras = auc(fpr_keras, tpr_keras)
+    auc_Val = auc(fpr_Val, tpr_Val)
+    auc_Train = auc(fpr_Train, tpr_Train)
     
     plt.figure(1)
     plt.plot([0, 1], [0, 1], 'k--')
-    plt.plot(fpr_keras, tpr_keras, label='Keras (area = {:.3f})'.format(auc_keras))
+    plt.plot(fpr_Val, tpr_Val, color='xkcd:black', label='Val (area = {:.3f})'.format(auc_Val))
+    plt.plot(fpr_Train, tpr_Train, color='xkcd:red', label='Train (area = {:.3f})'.format(auc_Train))
     plt.xlabel('False positive rate')
     plt.ylabel('True positive rate')
     plt.title('ROC curve')
