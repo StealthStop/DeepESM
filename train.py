@@ -130,51 +130,53 @@ if __name__ == '__main__':
                "Jet_m_1", "Jet_m_2", "Jet_m_3", "Jet_m_4", "Jet_m_5", "Jet_m_6"]
 
     # Import data
-    sgTrainSet = glob("EventShapeTrainingData_V2/trainingTuple_*_division_0_rpv_stop_*_training_0.h5")
+    #sgTrainSet = glob("EventShapeTrainingData_V2/trainingTuple_*_division_0_rpv_stop_*_training_0.h5")
+    sgTrainSet = glob("EventShapeTrainingData_V2/trainingTuple_*_division_0_rpv_stop_850_training_0.h5")
     bgTrainSet = glob("EventShapeTrainingData_V2/trainingTuple_*_division_0_TT_training_0.h5")
-    sgTestSet = glob("EventShapeTrainingData_V2/trainingTuple_*_division_2_rpv_stop_*_test_0.h5")
+
+    #sgTestSet = glob("EventShapeTrainingData_V2/trainingTuple_*_division_2_rpv_stop_*_test_0.h5")
+    sgTestSet = glob("EventShapeTrainingData_V2/trainingTuple_*_division_2_rpv_stop_850_test_0.h5")
     bgTestSet = glob("EventShapeTrainingData_V2/trainingTuple_*_division_2_TT_test_0.h5")
 
     trainData, trainSg, trainBg = get_data(allVars, sgTrainSet, bgTrainSet)
     testData, testSg, testBg = get_data(allVars, sgTestSet, bgTestSet)
 
     # Make and train model
-    model = create_main_model(n_var=trainData["data"].shape[1], n_first_layer=60, n_hidden_layers=[60], n_last_layer=1, drop_out=0.4)
+    model = create_main_model(n_var=trainData["data"].shape[1], n_first_layer=60, n_hidden_layers=[60], n_last_layer=1, drop_out=0.5)
     adagrad = tf.keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
     model.compile(loss=make_loss_model(c=1.0), optimizer=adagrad)
     os.makedirs("TEST")
     log_model = tf.keras.callbacks.ModelCheckpoint('TEST/BestNN.hdf5', monitor='val_loss', verbose=1, save_best_only=True)
+    result_log = model.fit(trainData["data"], trainData["labels"][:,0], batch_size=2048, epochs=350, validation_data=(testData["data"], testData["labels"][:,0]), callbacks=[log_model])
     
-    #########################################################################################################################################################
-    #lam = 1    
-    #adversary = create_adversary_model(mainModel=model, main_var=trainData["data"].shape[1], n_hidden_layers=[60,60,60], n_last_layer=1, drop_out=0.4)
-    #
-    #opt_DRf = tf.keras.optimizers.SGD(momentum=0)
-    #inputs = tf.keras.layers.Input(shape=(trainData["data"].shape[1],))
-    #DRf = tf.keras.models.Model(inputs=inputs, outputs=[model(inputs), adversary(inputs)])
-    #DRf.compile(loss=[make_loss_model(c=1.0), make_loss_model(c=-lam)], optimizer=adagrad)
-    #
-    #opt_DfR = tf.keras.optimizers.SGD(momentum=0)
-    #DfR = tf.keras.models.Model(inputs=inputs, outputs=adversary(inputs))
-    #DfR.compile(loss=[make_loss_model(c=1.0)], optimizer=adagrad)
-    #
-    ## Pretraining of model
-    #result_log = model.fit(trainData["data"], trainData["labels"][:,0], batch_size=2048, epochs=5, validation_data=(testData["data"], testData["labels"][:,0]), callbacks=[log_model])
-    ##model.fit(trainData["data"], trainData["labels"][:,0], epochs=5)
-    #
-    ## Pretraining of adversary
-    #DfR.fit(trainData["data"], trainData["domain"][:,0], epochs=5)
-    #
-    ## Adversarial training
-    #batch_size = 2048
-    #for i in range(11):
-    #    print(i)
-    #    indices = np.random.permutation(len(trainData["data"]))[:batch_size]
-    #    DRf.train_on_batch(trainData["data"][indices], [trainData["labels"][:,0][indices], trainData["domain"][:,0][indices]])
-    #    DfR.fit(trainData["data"], trainData["domain"], batch_size=batch_size, epochs=1, verbose=0)
-    #########################################################################################################################################################
-        
-    result_log = model.fit(trainData["data"], trainData["labels"][:,0], batch_size=2048, epochs=100, validation_data=(testData["data"], testData["labels"][:,0]), callbacks=[log_model])
+    ##########################################################################################################################################################
+    ##lam = 1    
+    ##adversary = create_adversary_model(mainModel=model, main_var=trainData["data"].shape[1], n_hidden_layers=[60,60,60], n_last_layer=1, drop_out=0.4)
+    ##
+    ##opt_DRf = tf.keras.optimizers.SGD(momentum=0)
+    ##inputs = tf.keras.layers.Input(shape=(trainData["data"].shape[1],))
+    ##DRf = tf.keras.models.Model(inputs=inputs, outputs=[model(inputs), adversary(inputs)])
+    ##DRf.compile(loss=[make_loss_model(c=1.0), make_loss_model(c=-lam)], optimizer=adagrad)
+    ##
+    ##opt_DfR = tf.keras.optimizers.SGD(momentum=0)
+    ##DfR = tf.keras.models.Model(inputs=inputs, outputs=adversary(inputs))
+    ##DfR.compile(loss=[make_loss_model(c=1.0)], optimizer=adagrad)
+    ##
+    ### Pretraining of model
+    ##result_log = model.fit(trainData["data"], trainData["labels"][:,0], batch_size=2048, epochs=5, validation_data=(testData["data"], testData["labels"][:,0]), callbacks=[log_model])
+    ###model.fit(trainData["data"], trainData["labels"][:,0], epochs=5)
+    ##
+    ### Pretraining of adversary
+    ##DfR.fit(trainData["data"], trainData["domain"][:,0], epochs=5)
+    ##
+    ### Adversarial training
+    ##batch_size = 2048
+    ##for i in range(11):
+    ##    print(i)
+    ##    indices = np.random.permutation(len(trainData["data"]))[:batch_size]
+    ##    DRf.train_on_batch(trainData["data"][indices], [trainData["labels"][:,0][indices], trainData["domain"][:,0][indices]])
+    ##    DfR.fit(trainData["data"], trainData["domain"], batch_size=batch_size, epochs=1, verbose=0)
+    ##########################################################################################################################################################
     
     # Save trainig model as a protocol buffers file
     frozen_graph = freeze_session(tf.keras.backend.get_session(), output_names=[out.op.name for out in model.outputs])
@@ -185,7 +187,8 @@ if __name__ == '__main__':
     # Plot results
     import matplotlib.pyplot as plt
     from sklearn.metrics import roc_curve
-    sgValSet = glob("EventShapeTrainingData_V2/trainingTuple_*_division_1_rpv_stop_*_validation_0.h5")
+    #sgValSet = glob("EventShapeTrainingData_V2/trainingTuple_*_division_1_rpv_stop_*_validation_0.h5")
+    sgValSet = glob("EventShapeTrainingData_V2/trainingTuple_*_division_1_rpv_stop_850_validation_0.h5")
     bgValSet = glob("EventShapeTrainingData_V2/trainingTuple_*_division_1_TT_validation_0.h5")
     valData, valSg, valBg = get_data(allVars, sgValSet, bgValSet)
     y_Val = model.predict(valData["data"]).ravel()
@@ -233,4 +236,26 @@ if __name__ == '__main__':
     plt.ylabel('True positive rate')
     plt.title('ROC curve')
     plt.legend(loc='best')
-    plt.show()    
+    plt.show()
+
+    # Plot NJet dependance
+    x = trainBg["nJet"][:,0]
+    y = y_Train_Bg
+    df = pd.DataFrame({'x': x, 'y': y})
+    binxl = 5
+    binxh = 15
+    numbin = binxh - binxl
+    bins = np.linspace(binxl, binxh, numbin)
+    df['bin'] = np.digitize(x, bins=bins)
+    bin_centers = 0.5 * (bins[:-1] + bins[1:])
+    bin_width = bins[1] - bins[0]
+    binned = df.groupby('bin')
+    result = binned['y'].agg(['mean', 'sem'])
+    result['x'] = bin_centers
+    result['xerr'] = bin_width / 2
+
+    from matplotlib.colors import LogNorm
+    plt.hist2d(trainBg["nJet"][:,0], y_Train_Bg, bins=[numbin, 30], range=[[binxl, binxh], [0, 1]], norm=LogNorm())
+    plt.colorbar()
+    result.plot(x='x', y='mean', xerr='xerr', yerr='sem', linestyle='none', capsize=0, color='black')
+    plt.show()

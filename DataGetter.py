@@ -69,22 +69,33 @@ class DataGetter:
         
             #setup and get domains
             domainColumnNames = ["NGoodJets_double"]
+            maxNJetBin = 14
             domainColumns = np.array([np.flatnonzero(columnHeaders == v)[0] for v in domainColumnNames])
             inputDomains = x[:,domainColumns]
-            maxNJetBin = 14
             tempInputDomains = inputDomains.astype(int)
             tempInputDomains = da.reshape(tempInputDomains, [-1])
             tempInputDomains[tempInputDomains > maxNJetBin] = maxNJetBin 
-            numDomains = maxNJetBin + 1 - tempInputDomains.min().compute()
+            minNJetBin = tempInputDomains.min().compute()
+            numDomains = maxNJetBin + 1 - minNJetBin
             tempInputDomains = tempInputDomains - tempInputDomains.min()
             d =  np.zeros((npyInputData.shape[0], numDomains))
-            #d =  np.zeros((npyInputData.shape[0], tempInputDomains.max().compute() + 1))
             d[np.arange(d.shape[0]), tempInputDomains] = 1
-
+            
             #setup and get weights
             wgtColumnNames = ["sampleWgt"]
             wgtColumns = np.array([np.flatnonzero(columnHeaders == v)[0] for v in wgtColumnNames])
             npyInputSampleWgts = x[:,wgtColumns].compute()
             npyInputWgts = npyInputSampleWgts
 
-            return {"data":npyInputData, "labels":npyInputAnswers, "domain":d, "weights":npyInputWgts, "":npyInputSampleWgts}
+            #NJet
+            npyNJet = np.zeros((npyInputData.shape[0], 1))
+            for i in range(0, len(d)):
+                nJet = minNJetBin
+                for j in range(len(d[i])):
+                    if d[i][j] == 1:
+                        break
+                    else:
+                        nJet +=1
+                npyNJet[i][0] = int(nJet)
+            
+            return {"data":npyInputData, "labels":npyInputAnswers, "domain":d, "weights":npyInputWgts, "w":npyInputSampleWgts, "nJet":npyNJet}
