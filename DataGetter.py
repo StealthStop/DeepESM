@@ -69,7 +69,7 @@ class DataGetter:
         
             #setup and get domains
             domainColumnNames = ["NGoodJets_double"]
-            maxNJetBin = 14
+            maxNJetBin = 10
             domainColumns = np.array([np.flatnonzero(columnHeaders == v)[0] for v in domainColumnNames])
             inputDomains = x[:,domainColumns]
             tempInputDomains = inputDomains.astype(int)
