@@ -19,15 +19,14 @@ def create_main_model(n_var, n_first_layer, n_hidden_layers, n_last_layer, drop_
 # Define loss functions
 def make_loss_model(c):
     def loss_model(y_true, y_pred):
-        #return c * tf.keras.backend.binary_crossentropy(y_pred, y_true)
         return c * tf.keras.backend.binary_crossentropy(y_true, y_pred)
     return loss_model
 
 def make_loss_adversary(c):
-    def loss_R(z_true, z_pred):
-        #return c * tf.keras.backend.categorical_crossentropy(z_pred, z_true)
-        return c * tf.keras.backend.categorical_crossentropy(z_true, z_pred)
-    return loss_R
+    def loss_adversary(y_true, y_pred):
+        #return c * tf.keras.backend.categorical_crossentropy(y_true, y_pred)
+        return c * tf.keras.backend.binary_crossentropy(y_true, y_pred)
+    return loss_adversary
     
 # Takes training vars, signal and background files and returns training data
 def get_data(allVars, signalDataSet, backgroundDataSet):
@@ -53,7 +52,7 @@ def get_data(allVars, signalDataSet, backgroundDataSet):
     for key in trainData:
         trainData[key] = trainData[key][perms]
 
-    # Rescale inputs to have unit variance centered at 0
+    # Rescale inputs to have unit variance centered at 0 between -1 and 1
     from sklearn.preprocessing import StandardScaler
     def scale(data):
         scaler = StandardScaler()
@@ -111,37 +110,48 @@ def freeze_session(session, keep_var_names=None, output_names=None, clear_device
 #    print("Frozen model (model and weights) saved in file: %s" % output_graph_path)
 
 if __name__ == '__main__':
-
+    
     # Define vars
     allVars = ["Jet_pt_1", "Jet_pt_2", "Jet_pt_3", "Jet_pt_4", "Jet_pt_5", "Jet_pt_6", "Jet_pt_7",
                "Jet_eta_1","Jet_eta_2","Jet_eta_3","Jet_eta_4","Jet_eta_5","Jet_eta_6", "Jet_eta_7",
                "Jet_phi_1","Jet_phi_2","Jet_phi_3","Jet_phi_4","Jet_phi_5","Jet_phi_6", "Jet_phi_7",
                "Jet_m_1", "Jet_m_2", "Jet_m_3", "Jet_m_4", "Jet_m_5", "Jet_m_6", "Jet_m_7"]
+    #allVars = ["Jet_pt_1", "Jet_pt_2", "Jet_pt_3", "Jet_pt_4", "Jet_pt_5", "Jet_pt_6",
+    #           "Jet_eta_1","Jet_eta_2","Jet_eta_3","Jet_eta_4","Jet_eta_5","Jet_eta_6",
+    #           "Jet_phi_1","Jet_phi_2","Jet_phi_3","Jet_phi_4","Jet_phi_5","Jet_phi_6",
+    #           "Jet_m_1", "Jet_m_2", "Jet_m_3", "Jet_m_4", "Jet_m_5", "Jet_m_6"]
     
     # Import data
-    sgTrainSet = glob("EventShapeTrainingData_V3/trainingTuple_*_division_0_rpv_stop_*_training_0.h5")
-    #sgTrainSet = glob("EventShapeTrainingData_V3/trainingTuple_*_division_0_rpv_stop_850_training_0.h5")
-    bgTrainSet = glob("EventShapeTrainingData_V3/trainingTuple_*_division_0_TT_training_0.h5")
+    print("----------------Preparing data------------------")
+    dataSet = "EventShapeTrainingData_V3/"
+    massModel = "*"
+    print "Using "+dataSet+" data set"
+    print "Training variables:"
+    print allVars
+    print "Training on mass model: ", massModel
+    
+    sgTrainSet = glob(dataSet+"trainingTuple_*_division_0_rpv_stop_"+massModel+"_training_0.h5")
+    bgTrainSet = glob(dataSet+"trainingTuple_*_division_0_TT_training_0.h5")
 
-    sgTestSet = glob("EventShapeTrainingData_V3/trainingTuple_*_division_2_rpv_stop_*_test_0.h5")
-    #sgTestSet = glob("EventShapeTrainingData_V3/trainingTuple_*_division_2_rpv_stop_850_test_0.h5")
-    bgTestSet = glob("EventShapeTrainingData_V3/trainingTuple_*_division_2_TT_test_0.h5")
+    sgTestSet = glob(dataSet+"trainingTuple_*_division_2_rpv_stop_"+massModel+"_test_0.h5")
+    bgTestSet = glob(dataSet+"trainingTuple_*_division_2_TT_test_0.h5")
 
     trainData, trainSg, trainBg = get_data(allVars, sgTrainSet, bgTrainSet)
     testData, testSg, testBg = get_data(allVars, sgTestSet, bgTestSet)
 
-    ## Make and train model
-    #model = create_main_model(n_var=trainData["data"].shape[1], n_first_layer=70, n_hidden_layers=[70], n_last_layer=1, drop_out=0.5)
+    # Make and train model
+    #model = create_main_model(n_var=trainData["data"].shape[1], n_first_layer=70, n_hidden_layers=[70, 70, 70], n_last_layer=1, drop_out=0.5)
     #adagrad = tf.keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
     #model.compile(loss=make_loss_model(c=1.0), optimizer=adagrad, metrics=['accuracy'])
     #os.makedirs("TEST")
     #log_model = tf.keras.callbacks.ModelCheckpoint('TEST/BestNN.hdf5', monitor='val_loss', verbose=1, save_best_only=True)
-    #result_log = model.fit(trainData["data"], trainData["labels"][:,0], batch_size=2048, epochs=100, validation_data=(testData["data"], testData["labels"][:,0]), callbacks=[log_model])
+    #result_log = model.fit(trainData["data"], trainData["labels"][:,0], batch_size=2048, epochs=200, validation_data=(testData["data"], testData["labels"][:,0]), callbacks=[log_model])
     
     #-------------------------------------------------------------------------------------------------------------------------------------------------------
-    lam = 0
+    print("----------------Preparing training model------------------")
+    lam = 400
     nNodes = 70
-    n_hidden_layers = list(nNodes for x in range(1))
+    n_hidden_layers = list(nNodes for x in range(3))
     drop_out = 0.5
     
     main_input = tf.keras.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
@@ -159,12 +169,15 @@ if __name__ == '__main__':
     
     model = tf.keras.models.Model(inputs=main_input, outputs=[first_output, second_output])
     adagrad = tf.keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
-    model.compile(loss={'first_output' : make_loss_model(c=1.0) , 'second_output' : make_loss_model(c=-lam)}, optimizer=adagrad, metrics=['accuracy'])
+    model.compile(loss={'first_output' : make_loss_model(c=1.0) , 'second_output' : make_loss_adversary(c=-lam)}, optimizer=adagrad, metrics=['accuracy'])
     os.makedirs("TEST")
     log_model = tf.keras.callbacks.ModelCheckpoint('TEST/BestNN.hdf5', monitor='val_loss', verbose=1, save_best_only=True)
     result_log = model.fit({'main_input' : trainData["data"]}, {'first_output' : trainData["labels"][:,0], 'second_output' : trainData["domain"][:,0]}, batch_size=2048, epochs=100,
                            validation_data=({'main_input' : testData["data"]}, {'first_output' : testData["labels"][:,0], 'second_output' : testData["domain"][:,0]}), callbacks=[log_model])
     #-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    # Model Visualization
+    tf.keras.utils.plot_model(model, to_file='TEST/model.png', show_shapes=True)
     
     # Save trainig model as a protocol buffers file
     frozen_graph = freeze_session(tf.keras.backend.get_session(), output_names=[out.op.name for out in model.outputs])
@@ -173,11 +186,11 @@ if __name__ == '__main__':
     #saveModel(sess, "TEST/")
     
     # Plot results
+    print("----------------Validation of training------------------")
     import matplotlib.pyplot as plt
     from sklearn.metrics import roc_curve
-    #sgValSet = glob("EventShapeTrainingData_V3/trainingTuple_*_division_1_rpv_stop_*_validation_0.h5")
-    sgValSet = glob("EventShapeTrainingData_V3/trainingTuple_*_division_1_rpv_stop_850_validation_0.h5")
-    bgValSet = glob("EventShapeTrainingData_V3/trainingTuple_*_division_1_TT_validation_0.h5")
+    sgValSet = glob(dataSet+"trainingTuple_*_division_1_rpv_stop_"+massModel+"_validation_0.h5")
+    bgValSet = glob(dataSet+"trainingTuple_*_division_1_TT_validation_0.h5")
     valData, valSg, valBg = get_data(allVars, sgValSet, bgValSet)
     #y_Val = model.predict(valData["data"]).ravel()
     #y_Val_Sg = model.predict(valSg["data"]).ravel()
@@ -206,16 +219,16 @@ if __name__ == '__main__':
     plt.show()
     
     # Plot discriminator distribution
-    bins = np.linspace(0, 1, 30)
+    bins = np.linspace(0, 1, 50)
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.set_title('')
     ax.set_ylabel('Events')
     ax.set_xlabel('Discriminator')
-    plt.hist(y_Train_Sg, bins, color='xkcd:red', alpha=0.9, histtype='step', lw=2, label='Sg Train', normed=1)
-    plt.hist(y_Val_Sg, bins, color='xkcd:green', alpha=0.9, histtype='step', lw=2, label='Sg Val', normed=1)
-    plt.hist(y_Train_Bg, bins, color='xkcd:blue', alpha=0.9, histtype='step', lw=2, label='Bg Train', normed=1)
-    plt.hist(y_Val_Bg, bins, color='xkcd:magenta', alpha=0.9, histtype='step', lw=2, label='Bg Val', normed=1)
-    ax.legend(loc='upper right', frameon=False)
+    plt.hist(y_Train_Sg, bins, color='xkcd:red', alpha=0.9, histtype='step', lw=2, label='Sg Train', density=True)
+    plt.hist(y_Val_Sg, bins, color='xkcd:green', alpha=0.9, histtype='step', lw=2, label='Sg Val', density=True)
+    plt.hist(y_Train_Bg, bins, color='xkcd:blue', alpha=0.9, histtype='step', lw=2, label='Bg Train', density=True)
+    plt.hist(y_Val_Bg, bins, color='xkcd:magenta', alpha=0.9, histtype='step', lw=2, label='Bg Val', density=True)
+    ax.legend(loc='best', frameon=False)
     plt.show()
     
     # Plot validation roc curve
@@ -225,7 +238,6 @@ if __name__ == '__main__':
     auc_Val = auc(fpr_Val, tpr_Val)
     auc_Train = auc(fpr_Train, tpr_Train)
     
-    plt.figure(1)
     plt.plot([0, 1], [0, 1], 'k--')
     plt.plot(fpr_Val, tpr_Val, color='xkcd:black', label='Val (area = {:.3f})'.format(auc_Val))
     plt.plot(fpr_Train, tpr_Train, color='xkcd:red', label='Train (area = {:.3f})'.format(auc_Train))
@@ -236,25 +248,41 @@ if __name__ == '__main__':
     plt.show()
     
     # Plot NJet dependance
-    x = trainBg["nJet"][:,0]
-    y = y_Train_Bg
-    df = pd.DataFrame({'x': x, 'y': y})
-    binxl = 7
-    binxh = 11
+    binxl = 0
+    binxh = 15
     numbin = binxh - binxl
     
     from matplotlib.colors import LogNorm
-    plt.hist2d(trainBg["nJet"][:,0], y_Train_Bg, bins=[numbin, 30], range=[[binxl, binxh], [0, 1]], norm=LogNorm())
+    h, xedges, yedges, image = plt.hist2d(trainBg["nJet"][:,0], y_Train_Bg, bins=[numbin, 50], range=[[binxl, binxh], [0, 10]], norm=LogNorm())
     plt.colorbar()
+
+    bin_centersx = 0.5 * (xedges[:-1] + xedges[1:])
+    bin_centersy = 0.5 * (yedges[:-1] + yedges[1:])
+    y = []
+    ye = []
+    for i in range(h.shape[0]):
+        ynum = 0
+        ynum2 = 0
+        ydom = 0
+        for j in range(len(h[i])):
+            ynum += h[i][j] * bin_centersy[j]
+            ynum2 += h[i][j] * (bin_centersy[j]**2)
+            ydom += h[i][j]        
+        yavg = ynum / ydom if ydom != 0 else -1
+        yavg2 = ynum2 / ydom if ydom != 0 else -1
+        sigma = np.sqrt(yavg2 - (yavg**2)) if ydom != 0 else 0
+        y.append(yavg)
+        ye.append(sigma)
+
+    xerr = 0.5*(xedges[1]-xedges[0])
+    plt.errorbar(bin_centersx, y, xerr=xerr, yerr=ye, fmt='o', color='xkcd:red')
     plt.show()
 
-    bins = np.linspace(binxl, binxh, numbin)
-    df['bin'] = np.digitize(x, bins=bins)
-    bin_centers = 0.5 * (bins[:-1] + bins[1:])
-    bin_width = bins[1] - bins[0]
-    binned = df.groupby('bin')
-    result = binned['y'].agg(['mean', 'sem'])
-    result['x'] = bin_centers
-    result['xerr'] = bin_width / 2
-    result.plot(x='x', y='mean', xerr='xerr', yerr='sem', linestyle='none', capsize=0, color='black', ylim=(0,1))
-    plt.show()
+    # Make njet distribution for 4 different bins
+    inds = y_Train_Bg.argsort()
+    sortednJet = trainBg["nJet"][:,0][inds[::-1]]
+    sorted_y = y_Train_Bg[inds[::-1]]
+    nJetDeepESMBins = np.array_split(sortednJet, 4)
+    for a in nJetDeepESMBins:
+        plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=True)
+    plt.show()            
