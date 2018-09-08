@@ -77,37 +77,37 @@ def freeze_session(session, keep_var_names=None, output_names=None, clear_device
         frozen_graph = convert_variables_to_constants(session, input_graph_def, output_names, freeze_var_names)
         return frozen_graph
 
-#def saveModel(sess, outputDirectory = ""):
-#    from tensorflow.python.framework import graph_io
-#    from tensorflow.python.tools import freeze_graph
-#
-#    #Save training checkpoint (contains a copy of the model and the weights)
-#    os.makedirs(outputDirectory + "models")
-#    saver = tf.train.Saver()
-#    checkpoint_path = outputDirectory + "models/model.ckpt"
-#    save_path = saver.save(sess, checkpoint_path)
-#    
-#    print("Model checkpoint saved in file: %s" % save_path)
-#    
-#    input_graph_path = outputDirectory + "tfModel.pb"
-#    graph_io.write_graph(sess.graph, "./", input_graph_path)
-#    
-#    #create frozen version of graph for distribution
-#    input_saver_def_path = ""
-#    input_binary = False
-#    checkpoint_path = outputDirectory + "models/model.ckpt"
-#    output_node_names = "y_ph"
-#    restore_op_name = "save/restore_all"
-#    filename_tensor_name = "save/Const:0"
-#    output_graph_path = outputDirectory + "tfModel_frozen.pb"
-#    clear_devices = False
-#    
-#    freeze_graph.freeze_graph(input_graph_path, input_saver_def_path,
-#                              input_binary, checkpoint_path, output_node_names,
-#                              restore_op_name, filename_tensor_name,
-#                              output_graph_path, clear_devices, "")
-#    
-#    print("Frozen model (model and weights) saved in file: %s" % output_graph_path)
+def saveModel(sess, outputDirectory = ""):
+    from tensorflow.python.framework import graph_io
+    from tensorflow.python.tools import freeze_graph
+
+    #Save training checkpoint (contains a copy of the model and the weights)
+    os.makedirs(outputDirectory + "models")
+    saver = tf.train.Saver()
+    checkpoint_path = outputDirectory + "models/model.ckpt"
+    save_path = saver.save(sess, checkpoint_path)
+    
+    print("Model checkpoint saved in file: %s" % save_path)
+    
+    input_graph_path = outputDirectory + "tfModel.pb"
+    graph_io.write_graph(sess.graph, "./", input_graph_path)
+    
+    #create frozen version of graph for distribution
+    input_saver_def_path = ""
+    input_binary = False
+    checkpoint_path = outputDirectory + "models/model.ckpt"
+    output_node_names = "y_ph"
+    restore_op_name = "save/restore_all"
+    filename_tensor_name = "save/Const:0"
+    output_graph_path = outputDirectory + "tfModel_frozen.pb"
+    clear_devices = False
+    
+    freeze_graph.freeze_graph(input_graph_path, input_saver_def_path,
+                              input_binary, checkpoint_path, output_node_names,
+                              restore_op_name, filename_tensor_name,
+                              output_graph_path, clear_devices, "")
+    
+    print("Frozen model (model and weights) saved in file: %s" % output_graph_path)
 
 if __name__ == '__main__':
     
@@ -201,10 +201,11 @@ if __name__ == '__main__':
     adagrad = tf.keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
     model.trainable = True
     mega_model.compile(loss=[make_loss_model(c=1.0) , make_loss_adversary(c=-lam)], optimizer=adagrad, metrics=['accuracy'], loss_weights=[0.5, 1.0])
-    os.makedirs("TEST")
+    os.makedirs("TEST/log_graph")
+    tbCallBack = tf.keras.callbacks.TensorBoard(log_dir='./TEST/log_graph', histogram_freq=0, write_graph=True, write_images=True)
     log_model = tf.keras.callbacks.ModelCheckpoint('TEST/BestNN.hdf5', monitor='val_loss', verbose=1, save_best_only=True)
-    result_log = mega_model.fit(trainData["data"], [trainData["labels"][:,0], trainData["domain"][:,0]], batch_size=2048, epochs=100,
-                                validation_data=(testData["data"], [testData["labels"][:,0], testData["domain"][:,0]]), callbacks=[log_model])
+    result_log = mega_model.fit(trainData["data"], [trainData["labels"][:,0], trainData["domain"][:,0]], batch_size=2048, epochs=10,
+                                validation_data=(testData["data"], [testData["labels"][:,0], testData["domain"][:,0]]), callbacks=[log_model, tbCallBack])
     tf.keras.utils.plot_model(mega_model, to_file='TEST/mega_model.png', show_shapes=True)
     #-------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -212,11 +213,24 @@ if __name__ == '__main__':
     tf.keras.utils.plot_model(model, to_file='TEST/model.png', show_shapes=True)
     
     # Save trainig model as a protocol buffers file
-    frozen_graph = freeze_session(tf.keras.backend.get_session(), output_names=[out.op.name for out in model.outputs])
-    tf.train.write_graph(frozen_graph, "TEST/", "tfModel_frozen.pb", as_text=False)
+    #frozen_graph = freeze_session(tf.keras.backend.get_session(), output_names=[out.op.name for out in model.outputs])
+    #tf.train.write_graph(frozen_graph, "TEST/", "tfModel_frozen.pb", as_text=False)
     #sess = tf.keras.backend.get_session()
     #saveModel(sess, "TEST/")
-    
+    #convert(model, "TEST/")
+    print "Input name:", model.input.op.name.split(':')[0]
+    print "Output name:", model.output.op.name.split(':')[0]
+    saver = tf.train.Saver()
+    saver.save(tf.keras.backend.get_session(), 'TEST/keras_model.ckpt')
+    export_path="./TEST/"
+    freeze_graph_binary = "python ~/Desktop/Research/SUSY/trainingTopTagger/ENV/lib/python2.7/site-packages/tensorflow/python/tools/freeze_graph.py"
+    graph_file=export_path+"keras_model.ckpt.meta"
+    ckpt_file=export_path+"keras_model.ckpt"
+    output_file=export_path+"keras_frozen.pb"
+    output_name=model.output.name.split(':')[0]
+    command = freeze_graph_binary+" --input_meta_graph="+graph_file+" --input_checkpoint="+ckpt_file+" --output_graph="+output_file+" --output_node_names="+output_name+" --input_binary=true"
+    os.system(command)
+
     # Plot results
     print("----------------Validation of training------------------")
     import matplotlib.pyplot as plt
@@ -316,10 +330,10 @@ if __name__ == '__main__':
     sortednJet = trainBg["nJet"][:,0][inds[::-1]]
     sorted_y = y_Train_Bg[inds[::-1]]
     nJetDeepESMBins = np.array_split(sortednJet, 4)
+    sorted_y_split = np.array_split(sorted_y, 4)
     index=0
     for a in nJetDeepESMBins:
-        print len(a)
-        print a
+        print len(a), a, sorted_y_split[index]
         plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=True, label='Bin {}'.format(len(nJetDeepESMBins) - index))
         index += 1
     plt.legend(loc='upper right')
