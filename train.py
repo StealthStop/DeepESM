@@ -53,62 +53,15 @@ def get_data(allVars, signalDataSet, backgroundDataSet):
     for key in trainData:
         trainData[key] = trainData[key][perms]
 
-    # Rescale inputs to have unit variance centered at 0 between -1 and 1
-    from sklearn.preprocessing import StandardScaler
+    # Get the rescale inputs to have unit variance centered at 0 between -1 and 1
     def scale(data):
-        scaler = StandardScaler()
-        scaler.fit(data)
-        return scaler.transform(data)
-    trainData["data"] = scale(trainData["data"])
-    dataSig["data"] = scale(dataSig["data"])
-    dataBg["data"] = scale(dataBg["data"])
+        data["mean"] = np.mean(data["data"], 0)
+        data["std"] = np.std(data["data"], 0)
+        data["scale"] = 1.0 / np.std(data["data"], 0)
+    scale(trainData)
+    scale(dataSig)
+    scale(dataBg)
     return trainData, dataSig, dataBg    
-
-def freeze_session(session, keep_var_names=None, output_names=None, clear_devices=True):
-    from tensorflow.python.framework.graph_util import convert_variables_to_constants
-    graph = session.graph
-    with graph.as_default():
-        freeze_var_names = list(set(v.op.name for v in tf.global_variables()).difference(keep_var_names or []))
-        output_names = output_names or []
-        output_names += [v.op.name for v in tf.global_variables()]
-        input_graph_def = graph.as_graph_def()
-        if clear_devices:
-            for node in input_graph_def.node:
-                node.device = ""
-        frozen_graph = convert_variables_to_constants(session, input_graph_def, output_names, freeze_var_names)
-        return frozen_graph
-
-def saveModel(sess, outputDirectory = ""):
-    from tensorflow.python.framework import graph_io
-    from tensorflow.python.tools import freeze_graph
-
-    #Save training checkpoint (contains a copy of the model and the weights)
-    os.makedirs(outputDirectory + "models")
-    saver = tf.train.Saver()
-    checkpoint_path = outputDirectory + "models/model.ckpt"
-    save_path = saver.save(sess, checkpoint_path)
-    
-    print("Model checkpoint saved in file: %s" % save_path)
-    
-    input_graph_path = outputDirectory + "tfModel.pb"
-    graph_io.write_graph(sess.graph, "./", input_graph_path)
-    
-    #create frozen version of graph for distribution
-    input_saver_def_path = ""
-    input_binary = False
-    checkpoint_path = outputDirectory + "models/model.ckpt"
-    output_node_names = "y_ph"
-    restore_op_name = "save/restore_all"
-    filename_tensor_name = "save/Const:0"
-    output_graph_path = outputDirectory + "tfModel_frozen.pb"
-    clear_devices = False
-    
-    freeze_graph.freeze_graph(input_graph_path, input_saver_def_path,
-                              input_binary, checkpoint_path, output_node_names,
-                              restore_op_name, filename_tensor_name,
-                              output_graph_path, clear_devices, "")
-    
-    print("Frozen model (model and weights) saved in file: %s" % output_graph_path)
 
 if __name__ == '__main__':
     
@@ -148,53 +101,49 @@ if __name__ == '__main__':
     #log_model = tf.keras.callbacks.ModelCheckpoint('TEST/BestNN.hdf5', monitor='val_loss', verbose=1, save_best_only=True)
     #result_log = model.fit(trainData["data"], trainData["labels"][:,0], batch_size=2048, epochs=200, validation_data=(testData["data"], testData["labels"][:,0]), callbacks=[log_model])
     
-    #-------------------------------------------------------------------------------------------------------------------------------------------------------
     print("----------------Preparing training model------------------")
-    lam = gr_lambda = 1
+    lam = gr_lambda = 0.0
     nNodes = 70
     n_hidden_layers = list(nNodes for x in range(3))
     drop_out = 0.5
     adagrad = tf.keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
+    epochs=100
     
     main_input = tf.keras.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
-    layer = tf.keras.layers.Dense(nNodes, activation='relu')(main_input)
+    mean = tf.keras.backend.constant(value=trainData["mean"], dtype=np.float32)
+    scale = tf.keras.backend.constant(value=trainData["scale"], dtype=np.float32)
+    # Get the rescale inputs to have unit variance centered at 0 between -1 and 1
+    layer = tf.keras.layers.Lambda(lambda x: (x - mean) * scale, name='normalizeData')(main_input)
+    #layer = tf.keras.layers.BatchNormalization()(layer)
+    layer = tf.keras.layers.Dense(nNodes, activation='relu')(layer)
     for n in n_hidden_layers:
         layer = tf.keras.layers.Dense(n, activation='relu')(layer)
     layer = tf.keras.layers.Dropout(drop_out)(layer)
     first_output = tf.keras.layers.Dense(1, activation='relu', name='first_output')(layer)
-    model = tf.keras.models.Model(inputs=main_input, outputs=first_output, name='discriminator')
     
+    #layer = tf.keras.layers.BatchNormalization()(first_output) #Might not need this
     #Flip = GradientReversal(gr_lambda)
-    #layer = Flip(model(main_input))
-    layer = tf.keras.layers.Dense(nNodes, activation='relu')(model(main_input))
     #layer = Flip(layer)
+    layer = tf.keras.layers.Dense(nNodes, activation='relu')(first_output)
     for n in n_hidden_layers:
         layer = tf.keras.layers.Dense(n, activation='relu')(layer)
     layer = tf.keras.layers.Dropout(drop_out)(layer)
     second_output = tf.keras.layers.Dense(1, activation='relu', name='second_output')(layer)
     
-    mega_model = tf.keras.models.Model(inputs=main_input, outputs=[model.output, second_output], name='mega_model')
-    model.trainable = True
-    mega_model.compile(loss=[make_loss_model(c=1.0) , make_loss_adversary(c=-lam)], optimizer=adagrad, metrics=['accuracy'], loss_weights=[1.0, 1.0])
+    model = tf.keras.models.Model(inputs=main_input, outputs=[first_output, second_output], name='model')
+    model.compile(loss=[make_loss_model(c=1.0) , make_loss_adversary(c=-lam)], optimizer=adagrad, metrics=['accuracy'], loss_weights=[1.0, 1.0])
     os.makedirs("TEST/log_graph")
     tbCallBack = tf.keras.callbacks.TensorBoard(log_dir='./TEST/log_graph', histogram_freq=0, write_graph=True, write_images=True)
     log_model = tf.keras.callbacks.ModelCheckpoint('TEST/BestNN.hdf5', monitor='val_loss', verbose=1, save_best_only=True)
-    result_log = mega_model.fit(trainData["data"], [trainData["labels"][:,0], trainData["domain"][:,0]], batch_size=2048, epochs=100,
-                                validation_data=(testData["data"], [testData["labels"][:,0], testData["domain"][:,0]]), callbacks=[log_model, tbCallBack])
-    tf.keras.utils.plot_model(mega_model, to_file='TEST/mega_model.png', show_shapes=True)
-    #-------------------------------------------------------------------------------------------------------------------------------------------------------
+    result_log = model.fit(trainData["data"], [trainData["labels"][:,0], trainData["domain"][:,0]], batch_size=2048, epochs=epochs,
+                           validation_data=(testData["data"], [testData["labels"][:,0], testData["domain"][:,0]]), callbacks=[log_model, tbCallBack])
 
     # Model Visualization
     tf.keras.utils.plot_model(model, to_file='TEST/model.png', show_shapes=True)
     
     # Save trainig model as a protocol buffers file
-    #frozen_graph = freeze_session(tf.keras.backend.get_session(), output_names=[out.op.name for out in model.outputs])
-    #tf.train.write_graph(frozen_graph, "TEST/", "tfModel_frozen.pb", as_text=False)
-    #sess = tf.keras.backend.get_session()
-    #saveModel(sess, "TEST/")
-    #convert(model, "TEST/")
     print "Input name:", model.input.op.name.split(':')[0]
-    print "Output name:", model.output.op.name.split(':')[0]
+    print "Output name:", model.output[0].op.name.split(':')[0]
     saver = tf.train.Saver()
     saver.save(tf.keras.backend.get_session(), 'TEST/keras_model.ckpt')
     export_path="./TEST/"
@@ -202,7 +151,7 @@ if __name__ == '__main__':
     graph_file=export_path+"keras_model.ckpt.meta"
     ckpt_file=export_path+"keras_model.ckpt"
     output_file=export_path+"keras_frozen.pb"
-    output_name=model.output.name.split(':')[0]
+    output_name=model.output[0].name.split(':')[0]
     command = freeze_graph_binary+" --input_meta_graph="+graph_file+" --input_checkpoint="+ckpt_file+" --output_graph="+output_file+" --output_node_names="+output_name+" --input_binary=true"
     os.system(command)
 
@@ -213,13 +162,13 @@ if __name__ == '__main__':
     sgValSet = glob(dataSet+"trainingTuple_*_division_1_rpv_stop_"+massModel+"_validation_0.h5")
     bgValSet = glob(dataSet+"trainingTuple_*_division_1_TT_validation_0.h5")
     valData, valSg, valBg = get_data(allVars, sgValSet, bgValSet)
-    y_Val = model.predict(valData["data"]).ravel()
-    y_Val_Sg = model.predict(valSg["data"]).ravel()
-    y_Val_Bg = model.predict(valBg["data"]).ravel()    
-    y_Train = model.predict(trainData["data"]).ravel()
-    y_Train_Sg = model.predict(trainSg["data"]).ravel()
-    y_Train_Bg = model.predict(trainBg["data"]).ravel()
-
+    y_Val = model.predict(valData["data"])[0].ravel()
+    y_Val_Sg = model.predict(valSg["data"])[0].ravel()
+    y_Val_Bg = model.predict(valBg["data"])[0].ravel()
+    y_Train = model.predict(trainData["data"])[0].ravel()
+    y_Train_Sg = model.predict(trainSg["data"])[0].ravel()
+    y_Train_Bg = model.predict(trainBg["data"])[0].ravel()
+    
     # Plot loss of training vs test
     #print(result_log.history.keys())
     fig = plt.figure()
@@ -252,7 +201,7 @@ if __name__ == '__main__':
     from sklearn.metrics import auc
     auc_Val = auc(fpr_Val, tpr_Val)
     auc_Train = auc(fpr_Train, tpr_Train)
-
+    
     fig = plt.figure()
     plt.plot([0, 1], [0, 1], 'k--')
     plt.plot(fpr_Val, tpr_Val, color='xkcd:black', label='Val (area = {:.3f})'.format(auc_Val))
@@ -274,7 +223,7 @@ if __name__ == '__main__':
     #h, xedges, yedges, image = plt.hist2d(trainBg["nJet"][:,0], y_Train_Bg, bins=[numbin, 50], range=[[binxl, binxh], [0, 1]], norm=LogNorm())
     h, xedges, yedges, image = plt.hist2d(trainBg["nJet"][:,0], y_Train_Bg, bins=[numbin, 50], range=[[binxl, binxh], [0, 1]], cmap=plt.cm.binary)
     plt.colorbar()
-
+    
     bin_centersx = 0.5 * (xedges[:-1] + xedges[1:])
     bin_centersy = 0.5 * (yedges[:-1] + yedges[1:])
     y = []
@@ -292,7 +241,7 @@ if __name__ == '__main__':
         sigma = np.sqrt(yavg2 - (yavg**2)) if ydom != 0 else 0
         y.append(yavg)
         ye.append(sigma)
-
+    
     xerr = 0.5*(xedges[1]-xedges[0])
     plt.errorbar(bin_centersx, y, xerr=xerr, yerr=ye, fmt='o', color='xkcd:red')
     plt.show()
@@ -305,17 +254,11 @@ if __name__ == '__main__':
     nJetDeepESMBins = np.array_split(sortednJet, 4)
     sorted_y_split = np.array_split(sorted_y, 4)
     index=0
-    for n in sorted_y_split:
-        print "DeepESM bin ", len(nJetDeepESMBins) - index, " ", n[0], " ", n[-1]
-        index+=1
-    index=0
     fig = plt.figure()
     for a in nJetDeepESMBins:
-        print len(a), a, sorted_y_split[index]
+        print "DeepESM bin ", len(nJetDeepESMBins) - index, ": ", " NEvents: ", len(a)," bin cuts: ", sorted_y_split[index][0], " ", sorted_y_split[index][-1]
         plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=True, label='Bin {}'.format(len(nJetDeepESMBins) - index))
         index += 1
     plt.legend(loc='upper right')
     plt.show()
     fig.savefig('TEST/nJet.png', dpi=fig.dpi)
-    print sorted_y
-    print sortednJet
