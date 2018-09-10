@@ -3,6 +3,7 @@ import tensorflow as tf
 import numpy as np
 import pandas as pd
 from DataGetter import DataGetter as dg
+from flipGradientTF import GradientReversal
 from glob import glob
 
 # Makes a fully connected DNN 
@@ -147,41 +148,13 @@ if __name__ == '__main__':
     #log_model = tf.keras.callbacks.ModelCheckpoint('TEST/BestNN.hdf5', monitor='val_loss', verbose=1, save_best_only=True)
     #result_log = model.fit(trainData["data"], trainData["labels"][:,0], batch_size=2048, epochs=200, validation_data=(testData["data"], testData["labels"][:,0]), callbacks=[log_model])
     
-    ##-------------------------------------------------------------------------------------------------------------------------------------------------------
-    #print("----------------Preparing training model------------------")
-    #lam = 1000000
-    #nNodes = 70
-    #n_hidden_layers = list(nNodes for x in range(3))
-    #drop_out = 0.5
-    #
-    #main_input = tf.keras.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
-    #layer = tf.keras.layers.Dense(nNodes, activation='relu')(main_input)
-    #for n in n_hidden_layers:
-    #    layer = tf.keras.layers.Dense(n, activation='relu')(layer)
-    #layer = tf.keras.layers.Dropout(drop_out)(layer)
-    #first_output = tf.keras.layers.Dense(1, activation='relu', name='first_output')(layer)
-    #
-    #layer = tf.keras.layers.Dense(nNodes, activation='relu')(first_output)
-    #for n in n_hidden_layers:
-    #    layer = tf.keras.layers.Dense(n, activation='relu')(layer)
-    #layer = tf.keras.layers.Dropout(drop_out)(layer)
-    #second_output = tf.keras.layers.Dense(1, activation='relu', name='second_output')(layer)
-    #
-    #model = tf.keras.models.Model(inputs=main_input, outputs=[first_output, second_output])
-    #adagrad = tf.keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
-    #model.compile(loss={'first_output' : make_loss_model(c=1.0) , 'second_output' : make_loss_adversary(c=-lam)}, optimizer=adagrad, metrics=['accuracy'])
-    #os.makedirs("TEST")
-    #log_model = tf.keras.callbacks.ModelCheckpoint('TEST/BestNN.hdf5', monitor='val_loss', verbose=1, save_best_only=True)
-    #result_log = model.fit({'main_input' : trainData["data"]}, {'first_output' : trainData["labels"][:,0], 'second_output' : trainData["domain"][:,0]}, batch_size=2048, epochs=100,
-    #                       validation_data=({'main_input' : testData["data"]}, {'first_output' : testData["labels"][:,0], 'second_output' : testData["domain"][:,0]}), callbacks=[log_model])
-    ##-------------------------------------------------------------------------------------------------------------------------------------------------------
-
     #-------------------------------------------------------------------------------------------------------------------------------------------------------
     print("----------------Preparing training model------------------")
-    lam = 900000
+    lam = gr_lambda = 1
     nNodes = 70
     n_hidden_layers = list(nNodes for x in range(3))
     drop_out = 0.5
+    adagrad = tf.keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
     
     main_input = tf.keras.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
     layer = tf.keras.layers.Dense(nNodes, activation='relu')(main_input)
@@ -191,20 +164,22 @@ if __name__ == '__main__':
     first_output = tf.keras.layers.Dense(1, activation='relu', name='first_output')(layer)
     model = tf.keras.models.Model(inputs=main_input, outputs=first_output, name='discriminator')
     
+    #Flip = GradientReversal(gr_lambda)
+    #layer = Flip(model(main_input))
     layer = tf.keras.layers.Dense(nNodes, activation='relu')(model(main_input))
+    #layer = Flip(layer)
     for n in n_hidden_layers:
         layer = tf.keras.layers.Dense(n, activation='relu')(layer)
     layer = tf.keras.layers.Dropout(drop_out)(layer)
     second_output = tf.keras.layers.Dense(1, activation='relu', name='second_output')(layer)
     
     mega_model = tf.keras.models.Model(inputs=main_input, outputs=[model.output, second_output], name='mega_model')
-    adagrad = tf.keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
     model.trainable = True
-    mega_model.compile(loss=[make_loss_model(c=1.0) , make_loss_adversary(c=-lam)], optimizer=adagrad, metrics=['accuracy'], loss_weights=[0.5, 1.0])
+    mega_model.compile(loss=[make_loss_model(c=1.0) , make_loss_adversary(c=-lam)], optimizer=adagrad, metrics=['accuracy'], loss_weights=[1.0, 1.0])
     os.makedirs("TEST/log_graph")
     tbCallBack = tf.keras.callbacks.TensorBoard(log_dir='./TEST/log_graph', histogram_freq=0, write_graph=True, write_images=True)
     log_model = tf.keras.callbacks.ModelCheckpoint('TEST/BestNN.hdf5', monitor='val_loss', verbose=1, save_best_only=True)
-    result_log = mega_model.fit(trainData["data"], [trainData["labels"][:,0], trainData["domain"][:,0]], batch_size=2048, epochs=10,
+    result_log = mega_model.fit(trainData["data"], [trainData["labels"][:,0], trainData["domain"][:,0]], batch_size=2048, epochs=100,
                                 validation_data=(testData["data"], [testData["labels"][:,0], testData["domain"][:,0]]), callbacks=[log_model, tbCallBack])
     tf.keras.utils.plot_model(mega_model, to_file='TEST/mega_model.png', show_shapes=True)
     #-------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -245,17 +220,9 @@ if __name__ == '__main__':
     y_Train_Sg = model.predict(trainSg["data"]).ravel()
     y_Train_Bg = model.predict(trainBg["data"]).ravel()
 
-    ##-------------------------------------------------------------------------------------------------------------------------------------------------------
-    #y_Val = model.predict(valData["data"])[0].ravel()
-    #y_Val_Sg = model.predict(valSg["data"])[0].ravel()
-    #y_Val_Bg = model.predict(valBg["data"])[0].ravel()    
-    #y_Train = model.predict(trainData["data"])[0].ravel()
-    #y_Train_Sg = model.predict(trainSg["data"])[0].ravel()
-    #y_Train_Bg = model.predict(trainBg["data"])[0].ravel()
-    ##-------------------------------------------------------------------------------------------------------------------------------------------------------
-    
     # Plot loss of training vs test
     #print(result_log.history.keys())
+    fig = plt.figure()
     plt.plot(result_log.history['loss'])
     plt.plot(result_log.history['val_loss'])
     plt.title('model loss')
@@ -263,6 +230,7 @@ if __name__ == '__main__':
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
     plt.show()
+    fig.savefig('TEST/loss_train_val.png', dpi=fig.dpi)
     
     # Plot discriminator distribution
     bins = np.linspace(0, 1, 50)
@@ -276,6 +244,7 @@ if __name__ == '__main__':
     plt.hist(y_Val_Bg, bins, color='xkcd:magenta', alpha=0.9, histtype='step', lw=2, label='Bg Val', density=True)
     ax.legend(loc='best', frameon=False)
     plt.show()
+    fig.savefig('TEST/discriminator.png', dpi=fig.dpi)
     
     # Plot validation roc curve
     fpr_Val, tpr_Val, thresholds_Val = roc_curve(valData["labels"][:,0], y_Val)
@@ -283,7 +252,8 @@ if __name__ == '__main__':
     from sklearn.metrics import auc
     auc_Val = auc(fpr_Val, tpr_Val)
     auc_Train = auc(fpr_Train, tpr_Train)
-    
+
+    fig = plt.figure()
     plt.plot([0, 1], [0, 1], 'k--')
     plt.plot(fpr_Val, tpr_Val, color='xkcd:black', label='Val (area = {:.3f})'.format(auc_Val))
     plt.plot(fpr_Train, tpr_Train, color='xkcd:red', label='Train (area = {:.3f})'.format(auc_Train))
@@ -292,6 +262,7 @@ if __name__ == '__main__':
     plt.title('ROC curve')
     plt.legend(loc='best')
     plt.show()
+    fig.savefig('TEST/roc_plot.png', dpi=fig.dpi)
     
     # Plot NJet dependance
     binxl = 7
@@ -299,6 +270,7 @@ if __name__ == '__main__':
     numbin = binxh - binxl
     
     from matplotlib.colors import LogNorm
+    fig = plt.figure()
     #h, xedges, yedges, image = plt.hist2d(trainBg["nJet"][:,0], y_Train_Bg, bins=[numbin, 50], range=[[binxl, binxh], [0, 1]], norm=LogNorm())
     h, xedges, yedges, image = plt.hist2d(trainBg["nJet"][:,0], y_Train_Bg, bins=[numbin, 50], range=[[binxl, binxh], [0, 1]], cmap=plt.cm.binary)
     plt.colorbar()
@@ -324,7 +296,8 @@ if __name__ == '__main__':
     xerr = 0.5*(xedges[1]-xedges[0])
     plt.errorbar(bin_centersx, y, xerr=xerr, yerr=ye, fmt='o', color='xkcd:red')
     plt.show()
-
+    fig.savefig('TEST/nJet_discriminator.png', dpi=fig.dpi)
+    
     # Make njet distribution for 4 different bins
     inds = y_Train_Bg.argsort()
     sortednJet = trainBg["nJet"][:,0][inds[::-1]]
@@ -332,11 +305,17 @@ if __name__ == '__main__':
     nJetDeepESMBins = np.array_split(sortednJet, 4)
     sorted_y_split = np.array_split(sorted_y, 4)
     index=0
+    for n in sorted_y_split:
+        print "DeepESM bin ", len(nJetDeepESMBins) - index, " ", n[0], " ", n[-1]
+        index+=1
+    index=0
+    fig = plt.figure()
     for a in nJetDeepESMBins:
         print len(a), a, sorted_y_split[index]
         plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=True, label='Bin {}'.format(len(nJetDeepESMBins) - index))
         index += 1
     plt.legend(loc='upper right')
     plt.show()
+    fig.savefig('TEST/nJet.png', dpi=fig.dpi)
     print sorted_y
     print sortednJet
