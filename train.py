@@ -26,8 +26,8 @@ def make_loss_model(c):
 
 def make_loss_adversary(c):
     def loss_adversary(y_true, y_pred):
-        #return c * keras.backend.categorical_crossentropy(y_true, y_pred)
-        return c * keras.backend.binary_crossentropy(y_true, y_pred)
+        return c * keras.backend.categorical_crossentropy(y_true, y_pred)
+        #return c * keras.backend.binary_crossentropy(y_true, y_pred)
     return loss_adversary
     
 # Takes training vars, signal and background files and returns training data
@@ -112,9 +112,10 @@ if __name__ == '__main__':
     n_hidden_layers = list(nNodes for x in range(3))
     n_hidden_layers_D = list(nNodesD for x in range(5))
     drop_out = 0.8
-    adagrad = keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
-    epochs=200    
-    
+    #optimizer = keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
+    optimizer = keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
+    epochs=100    
+
     main_input = keras.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
     mean = keras.backend.constant(value=trainData["mean"], dtype=np.float32)
     scale = keras.backend.constant(value=trainData["scale"], dtype=np.float32)
@@ -125,25 +126,24 @@ if __name__ == '__main__':
     for n in n_hidden_layers:
         layer = keras.layers.Dense(n, activation='relu')(layer)
     layer = keras.layers.Dropout(drop_out)(layer)
-    first_output = keras.layers.Dense(1, activation='sigmoid', name='first_output')(layer)
+    first_output = keras.layers.Dense(trainData["labels"].shape[1], activation='softmax', name='first_output')(layer)
     
-    #layer = keras.layers.BatchNormalization()(first_output) #Might not need this
     Flip = GradientReversal(gr_lambda)
     layer = Flip(first_output)
     layer = keras.layers.Dense(nNodesD, activation='relu')(layer)
     for n in n_hidden_layers_D:
         layer = keras.layers.Dense(n, activation='relu')(layer)
     layer = keras.layers.Dropout(drop_out)(layer)
-    second_output = keras.layers.Dense(1, activation='relu', name='second_output')(layer)
+    second_output = keras.layers.Dense(trainData["domain"].shape[1], activation='softmax', name='second_output')(layer)
     
     model = keras.models.Model(inputs=main_input, outputs=[first_output, second_output], name='model')
-    model.compile(loss=[make_loss_model(c=1.0) , make_loss_adversary(c=lam)], optimizer=adagrad, metrics=['accuracy'], loss_weights=[1.0, 1.0])
+    model.compile(loss=[make_loss_model(c=1.0) , make_loss_adversary(c=lam)], optimizer=optimizer, metrics=['accuracy'], loss_weights=[1.0, 1.0])
     os.makedirs("TEST/log_graph")
     tbCallBack = keras.callbacks.TensorBoard(log_dir='./TEST/log_graph', histogram_freq=0, write_graph=True, write_images=True)
     log_model = keras.callbacks.ModelCheckpoint('TEST/BestNN.hdf5', monitor='val_loss', verbose=1, save_best_only=True)
-    result_log = model.fit(trainData["data"], [trainData["labels"][:,0], trainData["domain"][:,0]], batch_size=2048, epochs=epochs, 
-                           validation_data=(testData["data"], [testData["labels"][:,0], testData["domain"][:,0]]), callbacks=[log_model, tbCallBack])
-
+    result_log = model.fit(trainData["data"], [trainData["labels"], trainData["domain"]], batch_size=2048, epochs=epochs, 
+                           validation_data=(testData["data"], [testData["labels"], testData["domain"]]), callbacks=[log_model, tbCallBack])    
+    
     # Model Visualization
     keras.utils.plot_model(model, to_file='TEST/model.png', show_shapes=True)
     
@@ -168,13 +168,15 @@ if __name__ == '__main__':
     sgValSet = glob(dataSet+"trainingTuple_*_division_1_rpv_stop_"+massModel+"_validation_0.h5")
     bgValSet = glob(dataSet+"trainingTuple_*_division_1_TT_validation_0.h5")
     valData, valSg, valBg = get_data(allVars, sgValSet, bgValSet)
-    y_Val = model.predict(valData["data"])[0].ravel()
-    y_Val_Sg = model.predict(valSg["data"])[0].ravel()
-    y_Val_Bg = model.predict(valBg["data"])[0].ravel()
-    y_Train = model.predict(trainData["data"])[0].ravel()
-    y_Train_Sg = model.predict(trainSg["data"])[0].ravel()
-    y_Train_Bg = model.predict(trainBg["data"])[0].ravel()
-    
+    testing = model.predict(valData["data"])
+    print testing
+    y_Val = model.predict(valData["data"])[0][:,0].ravel()
+    y_Val_Sg = model.predict(valSg["data"])[0][:,0].ravel()
+    y_Val_Bg = model.predict(valBg["data"])[0][:,0].ravel()
+    y_Train = model.predict(trainData["data"])[0][:,0].ravel()
+    y_Train_Sg = model.predict(trainSg["data"])[0][:,0].ravel()
+    y_Train_Bg = model.predict(trainBg["data"])[0][:,0].ravel()
+
     # Plot loss of training vs test
     #print(result_log.history.keys())
     fig = plt.figure()
@@ -191,7 +193,7 @@ if __name__ == '__main__':
     bins = np.linspace(0, 1, 50)
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.set_title('')
-    ax.set_ylabel('Events')
+    ax.set_ylabel('Norm Events')
     ax.set_xlabel('Discriminator')
     plt.hist(y_Train_Sg, bins, color='xkcd:red', alpha=0.9, histtype='step', lw=2, label='Sg Train', density=True)
     plt.hist(y_Val_Sg, bins, color='xkcd:green', alpha=0.9, histtype='step', lw=2, label='Sg Val', density=True)
