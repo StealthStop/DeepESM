@@ -1,6 +1,30 @@
 # DeepESM
 Produces the DeepESM training model
 
+##Python packages needed (As far as I can tell)
+```
+dask                          0.19.0   
+h5py                          2.8.0    
+Keras                         2.2.2    
+matplotlib                    2.2.3    
+numpy                         1.14.5   
+pandas                        0.23.4   
+pip                           18.0     
+protobuf                      3.6.1    
+scikit-learn                  0.19.2   
+tensorboard                   1.10.0   
+tensorflow                    1.10.1   
+Theano                        1.0.2    
+```
+Install using pip
+```
+pip install <Package Name>
+```
+or
+```
+sudo pip install <Package Name>
+```
+
 ## Training files stored on eos
 
 Location of training files (Less than 1G total)
@@ -72,5 +96,5 @@ Get the code make sure you have the training file and run
 ```
 git clone git@github.com:StealthStop/DeepESM.git
 cd DeepESM
-python train.py
+rm -rf TEST && python train.py
 ```
