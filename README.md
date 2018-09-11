@@ -104,5 +104,6 @@ Get the code, make sure you have the training file and run
 ```
 git clone git@github.com:StealthStop/DeepESM.git
 cd DeepESM
+# add the training files here currently using: EventShapeTrainingData_V3
 rm -rf TEST && python train.py
 ```
