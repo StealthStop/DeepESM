@@ -6,6 +6,7 @@ import pandas as pd
 from DataGetter import DataGetter as dg
 from flipGradientTF import GradientReversal
 from glob import glob
+import json
 
 # Makes a fully connected DNN 
 def create_main_model(n_var, n_first_layer, n_hidden_layers, n_last_layer, drop_out):
@@ -114,7 +115,7 @@ if __name__ == '__main__':
     drop_out = 0.8
     #optimizer = keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
     optimizer = keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
-    epochs=100    
+    epochs=40
 
     main_input = keras.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
     mean = keras.backend.constant(value=trainData["mean"], dtype=np.float32)
@@ -137,19 +138,21 @@ if __name__ == '__main__':
     second_output = keras.layers.Dense(trainData["domain"].shape[1], activation='softmax', name='second_output')(layer)
     
     model = keras.models.Model(inputs=main_input, outputs=[first_output, second_output], name='model')
-    model.compile(loss=[make_loss_model(c=1.0) , make_loss_adversary(c=lam)], optimizer=optimizer, metrics=['accuracy'], loss_weights=[1.0, 1.0])
+    model.compile(loss=[make_loss_model(c=1.0) , make_loss_adversary(c=lam)], optimizer=optimizer, metrics=['accuracy'])
     os.makedirs("TEST/log_graph")
     tbCallBack = keras.callbacks.TensorBoard(log_dir='./TEST/log_graph', histogram_freq=0, write_graph=True, write_images=True)
     log_model = keras.callbacks.ModelCheckpoint('TEST/BestNN.hdf5', monitor='val_loss', verbose=1, save_best_only=True)
-    result_log = model.fit(trainData["data"], [trainData["labels"], trainData["domain"]], batch_size=2048, epochs=epochs, 
+    result_log = model.fit(trainData["data"], [trainData["labels"], trainData["domain"]], batch_size=1024, epochs=epochs, 
                            validation_data=(testData["data"], [testData["labels"], testData["domain"]]), callbacks=[log_model, tbCallBack])    
     
     # Model Visualization
     keras.utils.plot_model(model, to_file='TEST/model.png', show_shapes=True)
     
     # Save trainig model as a protocol buffers file
-    print "Input name:", model.input.op.name.split(':')[0]
-    print "Output name:", model.output[0].op.name.split(':')[0]
+    inputName = model.input.op.name.split(':')[0]
+    outputName = model.output[0].op.name.split(':')[0]
+    print "Input name:", inputName
+    print "Output name:", outputName
     saver = tf.train.Saver()
     saver.save(keras.backend.get_session(), 'TEST/keras_model.ckpt')
     export_path="./TEST/"
@@ -157,10 +160,9 @@ if __name__ == '__main__':
     graph_file=export_path+"keras_model.ckpt.meta"
     ckpt_file=export_path+"keras_model.ckpt"
     output_file=export_path+"keras_frozen.pb"
-    output_name=model.output[0].name.split(':')[0]
-    command = freeze_graph_binary+" --input_meta_graph="+graph_file+" --input_checkpoint="+ckpt_file+" --output_graph="+output_file+" --output_node_names="+output_name+" --input_binary=true"
-    os.system(command)
-
+    command = freeze_graph_binary+" --input_meta_graph="+graph_file+" --input_checkpoint="+ckpt_file+" --output_graph="+output_file+" --output_node_names="+outputName+" --input_binary=true"
+    os.system(command)    
+    
     # Plot results
     print("----------------Validation of training------------------")
     import matplotlib.pyplot as plt
@@ -168,8 +170,6 @@ if __name__ == '__main__':
     sgValSet = glob(dataSet+"trainingTuple_*_division_1_rpv_stop_"+massModel+"_validation_0.h5")
     bgValSet = glob(dataSet+"trainingTuple_*_division_1_TT_validation_0.h5")
     valData, valSg, valBg = get_data(allVars, sgValSet, bgValSet)
-    testing = model.predict(valData["data"])
-    print testing
     y_Val = model.predict(valData["data"])[0][:,0].ravel()
     y_Val_Sg = model.predict(valSg["data"])[0][:,0].ravel()
     y_Val_Bg = model.predict(valBg["data"])[0][:,0].ravel()
@@ -228,7 +228,6 @@ if __name__ == '__main__':
     
     from matplotlib.colors import LogNorm
     fig = plt.figure()
-    #h, xedges, yedges, image = plt.hist2d(trainBg["nJet"][:,0], y_Train_Bg, bins=[numbin, 50], range=[[binxl, binxh], [0, 1]], norm=LogNorm())
     h, xedges, yedges, image = plt.hist2d(trainBg["nJet"][:,0], y_Train_Bg, bins=[numbin, 50], range=[[binxl, binxh], [0, 1]], cmap=plt.cm.binary)
     plt.colorbar()
     
@@ -263,9 +262,11 @@ if __name__ == '__main__':
     sorted_y_split = np.array_split(sorted_y, 4)
     index=0
     fig = plt.figure()
+    bins = []
     for a in nJetDeepESMBins:
         print "DeepESM bin ", len(nJetDeepESMBins) - index, ": ", " NEvents: ", len(a)," bin cuts: ", sorted_y_split[index][0], " ", sorted_y_split[index][-1]
         plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=True, label='Bin {}'.format(len(nJetDeepESMBins) - index))
+        bins.append([str(sorted_y_split[index][0]), str(sorted_y_split[index][-1])])
         index += 1
     plt.legend(loc='upper right')
     plt.show()
@@ -279,3 +280,9 @@ if __name__ == '__main__':
     plt.legend(loc='upper right')
     plt.show()
     fig.savefig('TEST/nJet.png', dpi=fig.dpi)
+
+    # Save useful stuff
+    np.save('TEST/deepESMbin_dis_nJet.npy', {"nJetBins" : nJetDeepESMBins, "y" : sorted_y_split, "nJet" : sortednJet})
+    config = {"bins" : bins, "input_output" : [inputName, outputName], "variables" : allVars}
+    with open("TEST/config.json",'w') as configFile:
+        json.dump(config, configFile, indent=4, sort_keys=True)
