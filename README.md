@@ -2,7 +2,9 @@
 Produces the DeepESM training model
 
 ##Python packages needed (As far as I can tell)
+
 ```
+python                        2.7
 dask                          0.19.0   
 h5py                          2.8.0    
 Keras                         2.2.2    
@@ -24,6 +26,12 @@ or
 ```
 sudo pip install <Package Name>
 ```
+
+This package is not manditory, but is highly recomended to isolate all the packages you will install from your main python installation
+```
+virtualenv
+```
+https://virtualenv.pypa.io/en/stable/
 
 ## Training files stored on eos
 
@@ -91,7 +99,7 @@ Variables in latest training
 
 ## Running the training
 
-Get the code make sure you have the training file and run
+Get the code, make sure you have the training file and run
 
 ```
 git clone git@github.com:StealthStop/DeepESM.git
