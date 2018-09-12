@@ -108,6 +108,7 @@ if __name__ == '__main__':
     print("----------------Preparing training model------------------")
     lam = 1
     gr_lambda = 6
+    Flip = GradientReversal(gr_lambda)
     nNodes = 70
     nNodesD = 10
     n_hidden_layers = list(nNodes for x in range(3))
@@ -115,24 +116,25 @@ if __name__ == '__main__':
     drop_out = 0.8
     #optimizer = keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
     optimizer = keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
-    epochs=40
-
+    epochs=100
+    
     main_input = keras.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
     mean = keras.backend.constant(value=trainData["mean"], dtype=np.float32)
     scale = keras.backend.constant(value=trainData["scale"], dtype=np.float32)
     # Get the rescale inputs to have unit variance centered at 0 between -1 and 1
     layer = keras.layers.Lambda(lambda x: (x - mean) * scale, name='normalizeData')(main_input)
-    #layer = keras.layers.BatchNormalization()(layer)
     layer = keras.layers.Dense(nNodes, activation='relu')(layer)
     for n in n_hidden_layers:
+        layer = keras.layers.BatchNormalization()(layer)
         layer = keras.layers.Dense(n, activation='relu')(layer)
     layer = keras.layers.Dropout(drop_out)(layer)
     first_output = keras.layers.Dense(trainData["labels"].shape[1], activation='softmax', name='first_output')(layer)
-    
-    Flip = GradientReversal(gr_lambda)
+
     layer = Flip(first_output)
+    layer = keras.layers.BatchNormalization()(layer)
     layer = keras.layers.Dense(nNodesD, activation='relu')(layer)
     for n in n_hidden_layers_D:
+        layer = keras.layers.BatchNormalization()(layer)
         layer = keras.layers.Dense(n, activation='relu')(layer)
     layer = keras.layers.Dropout(drop_out)(layer)
     second_output = keras.layers.Dense(trainData["domain"].shape[1], activation='softmax', name='second_output')(layer)
@@ -180,14 +182,23 @@ if __name__ == '__main__':
     # Plot loss of training vs test
     #print(result_log.history.keys())
     fig = plt.figure()
+    for key in result_log.history: print key
     plt.plot(result_log.history['loss'])
     plt.plot(result_log.history['val_loss'])
     plt.title('model loss')
     plt.ylabel('loss')
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
-    plt.show()
     fig.savefig('TEST/loss_train_val.png', dpi=fig.dpi)
+
+    fig = plt.figure()
+    plt.plot(result_log.history['second_output_loss'])
+    plt.plot(result_log.history['val_second_output_loss'])
+    plt.title('second output loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    fig.savefig('TEST/second_output_loss_train_val.png', dpi=fig.dpi)
     
     # Plot discriminator distribution
     bins = np.linspace(0, 1, 50)
@@ -200,7 +211,6 @@ if __name__ == '__main__':
     plt.hist(y_Train_Bg, bins, color='xkcd:blue', alpha=0.9, histtype='step', lw=2, label='Bg Train', density=True)
     plt.hist(y_Val_Bg, bins, color='xkcd:magenta', alpha=0.9, histtype='step', lw=2, label='Bg Val', density=True)
     ax.legend(loc='best', frameon=False)
-    plt.show()
     fig.savefig('TEST/discriminator.png', dpi=fig.dpi)
     
     # Plot validation roc curve
@@ -218,7 +228,6 @@ if __name__ == '__main__':
     plt.ylabel('True positive rate')
     plt.title('ROC curve')
     plt.legend(loc='best')
-    plt.show()
     fig.savefig('TEST/roc_plot.png', dpi=fig.dpi)
     
     # Plot NJet dependance
@@ -251,7 +260,6 @@ if __name__ == '__main__':
     
     xerr = 0.5*(xedges[1]-xedges[0])
     plt.errorbar(bin_centersx, y, xerr=xerr, yerr=ye, fmt='o', color='xkcd:red')
-    plt.show()
     fig.savefig('TEST/nJet_discriminator.png', dpi=fig.dpi)
     
     # Make njet distribution for 4 different bins
@@ -269,7 +277,6 @@ if __name__ == '__main__':
         bins.append([str(sorted_y_split[index][0]), str(sorted_y_split[index][-1])])
         index += 1
     plt.legend(loc='upper right')
-    plt.show()
     fig.savefig('TEST/nJet_log.png', dpi=fig.dpi)
 
     index=0
@@ -278,7 +285,6 @@ if __name__ == '__main__':
         plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=False, label='Bin {}'.format(len(nJetDeepESMBins) - index))
         index += 1
     plt.legend(loc='upper right')
-    plt.show()
     fig.savefig('TEST/nJet.png', dpi=fig.dpi)
 
     # Save useful stuff
