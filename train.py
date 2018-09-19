@@ -72,12 +72,14 @@ if __name__ == '__main__':
                "Jet_eta_1","Jet_eta_2","Jet_eta_3","Jet_eta_4","Jet_eta_5","Jet_eta_6", "Jet_eta_7",
                "Jet_phi_1","Jet_phi_2","Jet_phi_3","Jet_phi_4","Jet_phi_5","Jet_phi_6", "Jet_phi_7",
                "Jet_m_1", "Jet_m_2", "Jet_m_3", "Jet_m_4", "Jet_m_5", "Jet_m_6", "Jet_m_7"]
+    #allVars = ["Jet_pt_1", "Jet_pt_2", "Jet_pt_3", "Jet_pt_4", "Jet_pt_5", "Jet_pt_6", "Jet_pt_7",
+    #           "Jet_eta_1","Jet_eta_2","Jet_eta_3","Jet_eta_4","Jet_eta_5","Jet_eta_6", "Jet_eta_7",
+    #           "Jet_phi_1","Jet_phi_2","Jet_phi_3","Jet_phi_4","Jet_phi_5","Jet_phi_6", "Jet_phi_7"]
     #allVars = ["Jet_pt_1", "Jet_pt_2", "Jet_pt_3", "Jet_pt_4", "Jet_pt_5", "Jet_pt_6",
     #           "Jet_eta_1","Jet_eta_2","Jet_eta_3","Jet_eta_4","Jet_eta_5","Jet_eta_6",
     #           "Jet_phi_1","Jet_phi_2","Jet_phi_3","Jet_phi_4","Jet_phi_5","Jet_phi_6",
     #           "Jet_m_1", "Jet_m_2", "Jet_m_3", "Jet_m_4", "Jet_m_5", "Jet_m_6"]
     #allVars = ["fwm2_top6", "fwm3_top6", "fwm4_top6", "fwm5_top6", "jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
-
     
     # Import data
     print("----------------Preparing data------------------")
@@ -107,7 +109,7 @@ if __name__ == '__main__':
     
     print("----------------Preparing training model------------------")
     lam = 1
-    gr_lambda = 6
+    gr_lambda = 5.5
     Flip = GradientReversal(gr_lambda)
     nNodes = 70
     nNodesD = 10
@@ -116,7 +118,7 @@ if __name__ == '__main__':
     drop_out = 0.8
     #optimizer = keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
     optimizer = keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
-    epochs=100
+    epochs=20
     
     main_input = keras.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
     mean = keras.backend.constant(value=trainData["mean"], dtype=np.float32)
@@ -131,8 +133,8 @@ if __name__ == '__main__':
     first_output = keras.layers.Dense(trainData["labels"].shape[1], activation='softmax', name='first_output')(layer)
 
     layer = Flip(first_output)
-    layer = keras.layers.BatchNormalization()(layer)
-    layer = keras.layers.Dense(nNodesD, activation='relu')(layer)
+    #layer = keras.layers.BatchNormalization()(layer)
+    #layer = keras.layers.Dense(nNodesD, activation='relu')(layer)
     for n in n_hidden_layers_D:
         layer = keras.layers.BatchNormalization()(layer)
         layer = keras.layers.Dense(n, activation='relu')(layer)
@@ -144,7 +146,7 @@ if __name__ == '__main__':
     os.makedirs("TEST/log_graph")
     tbCallBack = keras.callbacks.TensorBoard(log_dir='./TEST/log_graph', histogram_freq=0, write_graph=True, write_images=True)
     log_model = keras.callbacks.ModelCheckpoint('TEST/BestNN.hdf5', monitor='val_loss', verbose=1, save_best_only=True)
-    result_log = model.fit(trainData["data"], [trainData["labels"], trainData["domain"]], batch_size=1024, epochs=epochs, 
+    result_log = model.fit(trainData["data"], [trainData["labels"], trainData["domain"]], batch_size=2048, epochs=epochs, 
                            validation_data=(testData["data"], [testData["labels"], testData["domain"]]), callbacks=[log_model, tbCallBack])    
     
     # Model Visualization
@@ -179,6 +181,32 @@ if __name__ == '__main__':
     y_Train_Sg = model.predict(trainSg["data"])[0][:,0].ravel()
     y_Train_Bg = model.predict(trainBg["data"])[0][:,0].ravel()
 
+    # Make input variable plots
+    #index=0
+    #for var in allVars:
+    #    fig = plt.figure()
+    #    plt.hist(trainBg["data"][:,index], bins=30, histtype='step', density=True, log=False, label=var+" Bg")
+    #    plt.hist(trainSg["data"][:,index], bins=30, histtype='step', density=True, log=False, label=var+" Sg")
+    #    plt.legend(loc='upper right')
+    #    plt.ylabel('norm')
+    #    plt.xlabel(var)
+    #    fig.savefig("TEST/"+var+".png", dpi=fig.dpi)
+    #    index += 1
+    #
+    ## Normalize
+    #index=0
+    #tBg = trainData["scale"]*(trainBg["data"] - trainData["mean"])
+    #tSg = trainData["scale"]*(trainSg["data"] - trainData["mean"])
+    #for var in allVars:
+    #    fig = plt.figure()
+    #    plt.hist(tBg[:,index], bins=30, histtype='step', density=True, log=False, label=var+" Bg")
+    #    plt.hist(tSg[:,index], bins=30, histtype='step', density=True, log=False, label=var+" Sg")
+    #    plt.legend(loc='upper right')
+    #    plt.ylabel('norm')
+    #    plt.xlabel("norm "+var)
+    #    fig.savefig("TEST/norm_"+var+".png", dpi=fig.dpi)
+    #    index += 1
+
     # Plot loss of training vs test
     #print(result_log.history.keys())
     fig = plt.figure()
@@ -190,7 +218,7 @@ if __name__ == '__main__':
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
     fig.savefig('TEST/loss_train_val.png', dpi=fig.dpi)
-
+    
     fig = plt.figure()
     plt.plot(result_log.history['second_output_loss'])
     plt.plot(result_log.history['val_second_output_loss'])
@@ -231,43 +259,46 @@ if __name__ == '__main__':
     fig.savefig('TEST/roc_plot.png', dpi=fig.dpi)
     
     # Plot NJet dependance
+    from matplotlib.colors import LogNorm
+    def plot2DVar(name, binxl, binxh, numbin, xIn, yIn, nbiny):
+        fig = plt.figure()
+        h, xedges, yedges, image = plt.hist2d(xIn, yIn, bins=[numbin, nbiny], range=[[binxl, binxh], [0, 1]], cmap=plt.cm.binary)
+        plt.colorbar()
+    
+        bin_centersx = 0.5 * (xedges[:-1] + xedges[1:])
+        bin_centersy = 0.5 * (yedges[:-1] + yedges[1:])
+        y = []
+        ye = []
+        for i in range(h.shape[0]):
+            ynum = 0
+            ynum2 = 0
+            ydom = 0
+            for j in range(len(h[i])):
+                ynum += h[i][j] * bin_centersy[j]
+                ynum2 += h[i][j] * (bin_centersy[j]**2)
+                ydom += h[i][j]        
+            yavg = ynum / ydom if ydom != 0 else -1
+            yavg2 = ynum2 / ydom if ydom != 0 else -1
+            sigma = np.sqrt(yavg2 - (yavg**2)) if ydom != 0 else 0
+            y.append(yavg)
+            ye.append(sigma)
+            
+        xerr = 0.5*(xedges[1]-xedges[0])
+        plt.errorbar(bin_centersx, y, xerr=xerr, yerr=ye, fmt='o', color='xkcd:red')
+        fig.savefig("TEST/"+name+"_discriminator.png", dpi=fig.dpi)
+
     binxl = 7
     binxh = 12
-    numbin = binxh - binxl
-    
-    from matplotlib.colors import LogNorm
-    fig = plt.figure()
-    h, xedges, yedges, image = plt.hist2d(trainBg["nJet"][:,0], y_Train_Bg, bins=[numbin, 50], range=[[binxl, binxh], [0, 1]], cmap=plt.cm.binary)
-    plt.colorbar()
-    
-    bin_centersx = 0.5 * (xedges[:-1] + xedges[1:])
-    bin_centersy = 0.5 * (yedges[:-1] + yedges[1:])
-    y = []
-    ye = []
-    for i in range(h.shape[0]):
-        ynum = 0
-        ynum2 = 0
-        ydom = 0
-        for j in range(len(h[i])):
-            ynum += h[i][j] * bin_centersy[j]
-            ynum2 += h[i][j] * (bin_centersy[j]**2)
-            ydom += h[i][j]        
-        yavg = ynum / ydom if ydom != 0 else -1
-        yavg2 = ynum2 / ydom if ydom != 0 else -1
-        sigma = np.sqrt(yavg2 - (yavg**2)) if ydom != 0 else 0
-        y.append(yavg)
-        ye.append(sigma)
-    
-    xerr = 0.5*(xedges[1]-xedges[0])
-    plt.errorbar(bin_centersx, y, xerr=xerr, yerr=ye, fmt='o', color='xkcd:red')
-    fig.savefig('TEST/nJet_discriminator.png', dpi=fig.dpi)
-    
+    numbin = binxh - binxl        
+    plot2DVar(name="nJet", binxl=binxl, binxh=binxh, numbin=numbin, xIn=trainBg["nJet"][:,0], yIn=y_Train_Bg, nbiny=50)
+        
     # Make njet distribution for 4 different bins
+    nMVABins = 4
     inds = y_Train_Bg.argsort()
     sortednJet = trainBg["nJet"][:,0][inds[::-1]]
     sorted_y = y_Train_Bg[inds[::-1]]
-    nJetDeepESMBins = np.array_split(sortednJet, 4)
-    sorted_y_split = np.array_split(sorted_y, 4)
+    nJetDeepESMBins = np.array_split(sortednJet, nMVABins)
+    sorted_y_split = np.array_split(sorted_y, nMVABins)
     index=0
     fig = plt.figure()
     bins = []
@@ -278,7 +309,7 @@ if __name__ == '__main__':
         index += 1
     plt.legend(loc='upper right')
     fig.savefig('TEST/nJet_log.png', dpi=fig.dpi)
-
+    
     index=0
     fig = plt.figure()
     for a in nJetDeepESMBins:
@@ -286,7 +317,7 @@ if __name__ == '__main__':
         index += 1
     plt.legend(loc='upper right')
     fig.savefig('TEST/nJet.png', dpi=fig.dpi)
-
+    
     # Save useful stuff
     np.save('TEST/deepESMbin_dis_nJet.npy', {"nJetBins" : nJetDeepESMBins, "y" : sorted_y_split, "nJet" : sortednJet})
     config = {"bins" : bins, "input_output" : [inputName, outputName], "variables" : allVars}
