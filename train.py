@@ -115,10 +115,11 @@ if __name__ == '__main__':
     nNodesD = 10
     n_hidden_layers = list(nNodes for x in range(3))
     n_hidden_layers_D = list(nNodesD for x in range(5))
-    drop_out = 0.8
+    drop_out = 0.7
     #optimizer = keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
     optimizer = keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
-    epochs=20
+    epochs=100
+    class_weight = {0: {0: 1.0, 1: 1.0}, 1: {0: 1.0, 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0}}
     
     main_input = keras.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
     mean = keras.backend.constant(value=trainData["mean"], dtype=np.float32)
@@ -146,7 +147,7 @@ if __name__ == '__main__':
     os.makedirs("TEST/log_graph")
     tbCallBack = keras.callbacks.TensorBoard(log_dir='./TEST/log_graph', histogram_freq=0, write_graph=True, write_images=True)
     log_model = keras.callbacks.ModelCheckpoint('TEST/BestNN.hdf5', monitor='val_loss', verbose=1, save_best_only=True)
-    result_log = model.fit(trainData["data"], [trainData["labels"], trainData["domain"]], batch_size=2048, epochs=epochs, 
+    result_log = model.fit(trainData["data"], [trainData["labels"], trainData["domain"]], batch_size=2048, epochs=epochs, class_weight=class_weight,
                            validation_data=(testData["data"], [testData["labels"], testData["domain"]]), callbacks=[log_model, tbCallBack])    
     
     # Model Visualization
@@ -285,13 +286,18 @@ if __name__ == '__main__':
             
         xerr = 0.5*(xedges[1]-xedges[0])
         plt.errorbar(bin_centersx, y, xerr=xerr, yerr=ye, fmt='o', color='xkcd:red')
-        fig.savefig("TEST/"+name+"_discriminator.png", dpi=fig.dpi)
-
+        fig.savefig("TEST/"+name+"_discriminator.png", dpi=fig.dpi)        
+        
     binxl = 7
     binxh = 12
     numbin = binxh - binxl        
     plot2DVar(name="nJet", binxl=binxl, binxh=binxh, numbin=numbin, xIn=trainBg["nJet"][:,0], yIn=y_Train_Bg, nbiny=50)
-        
+    #for i in range(len(allVars)):
+    #    binxl = np.amin(trainBg["data"][:,i])
+    #    binxh = np.amax(trainBg["data"][:,i])
+    #    numbin = abs(int(binxh - binxl))
+    #    plot2DVar(name=allVars[i], binxl=binxl, binxh=binxh, numbin=numbin, xIn=trainBg["data"][:,i], yIn=y_Train_Bg, nbiny=50)
+    
     # Make njet distribution for 4 different bins
     nMVABins = 4
     inds = y_Train_Bg.argsort()
@@ -307,6 +313,7 @@ if __name__ == '__main__':
         plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=True, label='Bin {}'.format(len(nJetDeepESMBins) - index))
         bins.append([str(sorted_y_split[index][0]), str(sorted_y_split[index][-1])])
         index += 1
+    plt.hist(sortednJet, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=True, label='Total')
     plt.legend(loc='upper right')
     fig.savefig('TEST/nJet_log.png', dpi=fig.dpi)
     
@@ -315,6 +322,7 @@ if __name__ == '__main__':
     for a in nJetDeepESMBins:
         plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=False, label='Bin {}'.format(len(nJetDeepESMBins) - index))
         index += 1
+    plt.hist(sortednJet, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=False, label='Total')
     plt.legend(loc='upper right')
     fig.savefig('TEST/nJet.png', dpi=fig.dpi)
     
