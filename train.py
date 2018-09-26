@@ -7,6 +7,7 @@ from DataGetter import DataGetter as dg
 from flipGradientTF import GradientReversal
 from glob import glob
 import json
+from math import exp
 
 # Makes a fully connected DNN 
 def create_main_model(n_var, n_first_layer, n_hidden_layers, n_last_layer, drop_out):
@@ -60,6 +61,10 @@ def get_data(allVars, signalDataSet, backgroundDataSet):
         data["mean"] = np.mean(data["data"], 0)
         data["std"] = np.std(data["data"], 0)
         data["scale"] = 1.0 / np.std(data["data"], 0)
+        # Get the masks for the different nJet bins (7 is hard coded njet start point...should fix this)
+        for i in range(len(data["domain"][0])):
+            mask = (1 - data["domain"][:,i]).astype(bool)
+            data["mask_"+str(7+i)] = ~np.array(mask)
     scale(trainData)
     scale(dataSig)
     scale(dataBg)
@@ -71,10 +76,11 @@ if __name__ == '__main__':
     allVars = ["Jet_pt_1", "Jet_pt_2", "Jet_pt_3", "Jet_pt_4", "Jet_pt_5", "Jet_pt_6", "Jet_pt_7",
                "Jet_eta_1","Jet_eta_2","Jet_eta_3","Jet_eta_4","Jet_eta_5","Jet_eta_6", "Jet_eta_7",
                "Jet_phi_1","Jet_phi_2","Jet_phi_3","Jet_phi_4","Jet_phi_5","Jet_phi_6", "Jet_phi_7",
-               "Jet_m_1", "Jet_m_2", "Jet_m_3", "Jet_m_4", "Jet_m_5", "Jet_m_6", "Jet_m_7"]
-    #allVars = ["Jet_pt_1", "Jet_pt_2", "Jet_pt_3", "Jet_pt_4", "Jet_pt_5", "Jet_pt_6", "Jet_pt_7",
-    #           "Jet_eta_1","Jet_eta_2","Jet_eta_3","Jet_eta_4","Jet_eta_5","Jet_eta_6", "Jet_eta_7",
-    #           "Jet_phi_1","Jet_phi_2","Jet_phi_3","Jet_phi_4","Jet_phi_5","Jet_phi_6", "Jet_phi_7"]
+               "Jet_m_1", "Jet_m_2", "Jet_m_3", "Jet_m_4", "Jet_m_5", "Jet_m_6", "Jet_m_7",
+               "GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1", "GoodLeptons_m_1",
+               #"lvMET_cm_pt", "lvMET_cm_eta", "lvMET_cm_phi", "lvMET_cm_m",
+               #"NGoodJets_double"
+    ]
     #allVars = ["Jet_pt_1", "Jet_pt_2", "Jet_pt_3", "Jet_pt_4", "Jet_pt_5", "Jet_pt_6",
     #           "Jet_eta_1","Jet_eta_2","Jet_eta_3","Jet_eta_4","Jet_eta_5","Jet_eta_6",
     #           "Jet_phi_1","Jet_phi_2","Jet_phi_3","Jet_phi_4","Jet_phi_5","Jet_phi_6",
@@ -83,7 +89,10 @@ if __name__ == '__main__':
     
     # Import data
     print("----------------Preparing data------------------")
-    dataSet = "EventShapeTrainingData_V3/"
+    #dataSet = "EventShapeTrainingData_V3/"
+    dataSet = "BackGroundMVA_V4_CM_GoodJets/"
+    #dataSet = "BackGroundMVA_V5_CM_Jets/"
+    #dataSet = "BackGroundMVA_V6_noCM_GoodJets/"
     massModel = "*"
     print "Using "+dataSet+" data set"
     print "Training variables:"
@@ -100,26 +109,19 @@ if __name__ == '__main__':
     testData, testSg, testBg = get_data(allVars, sgTestSet, bgTestSet)
 
     # Make and train model
-    #model = create_main_model(n_var=trainData["data"].shape[1], n_first_layer=70, n_hidden_layers=[70, 70, 70], n_last_layer=1, drop_out=0.5)
-    #adagrad = keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
-    #model.compile(loss=make_loss_model(c=1.0), optimizer=adagrad, metrics=['accuracy'])
-    #os.makedirs("TEST")
-    #log_model = keras.callbacks.ModelCheckpoint('TEST/BestNN.hdf5', monitor='val_loss', verbose=1, save_best_only=True)
-    #result_log = model.fit(trainData["data"], trainData["labels"][:,0], batch_size=2048, epochs=200, validation_data=(testData["data"], testData["labels"][:,0]), callbacks=[log_model])
-    
     print("----------------Preparing training model------------------")
     lam = 1
-    gr_lambda = 5.5
+    gr_lambda = 4
     Flip = GradientReversal(gr_lambda)
     nNodes = 70
     nNodesD = 10
-    n_hidden_layers = list(nNodes for x in range(3))
-    n_hidden_layers_D = list(nNodesD for x in range(5))
+    n_hidden_layers = list(nNodes for x in range(1))
+    n_hidden_layers_D = list(nNodesD for x in range(1))
     drop_out = 0.7
     #optimizer = keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
     optimizer = keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
     epochs=100
-    class_weight = {0: {0: 1.0, 1: 1.0}, 1: {0: 1.0, 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0}}
+    class_weight = {0: {0: 1.0, 1: 1.0}, 1: {0: 1.0, 1: 5.0, 2: 25.0, 3: 125.0, 4: 625.0}}
     
     main_input = keras.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
     mean = keras.backend.constant(value=trainData["mean"], dtype=np.float32)
@@ -132,10 +134,9 @@ if __name__ == '__main__':
         layer = keras.layers.Dense(n, activation='relu')(layer)
     layer = keras.layers.Dropout(drop_out)(layer)
     first_output = keras.layers.Dense(trainData["labels"].shape[1], activation='softmax', name='first_output')(layer)
-
+    
     layer = Flip(first_output)
-    #layer = keras.layers.BatchNormalization()(layer)
-    #layer = keras.layers.Dense(nNodesD, activation='relu')(layer)
+    #layer = keras.layers.Dense(nNodesD, activation='relu')(first_output)
     for n in n_hidden_layers_D:
         layer = keras.layers.BatchNormalization()(layer)
         layer = keras.layers.Dense(n, activation='relu')(layer)
@@ -143,8 +144,8 @@ if __name__ == '__main__':
     second_output = keras.layers.Dense(trainData["domain"].shape[1], activation='softmax', name='second_output')(layer)
     
     model = keras.models.Model(inputs=main_input, outputs=[first_output, second_output], name='model')
+    os.makedirs("TEST/log_graph")    
     model.compile(loss=[make_loss_model(c=1.0) , make_loss_adversary(c=lam)], optimizer=optimizer, metrics=['accuracy'])
-    os.makedirs("TEST/log_graph")
     tbCallBack = keras.callbacks.TensorBoard(log_dir='./TEST/log_graph', histogram_freq=0, write_graph=True, write_images=True)
     log_model = keras.callbacks.ModelCheckpoint('TEST/BestNN.hdf5', monitor='val_loss', verbose=1, save_best_only=True)
     result_log = model.fit(trainData["data"], [trainData["labels"], trainData["domain"]], batch_size=2048, epochs=epochs, class_weight=class_weight,
@@ -171,7 +172,8 @@ if __name__ == '__main__':
     # Plot results
     print("----------------Validation of training------------------")
     import matplotlib.pyplot as plt
-    from sklearn.metrics import roc_curve
+    from matplotlib.colors import LogNorm
+    from sklearn.metrics import roc_curve, auc
     sgValSet = glob(dataSet+"trainingTuple_*_division_1_rpv_stop_"+massModel+"_validation_0.h5")
     bgValSet = glob(dataSet+"trainingTuple_*_division_1_TT_validation_0.h5")
     valData, valSg, valBg = get_data(allVars, sgValSet, bgValSet)
@@ -181,8 +183,8 @@ if __name__ == '__main__':
     y_Train = model.predict(trainData["data"])[0][:,0].ravel()
     y_Train_Sg = model.predict(trainSg["data"])[0][:,0].ravel()
     y_Train_Bg = model.predict(trainBg["data"])[0][:,0].ravel()
-
-    # Make input variable plots
+    
+    ## Make input variable plots
     #index=0
     #for var in allVars:
     #    fig = plt.figure()
@@ -207,11 +209,9 @@ if __name__ == '__main__':
     #    plt.xlabel("norm "+var)
     #    fig.savefig("TEST/norm_"+var+".png", dpi=fig.dpi)
     #    index += 1
-
+    
     # Plot loss of training vs test
-    #print(result_log.history.keys())
     fig = plt.figure()
-    for key in result_log.history: print key
     plt.plot(result_log.history['loss'])
     plt.plot(result_log.history['val_loss'])
     plt.title('model loss')
@@ -221,6 +221,24 @@ if __name__ == '__main__':
     fig.savefig('TEST/loss_train_val.png', dpi=fig.dpi)
     
     fig = plt.figure()
+    plt.plot(result_log.history['first_output_loss'])
+    plt.plot(result_log.history['val_first_output_loss'])
+    plt.title('first output loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    fig.savefig('TEST/first_output_loss_train_val.png', dpi=fig.dpi)
+    
+    fig = plt.figure()
+    plt.plot(result_log.history['first_output_acc'])
+    plt.plot(result_log.history['val_first_output_acc'])
+    plt.title('first output acc')
+    plt.ylabel('acc')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    fig.savefig('TEST/first_output_acc_train_val.png', dpi=fig.dpi)
+    
+    fig = plt.figure()
     plt.plot(result_log.history['second_output_loss'])
     plt.plot(result_log.history['val_second_output_loss'])
     plt.title('second output loss')
@@ -228,6 +246,15 @@ if __name__ == '__main__':
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
     fig.savefig('TEST/second_output_loss_train_val.png', dpi=fig.dpi)
+    
+    fig = plt.figure()
+    plt.plot(result_log.history['second_output_acc'])
+    plt.plot(result_log.history['val_second_output_acc'])
+    plt.title('second output acc')
+    plt.ylabel('acc')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    fig.savefig('TEST/second_output_acc_train_val.png', dpi=fig.dpi)
     
     # Plot discriminator distribution
     bins = np.linspace(0, 1, 50)
@@ -245,7 +272,6 @@ if __name__ == '__main__':
     # Plot validation roc curve
     fpr_Val, tpr_Val, thresholds_Val = roc_curve(valData["labels"][:,0], y_Val)
     fpr_Train, tpr_Train, thresholds_Train = roc_curve(trainData["labels"][:,0], y_Train)
-    from sklearn.metrics import auc
     auc_Val = auc(fpr_Val, tpr_Val)
     auc_Train = auc(fpr_Train, tpr_Train)
     
@@ -258,9 +284,23 @@ if __name__ == '__main__':
     plt.title('ROC curve')
     plt.legend(loc='best')
     fig.savefig('TEST/roc_plot.png', dpi=fig.dpi)
+
+    fig = plt.figure()
+    plt.plot([0, 1], [0, 1], 'k--')
+    plt.xlabel('False positive rate')
+    plt.ylabel('True positive rate')
+    plt.title('ROC curve')
+    for key in trainSg:
+        if key.find("mask") != -1:
+            labels = trainData["labels"][trainData[key]]
+            y = y_Train[trainData[key]]
+            fpr_Train, tpr_Train, thresholds_Train = roc_curve(labels[:,0], y)
+            auc_Train = auc(fpr_Train, tpr_Train)    
+            plt.plot(fpr_Train, tpr_Train, label="Train "+key+" (area = {:.3f})".format(auc_Train))
+    plt.legend(loc='best')
+    fig.savefig('TEST/roc_plot_nJet.png', dpi=fig.dpi)
     
     # Plot NJet dependance
-    from matplotlib.colors import LogNorm
     def plot2DVar(name, binxl, binxh, numbin, xIn, yIn, nbiny):
         fig = plt.figure()
         h, xedges, yedges, image = plt.hist2d(xIn, yIn, bins=[numbin, nbiny], range=[[binxl, binxh], [0, 1]], cmap=plt.cm.binary)
