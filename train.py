@@ -162,7 +162,8 @@ if __name__ == '__main__':
     saver = tf.train.Saver()
     saver.save(keras.backend.get_session(), 'TEST/keras_model.ckpt')
     export_path="./TEST/"
-    freeze_graph_binary = "python ~/Desktop/Research/SUSY/trainingTopTagger/ENV/lib/python2.7/site-packages/tensorflow/python/tools/freeze_graph.py"
+    #freeze_graph_binary = "python ~/Desktop/Research/SUSY/trainingTopTagger/ENV/lib/python2.7/site-packages/tensorflow/python/tools/freeze_graph.py"
+    freeze_graph_binary = "python freeze_graph.py"
     graph_file=export_path+"keras_model.ckpt.meta"
     ckpt_file=export_path+"keras_model.ckpt"
     output_file=export_path+"keras_frozen.pb"
