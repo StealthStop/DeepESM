@@ -107,3 +107,27 @@ cd DeepESM
 # add the training files here currently using: BackGroundMVA_V4_CM_GoodJets
 rm -rf TEST && python train.py
 ```
+
+
+## Running on the LPC
+
+Log into one of the three gpu nodes, and go into bash if it is not your default shell.
+
+```
+ssh -Y username@cmslpcgpu1.fnal.gov # can be cmslpcgpu 1-3
+bash                                # only if you are in tcsh by default
+source /cvmfs/cms-lpc.opensciencegrid.org/sl7/gpu/Setup.sh
+source activate mlenv3
+rm -rf TEST && python train.py
+```
+
+You can download the training files like this:
+```
+mkdir BackGroundMVA_V4_CM_GoodJets
+xrdcp -r root://cmseos.fnal.gov///store/user/cmadrid/trainingTuples/BackGroundMVA_V4_CM_GoodJets/ ./BackGroundMVA_V4_CM_GoodJets/
+```
+
+When you're done: 
+```
+source deactivate
+```
