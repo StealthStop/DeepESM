@@ -270,19 +270,21 @@ if __name__ == '__main__':
     ax.legend(loc='best', frameon=False)
     fig.savefig('TEST/discriminator.png', dpi=fig.dpi)
 
-    for key in trainBg:
-        if key.find("mask") != -1:
-            bins = np.linspace(0, 1, 30)
-            fig, ax = plt.subplots(figsize=(6, 6))
-            ax.set_title('')
-            ax.set_ylabel('Norm Events')
-            ax.set_xlabel('Discriminator')
-            ytbg = y_Train_Bg[trainBg[key]]
-            ytsg = y_Train_Sg[trainSg[key]]
-            plt.hist(ytbg, bins, alpha=0.9, histtype='step', lw=2, label="Bg Train "+key, density=True)
-            plt.hist(ytsg, bins, alpha=0.9, histtype='step', lw=2, label="Sg Train "+key, density=True)
-            plt.legend(loc='best')
-            fig.savefig("TEST/discriminator_nJet_"+key+".png", dpi=fig.dpi)
+    samples = {"Bg": [trainBg, y_Train_Bg], "Sg": [trainSg, y_Train_Sg]}
+    for sample in samples:
+        trainSample = samples[sample][0]
+        y_train_Sp = samples[sample][1]
+        bins = np.linspace(0, 1, 30)
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ax.set_title('')
+        ax.set_ylabel('Norm Events')
+        ax.set_xlabel('Discriminator')
+        for key in trainSample:
+            if key.find("mask") != -1:
+                yt = y_train_Sp[trainSample[key]]
+                plt.hist(yt, bins, alpha=0.9, histtype='step', lw=2, label=sample+" Train "+key, density=True)
+        plt.legend(loc='best')
+        fig.savefig("TEST/discriminator_nJet_"+sample+".png", dpi=fig.dpi)
     
     # Plot validation roc curve
     fpr_Val, tpr_Val, thresholds_Val = roc_curve(valData["labels"][:,0], y_Val)
