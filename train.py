@@ -279,8 +279,8 @@ if __name__ == '__main__':
             ax.set_xlabel('Discriminator')
             ytbg = y_Train_Bg[trainBg[key]]
             ytsg = y_Train_Sg[trainSg[key]]
-            plt.hist(ytbg, bins, alpha=0.9, histtype='step', lw=2, label="Sg Train "+key, density=True)
-            plt.hist(ytsg, bins, alpha=0.9, histtype='step', lw=2, label="Bg Train "+key, density=True)
+            plt.hist(ytbg, bins, alpha=0.9, histtype='step', lw=2, label="Bg Train "+key, density=True)
+            plt.hist(ytsg, bins, alpha=0.9, histtype='step', lw=2, label="Sg Train "+key, density=True)
             plt.legend(loc='best')
             fig.savefig("TEST/discriminator_nJet_"+key+".png", dpi=fig.dpi)
     
