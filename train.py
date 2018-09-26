@@ -269,6 +269,20 @@ if __name__ == '__main__':
     plt.hist(y_Val_Bg, bins, color='xkcd:magenta', alpha=0.9, histtype='step', lw=2, label='Bg Val', density=True)
     ax.legend(loc='best', frameon=False)
     fig.savefig('TEST/discriminator.png', dpi=fig.dpi)
+
+    for key in trainBg:
+        if key.find("mask") != -1:
+            bins = np.linspace(0, 1, 30)
+            fig, ax = plt.subplots(figsize=(6, 6))
+            ax.set_title('')
+            ax.set_ylabel('Norm Events')
+            ax.set_xlabel('Discriminator')
+            ytbg = y_Train_Bg[trainBg[key]]
+            ytsg = y_Train_Sg[trainSg[key]]
+            plt.hist(ytbg, bins, alpha=0.9, histtype='step', lw=2, label="Sg Train "+key, density=True)
+            plt.hist(ytsg, bins, alpha=0.9, histtype='step', lw=2, label="Bg Train "+key, density=True)
+            plt.legend(loc='best')
+            fig.savefig("TEST/discriminator_nJet_"+key+".png", dpi=fig.dpi)
     
     # Plot validation roc curve
     fpr_Val, tpr_Val, thresholds_Val = roc_curve(valData["labels"][:,0], y_Val)
@@ -285,13 +299,13 @@ if __name__ == '__main__':
     plt.title('ROC curve')
     plt.legend(loc='best')
     fig.savefig('TEST/roc_plot.png', dpi=fig.dpi)
-
+    
     fig = plt.figure()
     plt.plot([0, 1], [0, 1], 'k--')
     plt.xlabel('False positive rate')
     plt.ylabel('True positive rate')
     plt.title('ROC curve')
-    for key in trainSg:
+    for key in trainData:
         if key.find("mask") != -1:
             labels = trainData["labels"][trainData[key]]
             y = y_Train[trainData[key]]
