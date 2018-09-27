@@ -1,6 +1,7 @@
 import os
 import tensorflow as tf
 import keras
+from keras import backend as K
 import numpy as np
 import pandas as pd
 from DataGetter import DataGetter as dg
@@ -64,20 +65,20 @@ def get_data(allVars, signalDataSet, backgroundDataSet):
         # Get the masks for the different nJet bins (7 is hard coded njet start point...should fix this)
         for i in range(len(data["domain"][0])):
             mask = (1 - data["domain"][:,i]).astype(bool)
-            data["mask_"+str(7+i)] = ~np.array(mask)
+            data["mask_%02d" % (7+i)] = ~np.array(mask)
     scale(trainData)
     scale(dataSig)
     scale(dataBg)
     return trainData, dataSig, dataBg    
 
-def train():    
+def train():
     # Define vars
     allVars = ["Jet_pt_1", "Jet_pt_2", "Jet_pt_3", "Jet_pt_4", "Jet_pt_5", "Jet_pt_6", "Jet_pt_7",
                "Jet_eta_1","Jet_eta_2","Jet_eta_3","Jet_eta_4","Jet_eta_5","Jet_eta_6", "Jet_eta_7",
                "Jet_phi_1","Jet_phi_2","Jet_phi_3","Jet_phi_4","Jet_phi_5","Jet_phi_6", "Jet_phi_7",
                "Jet_m_1", "Jet_m_2", "Jet_m_3", "Jet_m_4", "Jet_m_5", "Jet_m_6", "Jet_m_7",
                "GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1", "GoodLeptons_m_1",
-               "lvMET_cm_pt", "lvMET_cm_eta", "lvMET_cm_phi", "lvMET_cm_m",
+               #"lvMET_cm_pt", "lvMET_cm_eta", "lvMET_cm_phi", "lvMET_cm_m",
                #"NGoodJets_double"
     ]
     #allVars = ["Jet_pt_1", "Jet_pt_2", "Jet_pt_3", "Jet_pt_4", "Jet_pt_5", "Jet_pt_6",
@@ -116,7 +117,7 @@ def train():
     nHLayersD = 1
     drop_out = 0.7
     batch_size = 2048
-    epochs = 100
+    epochs = 10
     lr = 0.001
     class_weight = {0: {0: 1.0, 1: 1.0}, 1: {0: 1.0, 1: 5.0, 2: 25.0, 3: 125.0, 4: 625.0}}    
     #optimizer = keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
@@ -126,10 +127,8 @@ def train():
     Flip = GradientReversal(gr_lambda)    
 
     main_input = keras.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
-    mean = keras.backend.constant(value=trainData["mean"], dtype=np.float32)
-    scale = keras.backend.constant(value=trainData["scale"], dtype=np.float32)
     # Set the rescale inputs to have unit variance centered at 0 between -1 and 1
-    layer = keras.layers.Lambda(lambda x: (x - mean) * scale, name='normalizeData')(main_input)
+    layer = keras.layers.Lambda(lambda x: (x - K.constant(trainData["mean"])) * K.constant(trainData["scale"]), name='normalizeData')(main_input)
     layer = keras.layers.Dense(nNodes, activation='relu')(layer)
     for n in n_hidden_layers:
         layer = keras.layers.BatchNormalization()(layer)
@@ -151,7 +150,7 @@ def train():
     tbCallBack = keras.callbacks.TensorBoard(log_dir='./Output/log_graph', histogram_freq=0, write_graph=True, write_images=True)
     log_model = keras.callbacks.ModelCheckpoint('Output/BestNN.hdf5', monitor='val_loss', verbose=1, save_best_only=True)
     result_log = model.fit(trainData["data"], [trainData["labels"], trainData["domain"]], batch_size=batch_size, epochs=epochs, class_weight=class_weight,
-                           validation_data=(testData["data"], [testData["labels"], testData["domain"]]), callbacks=[log_model, tbCallBack])    
+                           validation_data=(testData["data"], [testData["labels"], testData["domain"]]), callbacks=[log_model, tbCallBack])
     
     # Model Visualization
     keras.utils.plot_model(model, to_file='Output/model.png', show_shapes=True)
@@ -172,7 +171,7 @@ def train():
     command = freeze_graph_binary+" --input_meta_graph="+graph_file+" --input_checkpoint="+ckpt_file+" --output_graph="+output_file+" --output_node_names="+outputName+" --input_binary=true"
     os.system(command)    
     
-    # Plot results
+    #Plot results
     print("----------------Validation of training------------------")
     import matplotlib.pyplot as plt
     from matplotlib.colors import LogNorm
@@ -271,7 +270,7 @@ def train():
     plt.hist(y_Val_Bg, bins, color='xkcd:magenta', alpha=0.9, histtype='step', lw=2, label='Bg Val', density=True)
     ax.legend(loc='best', frameon=False)
     fig.savefig('Output/discriminator.png', dpi=fig.dpi)
-
+    
     samples = {"Bg": [trainBg, y_Train_Bg], "Sg": [trainSg, y_Train_Sg]}
     for sample in samples:
         trainSample = samples[sample][0]
@@ -281,7 +280,7 @@ def train():
         ax.set_title('')
         ax.set_ylabel('Norm Events')
         ax.set_xlabel('Discriminator')
-        for key in sorted(trainSample.keys):
+        for key in sorted(trainSample.keys()):
             if key.find("mask") != -1:
                 yt = y_train_Sp[trainSample[key]]
                 plt.hist(yt, bins, alpha=0.9, histtype='step', lw=2, label=sample+" Train "+key, density=True)
@@ -309,7 +308,7 @@ def train():
     plt.xlabel('False positive rate')
     plt.ylabel('True positive rate')
     plt.title('ROC curve')
-    for key in trainData:
+    for key in sorted(trainData.keys()):
         if key.find("mask") != -1:
             labels = trainData["labels"][trainData[key]]
             y = y_Train[trainData[key]]
