@@ -117,7 +117,7 @@ def train():
     nHLayersD = 1
     drop_out = 0.7
     batch_size = 2048
-    epochs = 10
+    epochs = 100
     lr = 0.001
     class_weight = {0: {0: 1.0, 1: 1.0}, 1: {0: 1.0, 1: 5.0, 2: 25.0, 3: 125.0, 4: 625.0}}    
     #optimizer = keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
@@ -176,6 +176,7 @@ def train():
     import matplotlib.pyplot as plt
     from matplotlib.colors import LogNorm
     from sklearn.metrics import roc_curve, auc
+    metric = {}
     sgValSet = glob(dataSet+"trainingTuple_*_division_1_rpv_stop_"+massModel+"_validation_0.h5")
     bgValSet = glob(dataSet+"trainingTuple_*_division_1_TT_validation_0.h5")
     valData, valSg, valBg = get_data(allVars, sgValSet, bgValSet)
@@ -292,7 +293,9 @@ def train():
     fpr_Train, tpr_Train, thresholds_Train = roc_curve(trainData["labels"][:,0], y_Train)
     auc_Val = auc(fpr_Val, tpr_Val)
     auc_Train = auc(fpr_Train, tpr_Train)
-    
+    metric["OverTrain"] = abs(auc_Val - auc_Train)
+    metric["Performance"] = abs(1 - auc_Train)
+
     fig = plt.figure()
     plt.plot([0, 1], [0, 1], 'k--')
     plt.plot(fpr_Val, tpr_Val, color='xkcd:black', label='Val (area = {:.3f})'.format(auc_Val))
@@ -308,16 +311,21 @@ def train():
     plt.xlabel('False positive rate')
     plt.ylabel('True positive rate')
     plt.title('ROC curve')
+    njetPerformance = []
     for key in sorted(trainData.keys()):
         if key.find("mask") != -1:
             labels = trainData["labels"][trainData[key]]
             y = y_Train[trainData[key]]
             fpr_Train, tpr_Train, thresholds_Train = roc_curve(labels[:,0], y)
             auc_Train = auc(fpr_Train, tpr_Train)    
+            njetPerformance.append(auc_Train)
             plt.plot(fpr_Train, tpr_Train, label="Train "+key+" (area = {:.3f})".format(auc_Train))
     plt.legend(loc='best')
-    fig.savefig('Output/roc_plot_nJet.png', dpi=fig.dpi)
-    
+    fig.savefig('Output/roc_plot_nJet.png', dpi=fig.dpi)    
+    metric["nJetPerformance"] = 0.0
+    for i in njetPerformance:
+        metric["nJetPerformance"] += abs(i - metric["Performance"])
+
     # Plot NJet dependance
     def plot2DVar(name, binxl, binxh, numbin, xIn, yIn, nbiny):
         fig = plt.figure()
@@ -376,19 +384,29 @@ def train():
     fig.savefig('Output/nJet_log.png', dpi=fig.dpi)
     
     index=0
+    MVABinNJetShapeContent = []
     fig = plt.figure()
     for a in nJetDeepESMBins:
-        plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=False, label='Bin {}'.format(len(nJetDeepESMBins) - index))
+        n, _, _ = plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=False, label='Bin {}'.format(len(nJetDeepESMBins) - index))
+        MVABinNJetShapeContent.append(n)
         index += 1
-    plt.hist(sortednJet, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=False, label='Total')
+    TotalMVAnJetShape, _, _ = plt.hist(sortednJet, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=False, label='Total')
     plt.legend(loc='upper right')
     fig.savefig('Output/nJet.png', dpi=fig.dpi)
-    
+    metric["nJetShape"] = 0.0
+    for l in MVABinNJetShapeContent:
+        for i in range(len(l)):
+            metric["nJetShape"] += abs(l[i] - TotalMVAnJetShape[i])    
+
     # Save useful stuff
     np.save('Output/deepESMbin_dis_nJet.npy', {"nJetBins" : nJetDeepESMBins, "y" : sorted_y_split, "nJet" : sortednJet})
     config = {"bins" : bins, "input_output" : [inputName, outputName], "variables" : allVars}
     with open("Output/config.json",'w') as configFile:
         json.dump(config, configFile, indent=4, sort_keys=True)
 
+    return metric
+
 if __name__ == '__main__':
-    train()
+    metric = train()
+    for key in metric:
+        print key, metric[key]
