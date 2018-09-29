@@ -1,8 +1,10 @@
 from train import train
 import json
 
-CRED = '\033[91m'
-CEND = '\033[0m'
+#CRED = "\033[91m"
+#CEND = "\033[0m"
+CRED = ""
+CEND = ""
 
 totals = {}
 result = {}
