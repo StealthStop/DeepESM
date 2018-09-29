@@ -1,6 +1,8 @@
 from train import train
-from termcolor import colored
 import json
+
+CRED = '\033[91m'
+CEND = '\033[0m'
 
 totals = {}
 result = {}
@@ -28,18 +30,16 @@ for epochs in range(10, 100, 5):
 
           totals[name] = total
           result[name] = {"total":total, "metric": metric}
-          print colored(str(epochs)+" "+str(gr_lambda)+" "+str(total), "red")
+          print CRED + str(epochs)+" "+str(gr_lambda)+" "+str(total) + CEND
           index += 1
 
 bestKey = min(totals, key=totals.get)
 
-print colored("-----------------------------------------------------------------------------------------------------------------","red")
-print colred("Best Training", "red")
-print colored(bestKey,"red"), result[bestKey]
-print colored("-----------------------------------------------------------------------------------------------------------------","red")
-
+print CRED + "-----------------------------------------------------------------------------------------------------------------" + CEND
+print CRED + "Best Training" + CEND
+print CRED + bestKey + CEND, result[bestKey]
+print CRED + "Total number of trainings: " + str(index) + CEND
+print CRED + "-----------------------------------------------------------------------------------------------------------------" + CEND
 
 with open("megatrain.json",'w') as trainingOutput:
      json.dump(result, trainingOutput)
-        
-print index
