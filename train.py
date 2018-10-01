@@ -147,8 +147,11 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 4, "nNodes":
     model.compile(loss=[make_loss_model(c=1.0) , make_loss_adversary(c=1.0)], optimizer=optimizer, metrics=['accuracy'])
     tbCallBack = keras.callbacks.TensorBoard(log_dir="./"+outputDir+"/log_graph", histogram_freq=0, write_graph=True, write_images=True)
     log_model = keras.callbacks.ModelCheckpoint(outputDir+"/BestNN.hdf5", monitor='val_loss', verbose=config["verbose"], save_best_only=True)
+    callbacks = []
+    if config["verbose"] == 1:
+        callbacks = [log_model, tbCallBack]
     result_log = model.fit(trainData["data"], [trainData["labels"], trainData["domain"]], batch_size=config["batch_size"], epochs=config["epochs"], class_weight=class_weight,
-                           validation_data=(testData["data"], [testData["labels"], testData["domain"]]), callbacks=[log_model, tbCallBack])
+                           validation_data=(testData["data"], [testData["labels"], testData["domain"]]), callbacks=callbacks)
     
     # Model Visualization
     keras.utils.plot_model(model, to_file=outputDir+"/model.png", show_shapes=True)
@@ -167,7 +170,7 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 4, "nNodes":
     ckpt_file=export_path+"keras_model.ckpt"
     output_file=export_path+"keras_frozen.pb"
     command = freeze_graph_binary+" --input_meta_graph="+graph_file+" --input_checkpoint="+ckpt_file+" --output_graph="+output_file+" --output_node_names="+outputName+" --input_binary=true"
-    os.system(command)    
+    os.system(command)
     
     #Plot results
     print("----------------Validation of training------------------")
@@ -401,6 +404,9 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 4, "nNodes":
     config.update({"bins" : bins, "input_output" : [inputName, outputName], "variables" : allVars})
     with open(outputDir+"/config.json",'w') as configFile:
         json.dump(config, configFile, indent=4, sort_keys=True)
+
+    #Clean up training
+    K.clear_session()
 
     return config, metric
 
