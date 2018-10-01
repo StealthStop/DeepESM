@@ -77,8 +77,8 @@ def get_data(allVars, signalDataSet, backgroundDataSet, config):
     return trainData, dataSig, dataBg    
 
 def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":70, "nNodesD":10,
-                    "nHLayers":1, "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":20,
-                    "lr":0.001, "verbose":1, "Mask":False, "Mask_nJet":11}):
+                    "nHLayers":1, "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":100,
+                    "lr":0.001, "verbose":1, "Mask":True, "Mask_nJet":7}):
     # Define vars
     jVec = ["Jet_pt_", "Jet_eta_", "Jet_phi_", "Jet_m_"]
     lepton = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1", "GoodLeptons_m_1"]
@@ -100,6 +100,8 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     #dataSet = "BackGroundMVA_V6_noCM_GoodJets/"
     dataSet = "BackGroundMVA_V8_CM_All_GoodJets/"
     massModel = "*"
+    #ttbarMC = "TT"
+    ttbarMC = "TTJets*"
     outputDir = "Output/"
     for key in sorted(config.keys()):
         outputDir += key+"_"+str(config[key])+"_"
@@ -113,10 +115,10 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     os.makedirs(outputDir+"/log_graph")    
     
     sgTrainSet = glob(dataSet+"trainingTuple_*_division_0_rpv_stop_"+massModel+"_training_0.h5")
-    bgTrainSet = glob(dataSet+"trainingTuple_*_division_0_TT_training_0.h5")
+    bgTrainSet = glob(dataSet+"trainingTuple_*_division_0_"+ttbarMC+"_training_0.h5")
 
     sgTestSet = glob(dataSet+"trainingTuple_*_division_2_rpv_stop_"+massModel+"_test_0.h5")
-    bgTestSet = glob(dataSet+"trainingTuple_*_division_2_TT_test_0.h5")
+    bgTestSet = glob(dataSet+"trainingTuple_*_division_2_"+ttbarMC+"_test_0.h5")
 
     trainData, trainSg, trainBg = get_data(allVars, sgTrainSet, bgTrainSet, config)
     testData, testSg, testBg = get_data(allVars, sgTestSet, bgTestSet, config)
@@ -184,7 +186,7 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     from sklearn.metrics import roc_curve, auc
     metric = {}
     sgValSet = glob(dataSet+"trainingTuple_*_division_1_rpv_stop_"+massModel+"_validation_0.h5")
-    bgValSet = glob(dataSet+"trainingTuple_*_division_1_TT_validation_0.h5")
+    bgValSet = glob(dataSet+"trainingTuple_*_division_1_"+ttbarMC+"_validation_0.h5")
     valData, valSg, valBg = get_data(allVars, sgValSet, bgValSet, config)
     y_Val = model.predict(valData["data"])[0][:,0].ravel()
     y_Val_Sg = model.predict(valSg["data"])[0][:,0].ravel()
