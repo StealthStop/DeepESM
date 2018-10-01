@@ -35,12 +35,12 @@ def make_loss_adversary(c):
     return loss_adversary
     
 # Takes training vars, signal and background files and returns training data
-def get_data(allVars, signalDataSet, backgroundDataSet, maxNJetBin):
+def get_data(allVars, signalDataSet, backgroundDataSet, config):
     dgSig = dg.DefinedVariables(allVars, signal = True,  background = False)
     dgBg = dg.DefinedVariables(allVars,  signal = False, background = True)
     
-    dataSig = dgSig.importData(samplesToRun = tuple(signalDataSet), maxNJetBin=maxNJetBin, prescale=True, ptReweight=False)
-    dataBg = dgBg.importData(samplesToRun = tuple(backgroundDataSet), maxNJetBin=maxNJetBin, prescale=True, ptReweight=False)
+    dataSig = dgSig.importData(samplesToRun = tuple(signalDataSet), maxNJetBin=config["maxNJetBin"], prescale=True, ptReweight=False)
+    dataBg = dgBg.importData(samplesToRun = tuple(backgroundDataSet), maxNJetBin=config["maxNJetBin"], prescale=True, ptReweight=False)
     minLen = min(len(dataSig["data"]),len(dataBg["data"]))
 
     # Put signal and background data together in trainData dictionary
@@ -60,40 +60,45 @@ def get_data(allVars, signalDataSet, backgroundDataSet, maxNJetBin):
 
     # Get the rescale inputs to have unit variance centered at 0 between -1 and 1
     def scale(data):
-        data["mean"] = np.mean(data["data"], 0)
-        data["std"] = np.std(data["data"], 0)
-        data["scale"] = 1.0 / np.std(data["data"], 0)
         # Get the masks for the different nJet bins (7 is hard coded njet start point...should fix this)
         for i in range(len(data["domain"][0])):
             mask = (1 - data["domain"][:,i]).astype(bool)
             data["mask_%02d" % (7+i)] = ~np.array(mask)
+        if config["Mask"]:
+            mask = data["mask_%02d" % (config["Mask_nJet"])]
+            for key in data:
+                data[key] = data[key][mask]
+        data["mean"] = np.mean(data["data"], 0)
+        data["std"] = np.std(data["data"], 0)
+        data["scale"] = 1.0 / np.std(data["data"], 0)
     scale(trainData)
     scale(dataSig)
     scale(dataBg)
     return trainData, dataSig, dataBg    
 
-def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 4, "nNodes":70, "nNodesD":10, "nHLayers":1, "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":10, "lr":0.001, "verbose":1}):
+def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":70, "nNodesD":10,
+                    "nHLayers":1, "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":20,
+                    "lr":0.001, "verbose":1, "Mask":False, "Mask_nJet":11}):
     # Define vars
-    allVars = ["Jet_pt_1", "Jet_pt_2", "Jet_pt_3", "Jet_pt_4", "Jet_pt_5", "Jet_pt_6", "Jet_pt_7",
-               "Jet_eta_1","Jet_eta_2","Jet_eta_3","Jet_eta_4","Jet_eta_5","Jet_eta_6", "Jet_eta_7",
-               "Jet_phi_1","Jet_phi_2","Jet_phi_3","Jet_phi_4","Jet_phi_5","Jet_phi_6", "Jet_phi_7",
-               "Jet_m_1", "Jet_m_2", "Jet_m_3", "Jet_m_4", "Jet_m_5", "Jet_m_6", "Jet_m_7",
-               "GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1", "GoodLeptons_m_1",
-               #"lvMET_cm_pt", "lvMET_cm_eta", "lvMET_cm_phi", "lvMET_cm_m",
-               #"NGoodJets_double"
-    ]
-    #allVars = ["Jet_pt_1", "Jet_pt_2", "Jet_pt_3", "Jet_pt_4", "Jet_pt_5", "Jet_pt_6",
-    #           "Jet_eta_1","Jet_eta_2","Jet_eta_3","Jet_eta_4","Jet_eta_5","Jet_eta_6",
-    #           "Jet_phi_1","Jet_phi_2","Jet_phi_3","Jet_phi_4","Jet_phi_5","Jet_phi_6",
-    #           "Jet_m_1", "Jet_m_2", "Jet_m_3", "Jet_m_4", "Jet_m_5", "Jet_m_6"]
-    #allVars = ["fwm2_top6", "fwm3_top6", "fwm4_top6", "fwm5_top6", "jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
+    jVec = ["Jet_pt_", "Jet_eta_", "Jet_phi_", "Jet_m_"]
+    lepton = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1", "GoodLeptons_m_1"]
+    MET = ["lvMET_cm_pt", "lvMET_cm_eta", "lvMET_cm_phi", "lvMET_cm_m"]
+    eventShapeVars = ["fwm2_top6", "fwm3_top6", "fwm4_top6", "fwm5_top6", "jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
+    numJets = ["NGoodJets_double"]
+    nJets = 7
+    if config["Mask"]:
+        nJets = config["Mask_nJet"]
+    jVecs = list(y+str(x+1) for y in jVec for x in range(nJets))
+
+    allVars = jVecs + lepton
     
     # Import data
     print("----------------Preparing data------------------")
     #dataSet = "EventShapeTrainingData_V3/"
-    dataSet = "BackGroundMVA_V4_CM_GoodJets/"
+    #dataSet = "BackGroundMVA_V4_CM_GoodJets/"
     #dataSet = "BackGroundMVA_V5_CM_Jets/"
     #dataSet = "BackGroundMVA_V6_noCM_GoodJets/"
+    dataSet = "BackGroundMVA_V8_CM_All_GoodJets/"
     massModel = "*"
     outputDir = "Output/"
     for key in sorted(config.keys()):
@@ -102,6 +107,10 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 4, "nNodes":
     print "Training variables:"
     print allVars
     print "Training on mass model: ", massModel
+    if os.path.exists(outputDir):
+        print "Removing old training files: ", outputDir
+        shutil.rmtree(outputDir)
+    os.makedirs(outputDir+"/log_graph")    
     
     sgTrainSet = glob(dataSet+"trainingTuple_*_division_0_rpv_stop_"+massModel+"_training_0.h5")
     bgTrainSet = glob(dataSet+"trainingTuple_*_division_0_TT_training_0.h5")
@@ -109,8 +118,8 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 4, "nNodes":
     sgTestSet = glob(dataSet+"trainingTuple_*_division_2_rpv_stop_"+massModel+"_test_0.h5")
     bgTestSet = glob(dataSet+"trainingTuple_*_division_2_TT_test_0.h5")
 
-    trainData, trainSg, trainBg = get_data(allVars, sgTrainSet, bgTrainSet, config["maxNJetBin"])
-    testData, testSg, testBg = get_data(allVars, sgTestSet, bgTestSet, config["maxNJetBin"])
+    trainData, trainSg, trainBg = get_data(allVars, sgTrainSet, bgTrainSet, config)
+    testData, testSg, testBg = get_data(allVars, sgTestSet, bgTestSet, config)
 
     # Make and train model
     print("----------------Preparing training model------------------")
@@ -140,10 +149,6 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 4, "nNodes":
     second_output = keras.layers.Dense(trainData["domain"].shape[1], activation='softmax', name='second_output')(layer)
     
     model = keras.models.Model(inputs=main_input, outputs=[first_output, second_output], name='model')
-    if os.path.exists(outputDir):
-        print "Removing old training files: ", outputDir
-        shutil.rmtree(outputDir)
-    os.makedirs(outputDir+"/log_graph")    
     model.compile(loss=[make_loss_model(c=1.0) , make_loss_adversary(c=1.0)], optimizer=optimizer, metrics=['accuracy'])
     tbCallBack = keras.callbacks.TensorBoard(log_dir="./"+outputDir+"/log_graph", histogram_freq=0, write_graph=True, write_images=True)
     log_model = keras.callbacks.ModelCheckpoint(outputDir+"/BestNN.hdf5", monitor='val_loss', verbose=config["verbose"], save_best_only=True)
@@ -152,7 +157,7 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 4, "nNodes":
         callbacks = [log_model, tbCallBack]
     result_log = model.fit(trainData["data"], [trainData["labels"], trainData["domain"]], batch_size=config["batch_size"], epochs=config["epochs"], class_weight=class_weight,
                            validation_data=(testData["data"], [testData["labels"], testData["domain"]]), callbacks=callbacks)
-    
+
     # Model Visualization
     keras.utils.plot_model(model, to_file=outputDir+"/model.png", show_shapes=True)
     
@@ -180,7 +185,7 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 4, "nNodes":
     metric = {}
     sgValSet = glob(dataSet+"trainingTuple_*_division_1_rpv_stop_"+massModel+"_validation_0.h5")
     bgValSet = glob(dataSet+"trainingTuple_*_division_1_TT_validation_0.h5")
-    valData, valSg, valBg = get_data(allVars, sgValSet, bgValSet, config["maxNJetBin"])
+    valData, valSg, valBg = get_data(allVars, sgValSet, bgValSet, config)
     y_Val = model.predict(valData["data"])[0][:,0].ravel()
     y_Val_Sg = model.predict(valSg["data"])[0][:,0].ravel()
     y_Val_Bg = model.predict(valBg["data"])[0][:,0].ravel()
@@ -317,15 +322,18 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 4, "nNodes":
         if key.find("mask") != -1:
             labels = trainData["labels"][trainData[key]]
             y = y_Train[trainData[key]]
+            if len(y)==0:
+                continue
             fpr_Train, tpr_Train, thresholds_Train = roc_curve(labels[:,0], y)
             auc_Train = auc(fpr_Train, tpr_Train)    
             njetPerformance.append(auc_Train)
             plt.plot(fpr_Train, tpr_Train, label="Train "+key+" (area = {:.3f})".format(auc_Train))
     plt.legend(loc='best')
     fig.savefig(outputDir+"/roc_plot_nJet.png", dpi=fig.dpi)    
-    metric["nJetPerformance"] = 0.0
-    for i in njetPerformance:
-        metric["nJetPerformance"] += abs(i - metric["Performance"])
+    if not config["Mask"]:
+        metric["nJetPerformance"] = 0.0
+        for i in njetPerformance:
+            metric["nJetPerformance"] += abs(i - metric["Performance"])
 
     # Plot NJet dependance
     def plot2DVar(name, binxl, binxh, numbin, xIn, yIn, nbiny):
@@ -394,10 +402,11 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 4, "nNodes":
     TotalMVAnJetShape, _, _ = plt.hist(sortednJet, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=False, label='Total')
     plt.legend(loc='upper right')
     fig.savefig(outputDir+"/nJet.png", dpi=fig.dpi)
-    metric["nJetShape"] = 0.0
-    for l in MVABinNJetShapeContent:
-        for i in range(len(l)):
-            metric["nJetShape"] += abs(l[i] - TotalMVAnJetShape[i])    
+    if not config["Mask"]:
+        metric["nJetShape"] = 0.0
+        for l in MVABinNJetShapeContent:
+            for i in range(len(l)):
+                metric["nJetShape"] += abs(l[i] - TotalMVAnJetShape[i])    
 
     # Save useful stuff
     np.save(outputDir+"/deepESMbin_dis_nJet.npy", {"nJetBins" : nJetDeepESMBins, "y" : sorted_y_split, "nJet" : sortednJet})

@@ -21,7 +21,7 @@ for nPass in range(2):
                     index += 1.0
                else:
                     config = {"minNJetBin":7, "maxNJetBin":11, "gr_lambda":gr_lambda, "nNodes":70, "nNodesD":10,  "nHLayers":1, 
-                              "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":epochs, "lr":0.001, "verbose":0}
+                              "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":epochs, "lr":0.001, "verbose":0, "Mask":False, "Mask_nJet":7}
                     name = ""
                     for key in config:
                          name += key+"_"+str(config[key])+"_"
