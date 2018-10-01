@@ -24,8 +24,7 @@ class DataGetter:
     def prescaleBackground(self, input, answer, prescale):
       return np.vstack([input[answer == 1], input[answer != 1][::prescale]])
     
-    def importData(self, samplesToRun, prescale = True, ptReweight=False, randomize = True):
-
+    def importData(self, samplesToRun, maxNJetBin = 11, prescale = True, ptReweight=False, randomize = True):
         #check if this file was cached 
         if (samplesToRun, prescale, ptReweight) in self.dataMap:
             npyInputData, npyInputAnswers, npyInputWgts, npyInputSampleWgts = self.dataMap[samplesToRun, prescale, ptReweight]
@@ -69,7 +68,7 @@ class DataGetter:
         
             #setup and get domains
             domainColumnNames = ["NGoodJets_double"]
-            maxNJetBin = 11
+            #maxNJetBin = 11
             domainColumns = np.array([np.flatnonzero(columnHeaders == v)[0] for v in domainColumnNames])
             inputDomains = x[:,domainColumns]
             tempInputDomains = inputDomains.astype(int)
