@@ -117,7 +117,7 @@ def train():
     nHLayersD = 1
     drop_out = 0.7
     batch_size = 2048
-    epochs = 10
+    epochs = 100
     lr = 0.001
     class_weight = {0: {0: 1.0, 1: 1.0}, 1: {0: 1.0, 1: 5.0, 2: 25.0, 3: 125.0, 4: 625.0}}    
     #optimizer = keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
