@@ -81,10 +81,9 @@ class DataGetter:
             d[np.arange(d.shape[0]), tempInputDomains] = 1
             
             #setup and get weights
-            wgtColumnNames = ["sampleWgt"]
+            wgtColumnNames = ["Weight"]
             wgtColumns = np.array([np.flatnonzero(columnHeaders == v)[0] for v in wgtColumnNames])
             npyInputSampleWgts = x[:,wgtColumns].compute()
-            npyInputWgts = npyInputSampleWgts
 
             #NJet
             npyNJet = np.zeros((npyInputData.shape[0], 1))
@@ -97,4 +96,4 @@ class DataGetter:
                         nJet +=1
                 npyNJet[i][0] = int(nJet)
             
-            return {"data":npyInputData, "labels":npyInputAnswers, "domain":d, "weights":npyInputWgts, "w":npyInputSampleWgts, "nJet":npyNJet}
+            return {"data":npyInputData, "labels":npyInputAnswers, "domain":d, "Weight":npyInputSampleWgts, "nJet":npyNJet}

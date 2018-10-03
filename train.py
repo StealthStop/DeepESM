@@ -77,7 +77,7 @@ def get_data(allVars, signalDataSet, backgroundDataSet, config):
     return trainData, dataSig, dataBg    
 
 def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":70, "nNodesD":10,
-                    "nHLayers":1, "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":100,
+                    "nHLayers":1, "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":40,
                     "lr":0.001, "verbose":1, "Mask":True, "Mask_nJet":7}):
     # Define vars
     jVec = ["Jet_pt_", "Jet_eta_", "Jet_phi_", "Jet_m_"]
@@ -126,6 +126,7 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     # Make and train model
     print("----------------Preparing training model------------------")
     class_weight = {0: {0: 1.0, 1: 1.0}, 1: {0: 1.0, 1: 5.0, 2: 25.0, 3: 125.0, 4: 625.0}}    
+    sample_weight = {0: trainData["Weight"][:,0].tolist(), 1: trainData["Weight"][:,0].tolist()}
     #optimizer = keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
     optimizer = keras.optimizers.Adam(lr=config["lr"], beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
     n_hidden_layers = list(config["nNodes"] for x in range(config["nHLayers"]))
@@ -158,7 +159,7 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     if config["verbose"] == 1:
         callbacks = [log_model, tbCallBack]
     result_log = model.fit(trainData["data"], [trainData["labels"], trainData["domain"]], batch_size=config["batch_size"], epochs=config["epochs"], class_weight=class_weight,
-                           validation_data=(testData["data"], [testData["labels"], testData["domain"]]), callbacks=callbacks)
+                           validation_data=(testData["data"], [testData["labels"], testData["domain"]]), callbacks=callbacks, sample_weight=sample_weight)
 
     # Model Visualization
     keras.utils.plot_model(model, to_file=outputDir+"/model.png", show_shapes=True)
