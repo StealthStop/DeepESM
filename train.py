@@ -78,7 +78,7 @@ def get_data(allVars, signalDataSet, backgroundDataSet, config):
 
 def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":70, "nNodesD":10,
                     "nHLayers":1, "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":40,
-                    "lr":0.001, "verbose":1, "Mask":True, "Mask_nJet":7}):
+                    "lr":0.001, "verbose":1, "Mask":True, "Mask_nJet":11}):
     # Define vars
     jVec = ["Jet_pt_", "Jet_eta_", "Jet_phi_", "Jet_m_"]
     lepton = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1", "GoodLeptons_m_1"]
@@ -110,6 +110,7 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     print "Training variables:"
     print allVars
     print "Training on mass model: ", massModel
+    print "Training on ttbarMC: ", ttbarMC
     if os.path.exists(outputDir):
         print "Removing old training files: ", outputDir
         shutil.rmtree(outputDir)
@@ -120,7 +121,7 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
 
     sgTestSet = glob(dataSet+"trainingTuple_*_division_2_rpv_stop_"+massModel+"_test_0.h5")
     bgTestSet = glob(dataSet+"trainingTuple_*_division_2_"+ttbarMC+"_test_0.h5")
-
+    
     trainData, trainSg, trainBg = get_data(allVars, sgTrainSet, bgTrainSet, config)
     testData, testSg, testBg = get_data(allVars, sgTestSet, bgTestSet, config)
 
@@ -189,7 +190,7 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     metric = {}
     sgValSet = glob(dataSet+"trainingTuple_*_division_1_rpv_stop_"+massModel+"_validation_0.h5")
     bgValSet = glob(dataSet+"trainingTuple_*_division_1_"+ttbarMC+"_validation_0.h5")
-    bgOTrainSet = glob(dataSet+"trainingTuple_*_division_1_"+otherttbarMC+"_training_0.h5")
+    bgOTrainSet = glob(dataSet+"trainingTuple_*_division_0_"+otherttbarMC+"_training_0.h5")
     valData, valSg, valBg = get_data(allVars, sgValSet, bgValSet, config)
     trainOData, trainOSg, trainOBg = get_data(allVars, sgTrainSet, bgOTrainSet, config)
     y_Val = model.predict(valData["data"])[0][:,0].ravel()
@@ -324,7 +325,7 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     
     fig = plt.figure()
     plt.plot([0, 1], [0, 1], 'k--')
-    plt.plot(fpr_OTrain, tpr_OTrain, color='xkcd:black', label="Train "+otherttbarMC+" (area = {:.3f})".format(auc_Val))
+    plt.plot(fpr_OTrain, tpr_OTrain, color='xkcd:black', label="Train "+otherttbarMC+" (area = {:.3f})".format(auc_OTrain))
     plt.plot(fpr_Train, tpr_Train, color='xkcd:red', label="Train "+ttbarMC+" (area = {:.3f})".format(auc_Train))
     plt.xlabel('False positive rate')
     plt.ylabel('True positive rate')
