@@ -72,7 +72,7 @@ def get_data(allVars, signalDataSet, backgroundDataSet, maxNJetBin):
     scale(dataBg)
     return trainData, dataSig, dataBg    
 
-def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 4, "nNodes":70, "nNodesD":10, "nHLayers":1, "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":10, "lr":0.001, "verbose":1}):
+def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 4, "nNodes":70, "nNodesD":10, "nHLayers":1, "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":100, "lr":0.001, "verbose":1}):
     # Define vars
     allVars = ["Jet_pt_1", "Jet_pt_2", "Jet_pt_3", "Jet_pt_4", "Jet_pt_5", "Jet_pt_6", "Jet_pt_7",
                "Jet_eta_1","Jet_eta_2","Jet_eta_3","Jet_eta_4","Jet_eta_5","Jet_eta_6", "Jet_eta_7",
@@ -91,7 +91,7 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 4, "nNodes":
     # Import data
     print("----------------Preparing data------------------")
     #dataSet = "EventShapeTrainingData_V3/"
-    dataSet = "BackGroundMVA_V4_CM_GoodJets/"
+    dataSet = "BackGroundMVA_V7_CM_GoodJets/"
     #dataSet = "BackGroundMVA_V5_CM_Jets/"
     #dataSet = "BackGroundMVA_V6_noCM_GoodJets/"
     massModel = "*"
@@ -104,10 +104,10 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 4, "nNodes":
     print "Training on mass model: ", massModel
     
     sgTrainSet = glob(dataSet+"trainingTuple_*_division_0_rpv_stop_"+massModel+"_training_0.h5")
-    bgTrainSet = glob(dataSet+"trainingTuple_*_division_0_TT_training_0.h5")
+    bgTrainSet = glob(dataSet+"trainingTuple_*_division_0_TTJets_*_training_0.h5")
 
     sgTestSet = glob(dataSet+"trainingTuple_*_division_2_rpv_stop_"+massModel+"_test_0.h5")
-    bgTestSet = glob(dataSet+"trainingTuple_*_division_2_TT_test_0.h5")
+    bgTestSet = glob(dataSet+"trainingTuple_*_division_2_TTJets_*_test_0.h5")
 
     trainData, trainSg, trainBg = get_data(allVars, sgTrainSet, bgTrainSet, config["maxNJetBin"])
     testData, testSg, testBg = get_data(allVars, sgTestSet, bgTestSet, config["maxNJetBin"])
@@ -189,7 +189,7 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 4, "nNodes":
     from sklearn.metrics import roc_curve, auc
     metric = {}
     sgValSet = glob(dataSet+"trainingTuple_*_division_1_rpv_stop_"+massModel+"_validation_0.h5")
-    bgValSet = glob(dataSet+"trainingTuple_*_division_1_TT_validation_0.h5")
+    bgValSet = glob(dataSet+"trainingTuple_*_division_1_TTJets_*_validation_0.h5")
     valData, valSg, valBg = get_data(allVars, sgValSet, bgValSet, config["maxNJetBin"])
     y_Val = model.predict(valData["data"])[0][:,0].ravel()
     y_Val_Sg = model.predict(valSg["data"])[0][:,0].ravel()
