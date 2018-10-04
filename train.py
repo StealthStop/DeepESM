@@ -41,6 +41,9 @@ def get_data(allVars, signalDataSet, backgroundDataSet, config):
     
     dataSig = dgSig.importData(samplesToRun = tuple(signalDataSet), maxNJetBin=config["maxNJetBin"], prescale=True, ptReweight=False)
     dataBg = dgBg.importData(samplesToRun = tuple(backgroundDataSet), maxNJetBin=config["maxNJetBin"], prescale=True, ptReweight=False)
+    # Change the weight of each signal event to 1
+    dataSig["Weight"] = np.full(dataSig["Weight"].shape, 1)
+    dataBg["Weight"] = 35900*dataBg["Weight"]
     minLen = min(len(dataSig["data"]),len(dataBg["data"]))
 
     # Put signal and background data together in trainData dictionary
@@ -77,8 +80,8 @@ def get_data(allVars, signalDataSet, backgroundDataSet, config):
     return trainData, dataSig, dataBg    
 
 def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":70, "nNodesD":10,
-                    "nHLayers":1, "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":40,
-                    "lr":0.001, "verbose":1, "Mask":True, "Mask_nJet":11}):
+                    "nHLayers":1, "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":20,
+                    "lr":0.001, "verbose":1, "Mask":True, "Mask_nJet":7}):
     # Define vars
     jVec = ["Jet_pt_", "Jet_eta_", "Jet_phi_", "Jet_m_"]
     lepton = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1", "GoodLeptons_m_1"]
@@ -99,27 +102,27 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     #dataSet = "BackGroundMVA_V5_CM_Jets/"
     #dataSet = "BackGroundMVA_V6_noCM_GoodJets/"
     dataSet = "BackGroundMVA_V8_CM_All_GoodJets/"
-    massModel = "*"
+    massModels = ["350","450","550","650","750","850"]
     ttMClist = ["TTJets*", "TT"]
-    ttbarMC = ttMClist[0]
-    otherttbarMC = ttMClist[1]
+    ttbarMC = ttMClist[1]
+    otherttbarMC = ttMClist[0]
     outputDir = "Output/"
     for key in sorted(config.keys()):
         outputDir += key+"_"+str(config[key])+"_"
     print "Using "+dataSet+" data set"
     print "Training variables:"
     print allVars
-    print "Training on mass model: ", massModel
+    print "Training on mass models: ", massModels
     print "Training on ttbarMC: ", ttbarMC
     if os.path.exists(outputDir):
         print "Removing old training files: ", outputDir
         shutil.rmtree(outputDir)
     os.makedirs(outputDir+"/log_graph")    
     
-    sgTrainSet = glob(dataSet+"trainingTuple_*_division_0_rpv_stop_"+massModel+"_training_0.h5")
+    sgTrainSet = sum( (glob(dataSet+"trainingTuple_*_division_0_*_"+mass+"*_training_0.h5") for mass in massModels) , [])
     bgTrainSet = glob(dataSet+"trainingTuple_*_division_0_"+ttbarMC+"_training_0.h5")
 
-    sgTestSet = glob(dataSet+"trainingTuple_*_division_2_rpv_stop_"+massModel+"_test_0.h5")
+    sgTestSet = sum( (glob(dataSet+"trainingTuple_*_division_2_*_"+mass+"*_test_0.h5") for mass in massModels) , [])
     bgTestSet = glob(dataSet+"trainingTuple_*_division_2_"+ttbarMC+"_test_0.h5")
     
     trainData, trainSg, trainBg = get_data(allVars, sgTrainSet, bgTrainSet, config)
@@ -128,7 +131,7 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     # Make and train model
     print("----------------Preparing training model------------------")
     class_weight = {0: {0: 1.0, 1: 1.0}, 1: {0: 1.0, 1: 5.0, 2: 25.0, 3: 125.0, 4: 625.0}}    
-    sample_weight = {0: trainData["Weight"][:,0].tolist(), 1: trainData["Weight"][:,0].tolist()}
+    sample_weight = None#{0: trainData["Weight"][:,0].tolist(), 1: trainData["Weight"][:,0].tolist()}
     #optimizer = keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
     optimizer = keras.optimizers.Adam(lr=config["lr"], beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
     n_hidden_layers = list(config["nNodes"] for x in range(config["nHLayers"]))
@@ -188,7 +191,7 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     from matplotlib.colors import LogNorm
     from sklearn.metrics import roc_curve, auc
     metric = {}
-    sgValSet = glob(dataSet+"trainingTuple_*_division_1_rpv_stop_"+massModel+"_validation_0.h5")
+    sgValSet = sum( (glob(dataSet+"trainingTuple_*_division_1_*_"+mass+"*_validation_0.h5") for mass in massModels) , [])
     bgValSet = glob(dataSet+"trainingTuple_*_division_1_"+ttbarMC+"_validation_0.h5")
     bgOTrainSet = glob(dataSet+"trainingTuple_*_division_0_"+otherttbarMC+"_training_0.h5")
     valData, valSg, valBg = get_data(allVars, sgValSet, bgValSet, config)
@@ -282,15 +285,16 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     ax.set_xlabel('Discriminator')
     plt.hist(y_Train_Sg, bins, color='xkcd:red', alpha=0.9, histtype='step', lw=2, label='Sg Train', density=True)
     plt.hist(y_Val_Sg, bins, color='xkcd:green', alpha=0.9, histtype='step', lw=2, label='Sg Val', density=True)
-    plt.hist(y_Train_Bg, bins, color='xkcd:blue', alpha=0.9, histtype='step', lw=2, label='Bg Train', density=True)
-    plt.hist(y_Val_Bg, bins, color='xkcd:magenta', alpha=0.9, histtype='step', lw=2, label='Bg Val', density=True)
+    plt.hist(y_Train_Bg, bins, color='xkcd:blue', alpha=0.9, histtype='step', lw=2, label='Bg Train', density=True, weights=trainBg["Weight"])
+    plt.hist(y_Val_Bg, bins, color='xkcd:magenta', alpha=0.9, histtype='step', lw=2, label='Bg Val', density=True, weights=valBg["Weight"])
     ax.legend(loc='best', frameon=False)
     fig.savefig(outputDir+"/discriminator.png", dpi=fig.dpi)
     
-    samples = {"Bg": [trainBg, y_Train_Bg], "Sg": [trainSg, y_Train_Sg]}
+    samples = {"Bg": [trainBg, y_Train_Bg, trainBg["Weight"]], "Sg": [trainSg, y_Train_Sg, trainSg["Weight"]]}
     for sample in samples:
         trainSample = samples[sample][0]
         y_train_Sp = samples[sample][1]
+        weights = samples[sample][2] 
         bins = np.linspace(0, 1, 30)
         fig, ax = plt.subplots(figsize=(6, 6))
         ax.set_title('')
@@ -298,15 +302,16 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
         ax.set_xlabel('Discriminator')
         for key in sorted(trainSample.keys()):
             if key.find("mask") != -1:
-                yt = y_train_Sp[trainSample[key]]
-                plt.hist(yt, bins, alpha=0.9, histtype='step', lw=2, label=sample+" Train "+key, density=True)
+                yt = y_train_Sp[trainSample[key]]                
+                wt = weights[trainSample[key]]
+                plt.hist(yt, bins, alpha=0.9, histtype='step', lw=2, label=sample+" Train "+key, density=True, weights=wt)
         plt.legend(loc='best')
         fig.savefig(outputDir+"/discriminator_nJet_"+sample+".png", dpi=fig.dpi)
     
     # Plot validation roc curve
-    fpr_Val, tpr_Val, thresholds_Val = roc_curve(valData["labels"][:,0], y_Val)
-    fpr_Train, tpr_Train, thresholds_Train = roc_curve(trainData["labels"][:,0], y_Train)
-    fpr_OTrain, tpr_OTrain, thresholds_OTrain = roc_curve(trainOData["labels"][:,0], y_OTrain)
+    fpr_Val, tpr_Val, thresholds_Val = roc_curve(valData["labels"][:,0], y_Val, sample_weight=valData["Weight"])
+    fpr_Train, tpr_Train, thresholds_Train = roc_curve(trainData["labels"][:,0], y_Train, sample_weight=trainData["Weight"])
+    fpr_OTrain, tpr_OTrain, thresholds_OTrain = roc_curve(trainOData["labels"][:,0], y_OTrain, sample_weight=trainOData["Weight"])
     auc_Val = auc(fpr_Val, tpr_Val)
     auc_Train = auc(fpr_Train, tpr_Train)
     auc_OTrain = auc(fpr_OTrain, tpr_OTrain)
@@ -342,10 +347,11 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     for key in sorted(trainData.keys()):
         if key.find("mask") != -1:
             labels = trainData["labels"][trainData[key]]
+            weights = trainData["Weight"][trainData[key]]
             y = y_Train[trainData[key]]
             if len(y)==0:
                 continue
-            fpr_Train, tpr_Train, thresholds_Train = roc_curve(labels[:,0], y)
+            fpr_Train, tpr_Train, thresholds_Train = roc_curve(labels[:,0], y, sample_weight=weights)
             auc_Train = auc(fpr_Train, tpr_Train)    
             njetPerformance.append(auc_Train)
             plt.plot(fpr_Train, tpr_Train, label="Train "+key+" (area = {:.3f})".format(auc_Train))
@@ -365,10 +371,11 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     for key in sorted(trainOData.keys()):
         if key.find("mask") != -1:
             labels = trainOData["labels"][trainOData[key]]
+            weights = trainOData["Weight"][trainOData[key]]
             y = y_OTrain[trainOData[key]]
             if len(y)==0:
                 continue
-            fpr_Train, tpr_Train, thresholds_Train = roc_curve(labels[:,0], y)
+            fpr_Train, tpr_Train, thresholds_Train = roc_curve(labels[:,0], y, sample_weight=weights)
             auc_Train = auc(fpr_Train, tpr_Train)    
             njetPerformance.append(auc_Train)
             plt.plot(fpr_Train, tpr_Train, label="Train "+key+" (area = {:.3f})".format(auc_Train))
