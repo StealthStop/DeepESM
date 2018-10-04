@@ -100,8 +100,9 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     #dataSet = "BackGroundMVA_V6_noCM_GoodJets/"
     dataSet = "BackGroundMVA_V8_CM_All_GoodJets/"
     massModel = "*"
-    #ttbarMC = "TT"
-    ttbarMC = "TTJets*"
+    ttMClist = ["TTJets*", "TT"]
+    ttbarMC = ttMClist[0]
+    otherttbarMC = ttMClist[1]
     outputDir = "Output/"
     for key in sorted(config.keys()):
         outputDir += key+"_"+str(config[key])+"_"
@@ -188,13 +189,17 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     metric = {}
     sgValSet = glob(dataSet+"trainingTuple_*_division_1_rpv_stop_"+massModel+"_validation_0.h5")
     bgValSet = glob(dataSet+"trainingTuple_*_division_1_"+ttbarMC+"_validation_0.h5")
+    bgOTrainSet = glob(dataSet+"trainingTuple_*_division_1_"+otherttbarMC+"_training_0.h5")
     valData, valSg, valBg = get_data(allVars, sgValSet, bgValSet, config)
+    trainOData, trainOSg, trainOBg = get_data(allVars, sgTrainSet, bgOTrainSet, config)
     y_Val = model.predict(valData["data"])[0][:,0].ravel()
     y_Val_Sg = model.predict(valSg["data"])[0][:,0].ravel()
     y_Val_Bg = model.predict(valBg["data"])[0][:,0].ravel()
     y_Train = model.predict(trainData["data"])[0][:,0].ravel()
     y_Train_Sg = model.predict(trainSg["data"])[0][:,0].ravel()
     y_Train_Bg = model.predict(trainBg["data"])[0][:,0].ravel()
+    y_OTrain = model.predict(trainOData["data"])[0][:,0].ravel()
+    y_OTrain_Bg = model.predict(trainOBg["data"])[0][:,0].ravel()
     
     ## Make input variable plots
     #index=0
@@ -300,8 +305,10 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     # Plot validation roc curve
     fpr_Val, tpr_Val, thresholds_Val = roc_curve(valData["labels"][:,0], y_Val)
     fpr_Train, tpr_Train, thresholds_Train = roc_curve(trainData["labels"][:,0], y_Train)
+    fpr_OTrain, tpr_OTrain, thresholds_OTrain = roc_curve(trainOData["labels"][:,0], y_OTrain)
     auc_Val = auc(fpr_Val, tpr_Val)
     auc_Train = auc(fpr_Train, tpr_Train)
+    auc_OTrain = auc(fpr_OTrain, tpr_OTrain)
     metric["OverTrain"] = abs(auc_Val - auc_Train)
     metric["Performance"] = abs(1 - auc_Train)
 
@@ -314,6 +321,16 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     plt.title('ROC curve')
     plt.legend(loc='best')
     fig.savefig(outputDir+"/roc_plot.png", dpi=fig.dpi)
+    
+    fig = plt.figure()
+    plt.plot([0, 1], [0, 1], 'k--')
+    plt.plot(fpr_OTrain, tpr_OTrain, color='xkcd:black', label="Train "+otherttbarMC+" (area = {:.3f})".format(auc_Val))
+    plt.plot(fpr_Train, tpr_Train, color='xkcd:red', label="Train "+ttbarMC+" (area = {:.3f})".format(auc_Train))
+    plt.xlabel('False positive rate')
+    plt.ylabel('True positive rate')
+    plt.title('ROC curve')
+    plt.legend(loc='best')
+    fig.savefig(outputDir+"/roc_plot_TT_TTJets.png", dpi=fig.dpi)
     
     fig = plt.figure()
     plt.plot([0, 1], [0, 1], 'k--')
@@ -332,11 +349,30 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
             njetPerformance.append(auc_Train)
             plt.plot(fpr_Train, tpr_Train, label="Train "+key+" (area = {:.3f})".format(auc_Train))
     plt.legend(loc='best')
-    fig.savefig(outputDir+"/roc_plot_nJet.png", dpi=fig.dpi)    
+    fig.savefig(outputDir+"/roc_plot_"+ttbarMC+"_nJet.png", dpi=fig.dpi)    
     if not config["Mask"]:
         metric["nJetPerformance"] = 0.0
         for i in njetPerformance:
             metric["nJetPerformance"] += abs(i - metric["Performance"])
+
+    fig = plt.figure()
+    plt.plot([0, 1], [0, 1], 'k--')
+    plt.xlabel('False positive rate')
+    plt.ylabel('True positive rate')
+    plt.title(otherttbarMC+" ROC curve")
+    njetPerformance = []
+    for key in sorted(trainOData.keys()):
+        if key.find("mask") != -1:
+            labels = trainOData["labels"][trainOData[key]]
+            y = y_OTrain[trainOData[key]]
+            if len(y)==0:
+                continue
+            fpr_Train, tpr_Train, thresholds_Train = roc_curve(labels[:,0], y)
+            auc_Train = auc(fpr_Train, tpr_Train)    
+            njetPerformance.append(auc_Train)
+            plt.plot(fpr_Train, tpr_Train, label="Train "+key+" (area = {:.3f})".format(auc_Train))
+    plt.legend(loc='best')
+    fig.savefig(outputDir+"/roc_plot_"+otherttbarMC+"_nJet.png", dpi=fig.dpi)    
 
     # Plot NJet dependance
     def plot2DVar(name, binxl, binxh, numbin, xIn, yIn, nbiny):
