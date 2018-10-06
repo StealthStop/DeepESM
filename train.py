@@ -35,15 +35,18 @@ def make_loss_adversary(c):
     return loss_adversary
     
 # Takes training vars, signal and background files and returns training data
-def get_data(allVars, signalDataSet, backgroundDataSet, config):
+def get_data(allVars, signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgWeight = False):
     dgSig = dg.DefinedVariables(allVars, signal = True,  background = False)
     dgBg = dg.DefinedVariables(allVars,  signal = False, background = True)
     
-    dataSig = dgSig.importData(samplesToRun = tuple(signalDataSet), maxNJetBin=config["maxNJetBin"], prescale=True, ptReweight=False)
-    dataBg = dgBg.importData(samplesToRun = tuple(backgroundDataSet), maxNJetBin=config["maxNJetBin"], prescale=True, ptReweight=False)
-    # Change the weight of each signal event to 1
-    dataSig["Weight"] = np.full(dataSig["Weight"].shape, 1)
-    dataBg["Weight"] = 35900*dataBg["Weight"]
+    dataSig = dgSig.importData(samplesToRun = tuple(signalDataSet), maxNJetBin=config["maxNJetBin"])
+    dataBg = dgBg.importData(samplesToRun = tuple(backgroundDataSet), maxNJetBin=config["maxNJetBin"])
+    # Change the weight to 1 if needed
+    if doSgWeight: dataSig["Weight"] = 35900*dataSig["Weight"]
+    else: dataSig["Weight"] = np.full(dataSig["Weight"].shape, 1)
+    if doBgWeight: dataBg["Weight"] = 35900*dataBg["Weight"]
+    else: dataBg["Weight"] = np.full(dataBg["Weight"].shape, 1)
+
     minLen = min(len(dataSig["data"]),len(dataBg["data"]))
 
     # Put signal and background data together in trainData dictionary
@@ -101,11 +104,13 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     #dataSet = "BackGroundMVA_V4_CM_GoodJets/"
     #dataSet = "BackGroundMVA_V5_CM_Jets/"
     #dataSet = "BackGroundMVA_V6_noCM_GoodJets/"
-    dataSet = "BackGroundMVA_V8_CM_All_GoodJets/"
+    #dataSet = "BackGroundMVA_V8_CM_All_GoodJets/"
+    dataSet = "BackGroundMVA_V9_CM_All_GoodJets_Inclusive/"
     massModels = ["350","450","550","650","750","850"]
-    ttMClist = ["TTJets*", "TT"]
-    ttbarMC = ttMClist[1]
-    otherttbarMC = ttMClist[0]
+    #ttMClist = ["TTJets*", "TT"]
+    ttMClist = ["T*", "TT"]
+    ttbarMC = ttMClist[0]
+    otherttbarMC = ttMClist[1]
     outputDir = "Output/"
     for key in sorted(config.keys()):
         outputDir += key+"_"+str(config[key])+"_"
@@ -128,6 +133,9 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     trainData, trainSg, trainBg = get_data(allVars, sgTrainSet, bgTrainSet, config)
     testData, testSg, testBg = get_data(allVars, sgTestSet, bgTestSet, config)
 
+    bgTrainTT = glob(dataSet+"trainingTuple_*_division_0_TT_training_0.h5")
+    trainDataTT, trainSgTT, trainBgTT = get_data(allVars, sgTrainSet, bgTrainTT, config)
+
     # Make and train model
     print("----------------Preparing training model------------------")
     class_weight = {0: {0: 1.0, 1: 1.0}, 1: {0: 1.0, 1: 5.0, 2: 25.0, 3: 125.0, 4: 625.0}}    
@@ -140,7 +148,7 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
 
     main_input = keras.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
     # Set the rescale inputs to have unit variance centered at 0 between -1 and 1
-    layer = keras.layers.Lambda(lambda x: (x - K.constant(trainData["mean"])) * K.constant(trainData["scale"]), name='normalizeData')(main_input)
+    layer = keras.layers.Lambda(lambda x: (x - K.constant(trainDataTT["mean"])) * K.constant(trainDataTT["scale"]), name='normalizeData')(main_input)
     layer = keras.layers.Dense(config["nNodes"], activation='relu')(layer)
     for n in n_hidden_layers:
         layer = keras.layers.BatchNormalization()(layer)
@@ -209,8 +217,8 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     #index=0
     #for var in allVars:
     #    fig = plt.figure()
-    #    plt.hist(trainBg["data"][:,index], bins=30, histtype='step', density=True, log=False, label=var+" Bg")
-    #    plt.hist(trainSg["data"][:,index], bins=30, histtype='step', density=True, log=False, label=var+" Sg")
+    #    plt.hist(trainBg["data"][:,index], bins=30, histtype='step', density=True, log=False, label=var+" Bg", weights=trainBg["Weight"])
+    #    plt.hist(trainSg["data"][:,index], bins=30, histtype='step', density=True, log=False, label=var+" Sg", weights=trainSg["Weight"])
     #    plt.legend(loc='upper right')
     #    plt.ylabel('norm')
     #    plt.xlabel(var)
@@ -223,14 +231,14 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     #tSg = trainData["scale"]*(trainSg["data"] - trainData["mean"])
     #for var in allVars:
     #    fig = plt.figure()
-    #    plt.hist(tBg[:,index], bins=30, histtype='step', density=True, log=False, label=var+" Bg")
-    #    plt.hist(tSg[:,index], bins=30, histtype='step', density=True, log=False, label=var+" Sg")
+    #    plt.hist(tBg[:,index], bins=30, histtype='step', density=True, log=False, label=var+" Bg", weights=trainBg["Weight"])
+    #    plt.hist(tSg[:,index], bins=30, histtype='step', density=True, log=False, label=var+" Sg", weights=trainSg["Weight"])
     #    plt.legend(loc='upper right')
     #    plt.ylabel('norm')
     #    plt.xlabel("norm "+var)
     #    fig.savefig(outputDir+"/norm_"+var+".png", dpi=fig.dpi)
     #    index += 1
-    
+
     # Plot loss of training vs test
     fig = plt.figure()
     plt.plot(result_log.history['loss'])
@@ -240,7 +248,7 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
     fig.savefig(outputDir+"/loss_train_val.png", dpi=fig.dpi)
-    
+
     fig = plt.figure()
     plt.plot(result_log.history['first_output_loss'])
     plt.plot(result_log.history['val_first_output_loss'])
@@ -278,7 +286,7 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     fig.savefig(outputDir+"/second_output_acc_train_val.png", dpi=fig.dpi)
     
     # Plot discriminator distribution
-    bins = np.linspace(0, 1, 50)
+    bins = np.linspace(0, 1, 100)
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.set_title('')
     ax.set_ylabel('Norm Events')
@@ -295,7 +303,7 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
         trainSample = samples[sample][0]
         y_train_Sp = samples[sample][1]
         weights = samples[sample][2] 
-        bins = np.linspace(0, 1, 30)
+        bins = np.linspace(0, 1, 100)
         fig, ax = plt.subplots(figsize=(6, 6))
         ax.set_title('')
         ax.set_ylabel('Norm Events')
