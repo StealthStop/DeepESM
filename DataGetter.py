@@ -3,6 +3,54 @@ import pandas as pd
 import dask.array as da
 import h5py
 
+# Takes training vars, signal and background files and returns training data
+def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgWeight = False):
+    dgSig = DataGetter.DefinedVariables(config["allVars"], signal = True,  background = False)
+    dgBg = DataGetter.DefinedVariables(config["allVars"],  signal = False, background = True)
+    
+    dataSig = dgSig.importData(samplesToRun = tuple(signalDataSet), maxNJetBin=config["maxNJetBin"])
+    dataBg = dgBg.importData(samplesToRun = tuple(backgroundDataSet), maxNJetBin=config["maxNJetBin"])
+    # Change the weight to 1 if needed
+    if doSgWeight: dataSig["Weight"] = 35900*dataSig["Weight"]
+    else: dataSig["Weight"] = np.full(dataSig["Weight"].shape, 1)
+    if doBgWeight: dataBg["Weight"] = 35900*dataBg["Weight"]
+    else: dataBg["Weight"] = np.full(dataBg["Weight"].shape, 1)
+
+    minLen = min(len(dataSig["data"]),len(dataBg["data"]))
+
+    # Put signal and background data together in trainData dictionary
+    trainDataArray = [dataSig,dataBg]
+    trainData = {}
+    for data in trainDataArray:
+        for key in data:
+            if key in trainData:
+                trainData[key] = np.vstack([trainData[key], data[key][:minLen]])
+            else:
+                trainData[key] = data[key][:minLen]
+
+    # Randomly shuffle the signal and background 
+    perms = np.random.permutation(trainData["data"].shape[0])
+    for key in trainData:
+        trainData[key] = trainData[key][perms]
+
+    # Get the rescale inputs to have unit variance centered at 0 between -1 and 1
+    def scale(data):
+        # Get the masks for the different nJet bins (7 is hard coded njet start point...should fix this)
+        for i in range(len(data["domain"][0])):
+            mask = (1 - data["domain"][:,i]).astype(bool)
+            data["mask_%02d" % (7+i)] = ~np.array(mask)
+        if config["Mask"]:
+            mask = data["mask_%02d" % (config["Mask_nJet"])]
+            for key in data:
+                data[key] = data[key][mask]
+        data["mean"] = np.mean(data["data"], 0)
+        data["std"] = np.std(data["data"], 0)
+        data["scale"] = 1.0 / np.std(data["data"], 0)
+    scale(trainData)
+    scale(dataSig)
+    scale(dataBg)
+    return trainData, dataSig, dataBg    
+
 class DataGetter:
 
     #The constructor simply takes in a list and saves it to self.list
