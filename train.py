@@ -153,7 +153,8 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
 
     #Clean up training
     K.clear_session()
-
+    tf.reset_default_graph()
+    
     return config, metric
 
 if __name__ == '__main__':
