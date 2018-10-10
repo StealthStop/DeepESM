@@ -56,12 +56,12 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     
     # Import data
     print("----------------Preparing data------------------")
-    #dataSet = "EventShapeTrainingData_V3/"
-    #dataSet = "BackGroundMVA_V4_CM_GoodJets/"
-    #dataSet = "BackGroundMVA_V5_CM_Jets/"
-    #dataSet = "BackGroundMVA_V6_noCM_GoodJets/"
-    config["dataSet"] = "BackGroundMVA_V8_CM_All_GoodJets/"
-    #dataSet = "BackGroundMVA_V9_CM_All_GoodJets_Inclusive/"
+    #config["dataSet"] = "EventShapeTrainingData_V3/"
+    #config["dataSet"] = "BackGroundMVA_V4_CM_GoodJets/"
+    #config["dataSet"] = "BackGroundMVA_V5_CM_Jets/"
+    #config["dataSet"] = "BackGroundMVA_V6_noCM_GoodJets/"
+    #config["dataSet"] = "BackGroundMVA_V8_CM_All_GoodJets/"
+    config["dataSet"] = "BackGroundMVA_V9_CM_All_GoodJets_Inclusive/"
     config["massModels"] = ["350","450","550","650","750","850"]
     #ttMClist = ["TTJets*", "TT"]
     ttMClist = ["T*", "TT"]
