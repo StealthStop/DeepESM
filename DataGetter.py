@@ -11,9 +11,9 @@ def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgW
     dataSig = dgSig.importData(samplesToRun = tuple(signalDataSet), maxNJetBin=config["maxNJetBin"])
     dataBg = dgBg.importData(samplesToRun = tuple(backgroundDataSet), maxNJetBin=config["maxNJetBin"])
     # Change the weight to 1 if needed
-    if doSgWeight: dataSig["Weight"] = 35900*dataSig["Weight"]
+    if config["doSgWeight"]: dataSig["Weight"] = 35900*dataSig["Weight"]
     else: dataSig["Weight"] = np.full(dataSig["Weight"].shape, 1)
-    if doBgWeight: dataBg["Weight"] = 35900*dataBg["Weight"]
+    if config["doBgWeight"]: dataBg["Weight"] = 35900*dataBg["Weight"]
     else: dataBg["Weight"] = np.full(dataBg["Weight"].shape, 1)
 
     minLen = min(len(dataSig["data"]),len(dataBg["data"]))

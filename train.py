@@ -34,8 +34,8 @@ def make_loss_adversary(c):
     return loss_adversary
     
 def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":70, "nNodesD":10,
-                    "nHLayers":1, "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":1,
-                    "lr":0.001, "verbose":1, "Mask":True, "Mask_nJet":7}):
+                    "nHLayers":1, "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":20,
+                    "lr":0.001, "verbose":1, "Mask":False, "Mask_nJet":7}):
 
     # Define ouputDir based on input config
     outputDir = "Output/"
@@ -56,32 +56,31 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     
     # Import data
     print("----------------Preparing data------------------")
-    #config["dataSet"] = "EventShapeTrainingData_V3/"
-    #config["dataSet"] = "BackGroundMVA_V4_CM_GoodJets/"
-    #config["dataSet"] = "BackGroundMVA_V5_CM_Jets/"
-    #config["dataSet"] = "BackGroundMVA_V6_noCM_GoodJets/"
-    #config["dataSet"] = "BackGroundMVA_V8_CM_All_GoodJets/"
-    config["dataSet"] = "BackGroundMVA_V9_CM_All_GoodJets_Inclusive/"
+    TTJets = ("TTJets", ["TTJets_SingleLeptFromT", "TTJets_SingleLeptFromTbar", "TTJets_DiLept", "TTJets_HT-600to800", "TTJets_HT-800to1200", "TTJets_HT-1200to2500", "TTJets_HT-2500toInf"])
+    TT = ("TT", ["TT"])                  
+    TTJets_SingleLep = ("TTJets_SingleLep", ["TTJets_SingleLeptFromT_Train", "TTJets_SingleLeptFromTbar_Train"])
+    config["dataSet"] = "BackGroundMVA_V10_CM_All_GoodJets_AllTTbarSamples/"
     config["massModels"] = ["350","450","550","650","750","850"]
-    #ttMClist = ["TTJets*", "TT"]
-    ttMClist = ["T*", "TT"]
-    config["ttbarMC"] = ttMClist[0]
-    config["otherttbarMC"] = ttMClist[1]
+    config["ttbarMC"] = TTJets_SingleLep
+    config["otherttbarMC"] = TTJets
+    config["doBgWeight"] = True
+    config["doSgWeight"] = False
     print "Using "+config["dataSet"]+" data set"
     print "Training variables:"
     print config["allVars"]
     print "Training on mass models: ", config["massModels"]
-    print "Training on ttbarMC: ", config["ttbarMC"]
+    print "Training on ttbarMC: ", config["ttbarMC"][0]
     if os.path.exists(config["outputDir"]):
         print "Removing old training files: ", config["outputDir"]
         shutil.rmtree(config["outputDir"])
     os.makedirs(config["outputDir"]+"/log_graph")    
     
     sgTrainSet = sum( (glob(config["dataSet"]+"trainingTuple_*_division_0_*_"+mass+"*_training_0.h5") for mass in config["massModels"]) , [])
-    bgTrainSet = glob(config["dataSet"]+"trainingTuple_*_division_0_"+config["ttbarMC"]+"_training_0.h5")
+    bgTrainSet = sum( (glob(config["dataSet"]+"trainingTuple_*_division_0_"+ttbar+"_training_0.h5") for ttbar in config["ttbarMC"][1]) , [])
+    print bgTrainSet
 
     sgTestSet = sum( (glob(config["dataSet"]+"trainingTuple_*_division_2_*_"+mass+"*_test_0.h5") for mass in config["massModels"]) , [])
-    bgTestSet = glob(config["dataSet"]+"trainingTuple_*_division_2_"+config["ttbarMC"]+"_test_0.h5")
+    bgTestSet = sum( (glob(config["dataSet"]+"trainingTuple_*_division_2_"+ttbar+"_test_0.h5") for ttbar in config["ttbarMC"][1]) , [])
     
     trainData, trainSg, trainBg = get_data(sgTrainSet, bgTrainSet, config)
     testData, testSg, testBg = get_data(sgTestSet, bgTestSet, config)
@@ -91,8 +90,8 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
 
     # Make and train model
     print("----------------Preparing training model------------------")
-    class_weight = {0: {0: 1.0, 1: 1.0}, 1: {0: 1.0, 1: 5.0, 2: 25.0, 3: 125.0, 4: 625.0}}    
-    sample_weight = None#{0: trainData["Weight"][:,0].tolist(), 1: trainData["Weight"][:,0].tolist()}
+    class_weight = None#{0: {0: 1.0, 1: 1.0}, 1: {0: 1.0, 1: 5.0, 2: 25.0, 3: 125.0, 4: 625.0}}    
+    sample_weight = {0: trainData["Weight"][:,0].tolist(), 1: trainData["Weight"][:,0].tolist()}
     #optimizer = keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
     optimizer = keras.optimizers.Adam(lr=config["lr"], beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
     n_hidden_layers = list(config["nNodes"] for x in range(config["nHLayers"]))
