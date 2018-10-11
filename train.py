@@ -4,12 +4,11 @@ import keras
 from keras import backend as K
 import numpy as np
 import pandas as pd
-from DataGetter import DataGetter as dg
+from DataGetter import get_data
 from flipGradientTF import GradientReversal
 from glob import glob
-import json
-from math import exp
 import shutil
+from Validation import Validation
 
 # Makes a fully connected DNN 
 def create_main_model(n_var, n_first_layer, n_hidden_layers, n_last_layer, drop_out):
@@ -34,95 +33,63 @@ def make_loss_adversary(c):
         #return c * keras.backend.binary_crossentropy(y_true, y_pred)
     return loss_adversary
     
-# Takes training vars, signal and background files and returns training data
-def get_data(allVars, signalDataSet, backgroundDataSet, config):
-    dgSig = dg.DefinedVariables(allVars, signal = True,  background = False)
-    dgBg = dg.DefinedVariables(allVars,  signal = False, background = True)
-    
-    dataSig = dgSig.importData(samplesToRun = tuple(signalDataSet), maxNJetBin=config["maxNJetBin"], prescale=True, ptReweight=False)
-    dataBg = dgBg.importData(samplesToRun = tuple(backgroundDataSet), maxNJetBin=config["maxNJetBin"], prescale=True, ptReweight=False)
-    minLen = min(len(dataSig["data"]),len(dataBg["data"]))
-
-    # Put signal and background data together in trainData dictionary
-    trainDataArray = [dataSig,dataBg]
-    trainData = {}
-    for data in trainDataArray:
-        for key in data:
-            if key in trainData:
-                trainData[key] = np.vstack([trainData[key], data[key][:minLen]])
-            else:
-                trainData[key] = data[key][:minLen]
-
-    # Randomly shuffle the signal and background 
-    perms = np.random.permutation(trainData["data"].shape[0])
-    for key in trainData:
-        trainData[key] = trainData[key][perms]
-
-    # Get the rescale inputs to have unit variance centered at 0 between -1 and 1
-    def scale(data):
-        # Get the masks for the different nJet bins (7 is hard coded njet start point...should fix this)
-        for i in range(len(data["domain"][0])):
-            mask = (1 - data["domain"][:,i]).astype(bool)
-            data["mask_%02d" % (7+i)] = ~np.array(mask)
-        if config["Mask"]:
-            mask = data["mask_%02d" % (config["Mask_nJet"])]
-            for key in data:
-                data[key] = data[key][mask]
-        data["mean"] = np.mean(data["data"], 0)
-        data["std"] = np.std(data["data"], 0)
-        data["scale"] = 1.0 / np.std(data["data"], 0)
-    scale(trainData)
-    scale(dataSig)
-    scale(dataBg)
-    return trainData, dataSig, dataBg    
-
 def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":70, "nNodesD":10,
                     "nHLayers":1, "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":100,
                     "lr":0.001, "verbose":1, "Mask":False, "Mask_nJet":7}):
-    # Define vars
+
+    # Define ouputDir based on input config
+    outputDir = "Output_1/"
+    for key in sorted(config.keys()):
+        outputDir += key+"_"+str(config[key])+"_"
+    config["outputDir"] = outputDir
+        
+    # Define vars for training
     jVec = ["Jet_pt_", "Jet_eta_", "Jet_phi_", "Jet_m_"]
     lepton = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1", "GoodLeptons_m_1"]
     MET = ["lvMET_cm_pt", "lvMET_cm_eta", "lvMET_cm_phi", "lvMET_cm_m"]
     eventShapeVars = ["fwm2_top6", "fwm3_top6", "fwm4_top6", "fwm5_top6", "jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
     numJets = ["NGoodJets_double"]
     nJets = 7
-    if config["Mask"]:
-        nJets = config["Mask_nJet"]
+    if config["Mask"]: nJets = config["Mask_nJet"]
     jVecs = list(y+str(x+1) for y in jVec for x in range(nJets))
-
-    allVars = jVecs + lepton
+    config["allVars"] = jVecs + lepton
     
     # Import data
     print("----------------Preparing data------------------")
-    #dataSet = "EventShapeTrainingData_V3/"
-    #dataSet = "BackGroundMVA_V4_CM_GoodJets/"
-    #dataSet = "BackGroundMVA_V5_CM_Jets/"
-    #dataSet = "BackGroundMVA_V6_noCM_GoodJets/"
-    dataSet = "BackGroundMVA_V8_CM_GoodJets/"
-    massModel = "*"
-    #ttbarMC = "TT"
-    ttbarMC = "TTJets*"
-    ttbarMCTest = "TT"
-    outputDir = "Output_1/"
-    for key in sorted(config.keys()):
-        outputDir += key+"_"+str(config[key])+"_"
-    print "Using "+dataSet+" data set"
-    print "Training variables:"
-    print allVars
-    print "Training on mass model: ", massModel
-    if os.path.exists(outputDir):
-        print "Removing old training files: ", outputDir
-        shutil.rmtree(outputDir)
-    os.makedirs(outputDir+"/log_graph")    
     
-    sgTrainSet = glob(dataSet+"trainingTuple_*_division_0_rpv_stop_"+massModel+"_training_0.h5")
-    bgTrainSet = glob(dataSet+"trainingTuple_*_division_0_"+ttbarMC+"_training_0.h5")
+    
+    #config["dataSet"] = "EventShapeTrainingData_V3/"
+    #config["dataSet"] = "BackGroundMVA_V4_CM_GoodJets/"
+    #config["dataSet"] = "BackGroundMVA_V5_CM_Jets/"
+    #config["dataSet"] = "BackGroundMVA_V6_noCM_GoodJets/"
+    #config["dataSet"] = "BackGroundMVA_V8_All_GoodJets/"
+    config["dataSet"] = "BackGroundMVA_V9_CM_All_GoodJets_Inclusive/"
+    config["massModels"] = ["350","450","550","650","750","850"]
+    #ttMClist = ["TTJets*", "TT"]
+    ttMClist = ["T*", "TT"]
+    config["ttbarMC"] = ttMClist[0]
+    config["otherttbarMC"] = ttMClist[1]
+    print "Using "+config["dataSet"]+" data set"
+    print "Training variables:"
+    print config["allVars"]
+    print "Training on mass models: ", config["massModels"]
+    print "Training on ttbarMC: ", config["ttbarMC"]
+    if os.path.exists(config["outputDir"]):
+        print "Removing old training files: ", config["outputDir"]
+        shutil.rmtree(config["outputDir"])
+    os.makedirs(config["outputDir"]+"/log_graph")    
+    
+    sgTrainSet = sum( (glob(config["dataSet"]+"trainingTuple_*_division_0_*_"+mass+"*_training_0.h5") for mass in config["massModels"]) , [])
+    bgTrainSet = glob(config["dataSet"]+"trainingTuple_*_division_0_"+config["ttbarMC"]+"_training_0.h5")
 
-    sgTestSet = glob(dataSet+"trainingTuple_*_division_2_rpv_stop_"+massModel+"_test_0.h5")
-    bgTestSet = glob(dataSet+"trainingTuple_*_division_2_"+ttbarMC+"_test_0.h5")
+    sgTestSet = sum( (glob(config["dataSet"]+"trainingTuple_*_division_2_*_"+mass+"*_test_0.h5") for mass in config["massModels"]) , [])
+    bgTestSet = glob(config["dataSet"]+"trainingTuple_*_division_2_"+config["ttbarMC"]+"_test_0.h5")
+    
+    trainData, trainSg, trainBg = get_data(sgTrainSet, bgTrainSet, config)
+    testData, testSg, testBg = get_data(sgTestSet, bgTestSet, config)
 
-    trainData, trainSg, trainBg = get_data(allVars, sgTrainSet, bgTrainSet, config)
-    testData, testSg, testBg = get_data(allVars, sgTestSet, bgTestSet, config)
+    bgTrainTT = glob(config["dataSet"]+"trainingTuple_*_division_0_TT_training_0.h5")
+    trainDataTT, trainSgTT, trainBgTT = get_data(sgTrainSet, bgTrainTT, config)
 
     # Make and train model
     print("----------------Preparing training model------------------")
@@ -137,7 +104,7 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     lr = 0.001
     
     class_weight = {0: {0: 1.0, 1: 1.0}, 1: {0: 1.0, 1: 5.0, 2: 25.0, 3: 125.0, 4: 625.0}}    
-    sample_weight = {0: trainData["Weight"][:,0].tolist(), 1: trainData["Weight"][:,0].tolist()}
+    sample_weight = None#{0: trainData["Weight"][:,0].tolist(), 1: trainData["Weight"][:,0].tolist()}
     #optimizer = keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
     optimizer = keras.optimizers.Adam(lr=config["lr"], beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
     n_hidden_layers = list(config["nNodes"] for x in range(config["nHLayers"]))
@@ -146,7 +113,7 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
 
     main_input = keras.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
     # Set the rescale inputs to have unit variance centered at 0 between -1 and 1
-    layer = keras.layers.Lambda(lambda x: (x - K.constant(trainData["mean"])) * K.constant(trainData["scale"]), name='normalizeData')(main_input)
+    layer = keras.layers.Lambda(lambda x: (x - K.constant(trainDataTT["mean"])) * K.constant(trainDataTT["scale"]), name='normalizeData')(main_input)
     layer = keras.layers.Dense(config["nNodes"], activation='relu')(layer)
     for n in n_hidden_layers:
         layer = keras.layers.BatchNormalization()(layer)
@@ -180,10 +147,10 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     outputName = model.output[0].op.name.split(':')[0]
     print "Input name:", inputName
     print "Output name:", outputName
+    config["input_output"] = [inputName, outputName]
     saver = tf.train.Saver()
     saver.save(keras.backend.get_session(), outputDir+"/keras_model.ckpt")
     export_path="./"+outputDir+"/"
-    #freeze_graph_binary = "python ~/Desktop/Research/SUSY/trainingTopTagger/ENV/lib/python2.7/site-packages/tensorflow/python/tools/freeze_graph.py"
     freeze_graph_binary = "python freeze_graph.py"
     graph_file=export_path+"keras_model.ckpt.meta"
     ckpt_file=export_path+"keras_model.ckpt"
@@ -193,263 +160,13 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     
     #Plot results
     print("----------------Validation of training------------------")
-    import matplotlib.pyplot as plt
-    from matplotlib.colors import LogNorm
-    from sklearn.metrics import roc_curve, auc
-    metric = {}
-    sgValSet = glob(dataSet+"trainingTuple_*_division_1_rpv_stop_"+massModel+"_validation_0.h5")
-    bgValSet = glob(dataSet+"trainingTuple_*_division_1_"+ttbarMC+"_validation_0.h5")
-    bgValTTJSet = glob(dataSet+"trainingTuple_*_division_0_"+ttbarMC+"_training_0.h5")
-    bgValTTSet = glob(dataSet+"trainingTuple_*_division_0_"+ttbarMCTest+"_training_0.h5")
-    valData, valSg, valBg = get_data(allVars, sgValSet, bgValSet, config)
-    valDataTT, valSgTT, valBgTT = get_data(allVars, sgValSet, bgValTTSet, config)
-    valDataTTJ, valSgTTJ, valBgTTJ = get_data(allVars, sgValSet, bgValTTJSet, config)
-    y_Val = model.predict(valData["data"])[0][:,0].ravel()
-    y_Val_Sg = model.predict(valSg["data"])[0][:,0].ravel()
-    y_Val_Bg = model.predict(valBg["data"])[0][:,0].ravel()
-
-    y_Val_TT = model.predict(valDataTT["data"])[0][:,0].ravel()
-    y_Val_Sg_TT = model.predict(valSgTT["data"])[0][:,0].ravel()
-    y_Val_Bg_TT = model.predict(valBgTT["data"])[0][:,0].ravel()
-
-    y_Val_TTJ = model.predict(valDataTTJ["data"])[0][:,0].ravel()
-    y_Val_Sg_TTJ = model.predict(valSgTTJ["data"])[0][:,0].ravel()
-    y_Val_Bg_TTJ = model.predict(valBgTTJ["data"])[0][:,0].ravel()
-
-    y_Train = model.predict(trainData["data"])[0][:,0].ravel()
-    y_Train_Sg = model.predict(trainSg["data"])[0][:,0].ravel()
-    y_Train_Bg = model.predict(trainBg["data"])[0][:,0].ravel()
-    
-    ## Make input variable plots
-    #index=0
-    #for var in allVars:
-    #    fig = plt.figure()
-    #    plt.hist(trainBg["data"][:,index], bins=30, histtype='step', density=True, log=False, label=var+" Bg")
-    #    plt.hist(trainSg["data"][:,index], bins=30, histtype='step', density=True, log=False, label=var+" Sg")
-    #    plt.legend(loc='upper right')
-    #    plt.ylabel('norm')
-    #    plt.xlabel(var)
-    #    fig.savefig(outputDir+"/"+var+".png", dpi=fig.dpi)
-    #    index += 1
-    #
-    ## Normalize
-    #index=0
-    #tBg = trainData["scale"]*(trainBg["data"] - trainData["mean"])
-    #tSg = trainData["scale"]*(trainSg["data"] - trainData["mean"])
-    #for var in allVars:
-    #    fig = plt.figure()
-    #    plt.hist(tBg[:,index], bins=30, histtype='step', density=True, log=False, label=var+" Bg")
-    #    plt.hist(tSg[:,index], bins=30, histtype='step', density=True, log=False, label=var+" Sg")
-    #    plt.legend(loc='upper right')
-    #    plt.ylabel('norm')
-    #    plt.xlabel("norm "+var)
-    #    fig.savefig(outputDir+"/norm_"+var+".png", dpi=fig.dpi)
-    #    index += 1
-    
-    # Plot loss of training vs test
-    fig = plt.figure()
-    plt.plot(result_log.history['loss'])
-    plt.plot(result_log.history['val_loss'])
-    plt.title('model loss')
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
-    fig.savefig(outputDir+"/loss_train_val.png", dpi=fig.dpi)
-    
-    fig = plt.figure()
-    plt.plot(result_log.history['first_output_loss'])
-    plt.plot(result_log.history['val_first_output_loss'])
-    plt.title('first output loss')
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
-    fig.savefig(outputDir+"/first_output_loss_train_val.png", dpi=fig.dpi)
-    
-    fig = plt.figure()
-    plt.plot(result_log.history['first_output_acc'])
-    plt.plot(result_log.history['val_first_output_acc'])
-    plt.title('first output acc')
-    plt.ylabel('acc')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
-    fig.savefig(outputDir+"/first_output_acc_train_val.png", dpi=fig.dpi)
-    
-    fig = plt.figure()
-    plt.plot(result_log.history['second_output_loss'])
-    plt.plot(result_log.history['val_second_output_loss'])
-    plt.title('second output loss')
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
-    fig.savefig(outputDir+"/second_output_loss_train_val.png", dpi=fig.dpi)
-    
-    fig = plt.figure()
-    plt.plot(result_log.history['second_output_acc'])
-    plt.plot(result_log.history['val_second_output_acc'])
-    plt.title('second output acc')
-    plt.ylabel('acc')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
-    fig.savefig(outputDir+"/second_output_acc_train_val.png", dpi=fig.dpi)
-    
-    # Plot discriminator distribution
-    bins = np.linspace(0, 1, 50)
-    fig, ax = plt.subplots(figsize=(6, 6))
-    ax.set_title('')
-    ax.set_ylabel('Norm Events')
-    ax.set_xlabel('Discriminator')
-    plt.hist(y_Train_Sg, bins, color='xkcd:red', alpha=0.9, histtype='step', lw=2, label='Sg Train', density=True)
-    plt.hist(y_Val_Sg, bins, color='xkcd:green', alpha=0.9, histtype='step', lw=2, label='Sg Val', density=True)
-    plt.hist(y_Train_Bg, bins, color='xkcd:blue', alpha=0.9, histtype='step', lw=2, label='Bg Train', density=True)
-    plt.hist(y_Val_Bg, bins, color='xkcd:magenta', alpha=0.9, histtype='step', lw=2, label='Bg Val', density=True)
-    ax.legend(loc='best', frameon=False)
-    fig.savefig(outputDir+"/discriminator.png", dpi=fig.dpi)
-    
-    samples = {"Bg": [trainBg, y_Train_Bg], "Sg": [trainSg, y_Train_Sg]}
-    for sample in samples:
-        trainSample = samples[sample][0]
-        y_train_Sp = samples[sample][1]
-        bins = np.linspace(0, 1, 30)
-        fig, ax = plt.subplots(figsize=(6, 6))
-        ax.set_title('')
-        ax.set_ylabel('Norm Events')
-        ax.set_xlabel('Discriminator')
-        for key in sorted(trainSample.keys()):
-            if key.find("mask") != -1:
-                yt = y_train_Sp[trainSample[key]]
-                plt.hist(yt, bins, alpha=0.9, histtype='step', lw=2, label=sample+" Train "+key, density=True)
-        plt.legend(loc='best')
-        fig.savefig(outputDir+"/discriminator_nJet_"+sample+".png", dpi=fig.dpi)
-    
-    # Plot validation roc curve
-    fpr_Val, tpr_Val, thresholds_Val = roc_curve(valData["labels"][:,0], y_Val)
-    fpr_Val_TT, tpr_Val_TT, thresholds_Val_TT = roc_curve(valDataTT["labels"][:,0], y_Val_TT)
-    fpr_Val_TTJ, tpr_Val_TTJ, thresholds_Val_TTJ = roc_curve(valDataTTJ["labels"][:,0], y_Val_TTJ)
-    fpr_Train, tpr_Train, thresholds_Train = roc_curve(trainData["labels"][:,0], y_Train)
-    auc_Val = auc(fpr_Val, tpr_Val)
-    auc_Val_TT = auc(fpr_Val_TT, tpr_Val_TT)
-    auc_Val_TTJ = auc(fpr_Val_TTJ, tpr_Val_TTJ)
-    auc_Train = auc(fpr_Train, tpr_Train)
-    metric["OverTrain"] = abs(auc_Val - auc_Train)
-    metric["Performance"] = abs(1 - auc_Train)
-
-    fig = plt.figure()
-    plt.plot([0, 1], [0, 1], 'k--')
-    plt.plot(fpr_Val_TT, tpr_Val_TT, color='xkcd:green', label='Val_TT (area = {:.3f})'.format(auc_Val_TT))
-    plt.plot(fpr_Val_TTJ, tpr_Val_TTJ, color='xkcd:magenta', label='Val_TTJ (area = {:.3f})'.format(auc_Val_TTJ))
-    plt.plot(fpr_Val, tpr_Val, color='xkcd:black', label='Val (area = {:.3f})'.format(auc_Val))
-    plt.plot(fpr_Train, tpr_Train, color='xkcd:red', label='Train (area = {:.3f})'.format(auc_Train))
-    plt.xlabel('False positive rate')
-    plt.ylabel('True positive rate')
-    plt.title('ROC curve')
-    plt.legend(loc='best')
-    fig.savefig(outputDir+"/roc_plot.png", dpi=fig.dpi)
-    
-    fig = plt.figure()
-    plt.plot([0, 1], [0, 1], 'k--')
-    plt.xlabel('False positive rate')
-    plt.ylabel('True positive rate')
-    plt.title('ROC curve')
-    njetPerformance = []
-    for key in sorted(trainData.keys()):
-        if key.find("mask") != -1:
-            labels = trainData["labels"][trainData[key]]
-            y = y_Train[trainData[key]]
-            if len(y)==0:
-                continue
-            fpr_Train, tpr_Train, thresholds_Train = roc_curve(labels[:,0], y)
-            auc_Train = auc(fpr_Train, tpr_Train)    
-            njetPerformance.append(auc_Train)
-            plt.plot(fpr_Train, tpr_Train, label="Train "+key+" (area = {:.3f})".format(auc_Train))
-    plt.legend(loc='best')
-    fig.savefig(outputDir+"/roc_plot_nJet.png", dpi=fig.dpi)    
-    if not config["Mask"]:
-        metric["nJetPerformance"] = 0.0
-        for i in njetPerformance:
-            metric["nJetPerformance"] += abs(i - metric["Performance"])
-
-    # Plot NJet dependance
-    def plot2DVar(name, binxl, binxh, numbin, xIn, yIn, nbiny):
-        fig = plt.figure()
-        h, xedges, yedges, image = plt.hist2d(xIn, yIn, bins=[numbin, nbiny], range=[[binxl, binxh], [0, 1]], cmap=plt.cm.binary)
-        plt.colorbar()
-    
-        bin_centersx = 0.5 * (xedges[:-1] + xedges[1:])
-        bin_centersy = 0.5 * (yedges[:-1] + yedges[1:])
-        y = []
-        ye = []
-        for i in range(h.shape[0]):
-            ynum = 0
-            ynum2 = 0
-            ydom = 0
-            for j in range(len(h[i])):
-                ynum += h[i][j] * bin_centersy[j]
-                ynum2 += h[i][j] * (bin_centersy[j]**2)
-                ydom += h[i][j]        
-            yavg = ynum / ydom if ydom != 0 else -1
-            yavg2 = ynum2 / ydom if ydom != 0 else -1
-            sigma = np.sqrt(yavg2 - (yavg**2)) if ydom != 0 else 0
-            y.append(yavg)
-            ye.append(sigma)
-            
-        xerr = 0.5*(xedges[1]-xedges[0])
-        plt.errorbar(bin_centersx, y, xerr=xerr, yerr=ye, fmt='o', color='xkcd:red')
-        fig.savefig(outputDir+"/"+name+"_discriminator.png", dpi=fig.dpi)        
-        
-    binxl = config["minNJetBin"]
-    binxh = config["maxNJetBin"] + 1
-    numbin = binxh - binxl        
-    plot2DVar(name="nJet", binxl=binxl, binxh=binxh, numbin=numbin, xIn=trainBg["nJet"][:,0], yIn=y_Train_Bg, nbiny=50)
-    #for i in range(len(allVars)):
-    #    binxl = np.amin(trainBg["data"][:,i])
-    #    binxh = np.amax(trainBg["data"][:,i])
-    #    numbin = abs(int(binxh - binxl))
-    #    plot2DVar(name=allVars[i], binxl=binxl, binxh=binxh, numbin=numbin, xIn=trainBg["data"][:,i], yIn=y_Train_Bg, nbiny=50)
-    
-    # Make njet distribution for 4 different bins
-    nMVABins = 4
-    inds = y_Train_Bg.argsort()
-    sortednJet = trainBg["nJet"][:,0][inds[::-1]]
-    sorted_y = y_Train_Bg[inds[::-1]]
-    nJetDeepESMBins = np.array_split(sortednJet, nMVABins)
-    sorted_y_split = np.array_split(sorted_y, nMVABins)
-    index=0
-    fig = plt.figure()
-    bins = []
-    for a in nJetDeepESMBins:
-        print "DeepESM bin ", len(nJetDeepESMBins) - index, ": ", " NEvents: ", len(a)," bin cuts: ", sorted_y_split[index][0], " ", sorted_y_split[index][-1]
-        plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=True, label='Bin {}'.format(len(nJetDeepESMBins) - index))
-        bins.append([str(sorted_y_split[index][0]), str(sorted_y_split[index][-1])])
-        index += 1
-    plt.hist(sortednJet, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=True, label='Total')
-    plt.legend(loc='upper right')
-    fig.savefig(outputDir+"/nJet_log.png", dpi=fig.dpi)
-    
-    index=0
-    MVABinNJetShapeContent = []
-    fig = plt.figure()
-    for a in nJetDeepESMBins:
-        n, _, _ = plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=False, label='Bin {}'.format(len(nJetDeepESMBins) - index))
-        MVABinNJetShapeContent.append(n)
-        index += 1
-    TotalMVAnJetShape, _, _ = plt.hist(sortednJet, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=False, label='Total')
-    plt.legend(loc='upper right')
-    fig.savefig(outputDir+"/nJet.png", dpi=fig.dpi)
-    if not config["Mask"]:
-        metric["nJetShape"] = 0.0
-        for l in MVABinNJetShapeContent:
-            for i in range(len(l)):
-                metric["nJetShape"] += abs(l[i] - TotalMVAnJetShape[i])    
-
-    # Save useful stuff
-    np.save(outputDir+"/deepESMbin_dis_nJet.npy", {"nJetBins" : nJetDeepESMBins, "y" : sorted_y_split, "nJet" : sortednJet})
-    config.update({"bins" : bins, "input_output" : [inputName, outputName], "variables" : allVars})
-    with open(outputDir+"/config.json",'w') as configFile:
-        json.dump(config, configFile, indent=4, sort_keys=True)
+    val = Validation(model, config, sgTrainSet, trainData, trainSg, trainBg, result_log)
+    config, metric = val.plot()
 
     #Clean up training
     K.clear_session()
-
+    tf.reset_default_graph()
+    
     return config, metric
 
 if __name__ == '__main__':
