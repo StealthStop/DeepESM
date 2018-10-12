@@ -162,7 +162,8 @@ class Validation:
                 if key.find("mask") != -1:
                     yt = y_train_Sp[trainSample[key]]                
                     wt = weights[trainSample[key]]
-                    plt.hist(yt, bins, alpha=0.9, histtype='step', lw=2, label=sample+" Train "+key, density=True, log=True, weights=wt)
+                    if yt.size != 0 and wt.size != 0:
+                        plt.hist(yt, bins, alpha=0.9, histtype='step', lw=2, label=sample+" Train "+key, density=True, log=True, weights=wt)
             plt.legend(loc='best')
             fig.savefig(self.config["outputDir"]+"/discriminator_nJet_"+sample+".png", dpi=fig.dpi)
         
@@ -289,7 +290,8 @@ class Validation:
                     self.metric["nJetShape"] += abs(l[i] - TotalMVAnJetShape[i])
                     
         # Save useful stuff
-        np.save(self.config["outputDir"]+"/deepESMbin_dis_nJet.npy", {"nJetBins" : nJetDeepESMBins, "y" : sorted_y_split, "nJet" : sortednJet})
+        self.trainData["y"] = y_Train
+        np.save(self.config["outputDir"]+"/deepESMbin_dis_nJet.npy", self.trainData)
         self.config["bins"] = bins
         with open(self.config["outputDir"]+"/config.json",'w') as configFile:
             json.dump(self.config, configFile, indent=4, sort_keys=True)
