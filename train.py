@@ -58,11 +58,12 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     print("----------------Preparing data------------------")
     TTJets = ("TTJets", ["TTJets_SingleLeptFromT", "TTJets_SingleLeptFromTbar", "TTJets_DiLept", "TTJets_HT-600to800", "TTJets_HT-800to1200", "TTJets_HT-1200to2500", "TTJets_HT-2500toInf"])
     TT = ("TT", ["TT"])                  
+    TT_TTJets = ("TT+TTJets", ["TT", "TTJets_SingleLeptFromT", "TTJets_SingleLeptFromTbar", "TTJets_DiLept", "TTJets_HT-600to800", "TTJets_HT-800to1200", "TTJets_HT-1200to2500", "TTJets_HT-2500toInf"])
     TTJets_SingleLep = ("TTJets_SingleLep", ["TTJets_SingleLeptFromT_Train", "TTJets_SingleLeptFromTbar_Train"])
     config["dataSet"] = "BackGroundMVA_V10_CM_All_GoodJets_AllTTbarSamples/"
     config["massModels"] = ["350","450","550","650","750","850"]
-    config["ttbarMC"] = TTJets_SingleLep
-    config["otherttbarMC"] = TTJets
+    config["ttbarMC"] = TT_TTJets
+    config["otherttbarMC"] = TTJets_SingleLep
     config["doBgWeight"] = True
     config["doSgWeight"] = False
     print "Using "+config["dataSet"]+" data set"
@@ -77,7 +78,6 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     
     sgTrainSet = sum( (glob(config["dataSet"]+"trainingTuple_*_division_0_*_"+mass+"*_training_0.h5") for mass in config["massModels"]) , [])
     bgTrainSet = sum( (glob(config["dataSet"]+"trainingTuple_*_division_0_"+ttbar+"_training_0.h5") for ttbar in config["ttbarMC"][1]) , [])
-    print bgTrainSet
 
     sgTestSet = sum( (glob(config["dataSet"]+"trainingTuple_*_division_2_*_"+mass+"*_test_0.h5") for mass in config["massModels"]) , [])
     bgTestSet = sum( (glob(config["dataSet"]+"trainingTuple_*_division_2_"+ttbar+"_test_0.h5") for ttbar in config["ttbarMC"][1]) , [])
@@ -91,13 +91,16 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     # Make and train model
     print("----------------Preparing training model------------------")
     class_weight = None#{0: {0: 1.0, 1: 1.0}, 1: {0: 1.0, 1: 5.0, 2: 25.0, 3: 125.0, 4: 625.0}}    
-    sample_weight = {0: trainData["Weight"][:,0].tolist(), 1: trainData["Weight"][:,0].tolist()}
+    sample_weight = None#{0: trainData["Weight"][:,0].tolist(), 1: trainData["Weight"][:,0].tolist()}
     #optimizer = keras.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
     optimizer = keras.optimizers.Adam(lr=config["lr"], beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
     n_hidden_layers = list(config["nNodes"] for x in range(config["nHLayers"]))
     n_hidden_layers_D = list(config["nNodesD"] for x in range(config["nHLayersD"]))
     Flip = GradientReversal(config["gr_lambda"])    
 
+    cfg = K.tf.ConfigProto()
+    cfg.gpu_options.allow_growth = True
+    K.set_session(K.tf.Session(config=cfg))
     main_input = keras.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
     # Set the rescale inputs to have unit variance centered at 0 between -1 and 1
     layer = keras.layers.Lambda(lambda x: (x - K.constant(trainDataTT["mean"])) * K.constant(trainDataTT["scale"]), name='normalizeData')(main_input)
