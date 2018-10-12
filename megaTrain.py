@@ -6,7 +6,7 @@ CEND = "\033[0m"
 
 totals = {}
 result = {}
-index = 0
+index = 0.0
 for nPass in range(2):
      for epochs in range(10, 35, 1):
           for nNodes in range(60, 80, 1):
@@ -18,7 +18,7 @@ for nPass in range(2):
                               index += 1.0
                          else:
                               config = {"minNJetBin":7, "maxNJetBin":11, "gr_lambda":0, "nNodes":nNodes, "nNodesD":10,  "nHLayers":nHLayers, 
-                                        "nHLayersD":1, "drop_out":drop_out/10, "batch_size":2048, "epochs":epochs, "lr":0.001, "verbose":0, "Mask":False, "Mask_nJet":7}
+                                        "nHLayersD":1, "drop_out":float(drop_out)/10.0, "batch_size":2048, "epochs":epochs, "lr":0.001, "verbose":0, "Mask":False, "Mask_nJet":7}
                               name = ""
                               for key in sorted(config.keys()):
                                    name += key+"_"+str(config[key])+"_"
