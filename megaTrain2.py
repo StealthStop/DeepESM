@@ -23,10 +23,10 @@ def parallel_train(config):
 if __name__ == '__main__':     
      configList = []
      index = 0
-     for epochs in range(10, 35, 1):
-          for nNodes in range(60, 80, 1):
-               for nHLayers in range(1, 3):
-                    for drop_out in range(5, 9, 1):
+     for epochs in range(16, 30+2, 2):
+          for nNodes in range(60, 80+2, 2):
+               for nHLayers in range(1, 3+1, 1):
+                    for drop_out in range(5, 9+1, 1):
                          #for nNodesD in range(2, 20, 2):
                          #for nHLayersD in range(1, 5):
                               index += 1.0
@@ -38,7 +38,7 @@ if __name__ == '__main__':
                        
      totals = {}
      result = {}
-     pool = Pool(processes=2)
+     pool = Pool(processes=1)
      outPut = pool.map(parallel_train, configList)          
 
      for t in outPut:

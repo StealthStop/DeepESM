@@ -283,11 +283,11 @@ class Validation:
             self.metric["nJetPerformance"] = 0.0
             for i in njetPerformance:
                 self.metric["nJetPerformance"] += abs(i - self.metric["Performance"])
-        if not self.config["Mask"]:
-            self.metric["nJetShape"] = 0.0
-            for l in MVABinNJetShapeContent:
-                for i in range(len(l)):
-                    self.metric["nJetShape"] += abs(l[i] - TotalMVAnJetShape[i])
+        #if not self.config["Mask"]:
+        #    self.metric["nJetShape"] = 0.0
+        #    for l in MVABinNJetShapeContent:
+        #        for i in range(len(l)):
+        #            self.metric["nJetShape"] += abs(l[i] - TotalMVAnJetShape[i])
                     
         # Save useful stuff
         self.trainData["y"] = y_Train
