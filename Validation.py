@@ -248,33 +248,53 @@ class Validation:
         
         # Make njet distribution for 4 different bins
         nMVABins = 4
-        inds = y_Train_Bg.argsort()
-        sortednJet = self.trainBg["nJet"][:,0][inds[::-1]]
-        sorted_y = y_Train_Bg[inds[::-1]]
-        nJetDeepESMBins = np.array_split(sortednJet, nMVABins)
-        sorted_y_split = np.array_split(sorted_y, nMVABins)
-        index=0
-        fig = plt.figure()
-        bins = []
-        for a in nJetDeepESMBins:
-            print "DeepESM bin ", len(nJetDeepESMBins) - index, ": ", " NEvents: ", len(a)," bin cuts: ", sorted_y_split[index][0], " ", sorted_y_split[index][-1]
-            plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=True, label='Bin {}'.format(len(nJetDeepESMBins) - index))
-            bins.append([str(sorted_y_split[index][0]), str(sorted_y_split[index][-1])])
-            index += 1
-        plt.hist(sortednJet, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=True, label='Total')
-        plt.legend(loc='upper right')
-        fig.savefig(self.config["outputDir"]+"/nJet_log.png", dpi=fig.dpi)
-        
-        index=0
-        MVABinNJetShapeContent = []
-        fig = plt.figure()
-        for a in nJetDeepESMBins:
-            n, _, _ = plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=False, label='Bin {}'.format(len(nJetDeepESMBins) - index))
-            MVABinNJetShapeContent.append(n)
-            index += 1
-        TotalMVAnJetShape, _, _ = plt.hist(sortednJet, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=False, label='Total')
-        plt.legend(loc='upper right')
-        fig.savefig(self.config["outputDir"]+"/nJet.png", dpi=fig.dpi)
+        nJetDeepESMBins = None
+        sorted_y_split = None
+        for key in sorted(self.trainBg.keys()):
+            if key.find("mask") != -1:
+                y = y_Train_Bg[self.trainBg[key]]
+                nJet = self.trainBg["nJet"][:,0][self.trainBg[key]]
+                inds = y.argsort()
+                sortednJet = nJet[inds[::-1]]
+                sorted_y = y[inds[::-1]]
+                perNJetBins = np.array_split(sortednJet, nMVABins)
+                perNJet_y_split = np.array_split(sorted_y, nMVABins)
+                perNJet_bins = []
+                print "-----------------------------------------------------------------------------------------------------------------------------------"
+                for i in range(len(perNJet_y_split)):
+                    print "NJet: ", key, " DeepESM bin ", len(perNJet_y_split) - i, ": "," bin cuts: ", perNJet_y_split[i][0], " ", perNJet_y_split[i][-1]
+                    perNJet_bins.append([str(perNJet_y_split[i][0]), str(perNJet_y_split[i][-1])]) 
+                self.config[key] = perNJet_bins 
+                if nJetDeepESMBins == None:
+                    nJetDeepESMBins = perNJetBins
+                    sorted_y_split = perNJet_y_split
+                else:
+                    for i in range(len(nJetDeepESMBins)):
+                        nJetDeepESMBins[i] = np.hstack((nJetDeepESMBins[i], perNJetBins[i]))
+                        sorted_y_split[i] = np.hstack((sorted_y_split[i], perNJet_y_split[i]))
+                
+        #index=0
+        #fig = plt.figure()
+        #bins = []
+        #for a in nJetDeepESMBins:
+        #    print "DeepESM bin ", len(nJetDeepESMBins) - index, ": ", " NEvents: ", len(a)," bin cuts: ", sorted_y_split[index][0], " ", sorted_y_split[index][-1]
+        #    plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=True, label='Bin {}'.format(len(nJetDeepESMBins) - index))
+        #    bins.append([str(sorted_y_split[index][0]), str(sorted_y_split[index][-1])])
+        #    index += 1
+        #plt.hist(self.trainBg["nJet"][:,0], bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=True, label='Total')
+        #plt.legend(loc='upper right')
+        #fig.savefig(self.config["outputDir"]+"/nJet_log.png", dpi=fig.dpi)
+        #
+        #index=0
+        #MVABinNJetShapeContent = []
+        #fig = plt.figure()
+        #for a in nJetDeepESMBins:
+        #    n, _, _ = plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=False, label='Bin {}'.format(len(nJetDeepESMBins) - index))
+        #    MVABinNJetShapeContent.append(n)
+        #    index += 1
+        #TotalMVAnJetShape, _, _ = plt.hist(self.trainBg["nJet"][:,0], bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=False, label='Total')
+        #plt.legend(loc='upper right')
+        #fig.savefig(self.config["outputDir"]+"/nJet.png", dpi=fig.dpi)
 
         # Define metrics for the training
         self.metric["OverTrain"] = abs(auc_Val - auc_Train)
@@ -283,16 +303,10 @@ class Validation:
             self.metric["nJetPerformance"] = 0.0
             for i in njetPerformance:
                 self.metric["nJetPerformance"] += abs(i - self.metric["Performance"])
-        #if not self.config["Mask"]:
-        #    self.metric["nJetShape"] = 0.0
-        #    for l in MVABinNJetShapeContent:
-        #        for i in range(len(l)):
-        #            self.metric["nJetShape"] += abs(l[i] - TotalMVAnJetShape[i])
                     
         # Save useful stuff
         self.trainData["y"] = y_Train
         np.save(self.config["outputDir"]+"/deepESMbin_dis_nJet.npy", self.trainData)
-        self.config["bins"] = bins
         with open(self.config["outputDir"]+"/config.json",'w') as configFile:
             json.dump(self.config, configFile, indent=4, sort_keys=True)
 
