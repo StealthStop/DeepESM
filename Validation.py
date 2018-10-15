@@ -90,6 +90,7 @@ class Validation:
         #    index += 1
 
         # Plot loss of training vs test
+        print "Plotting loss and acc vs epoch"
         fig = plt.figure()
         plt.plot(self.result_log.history['loss'])
         plt.plot(self.result_log.history['val_loss'])
