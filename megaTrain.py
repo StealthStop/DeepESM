@@ -1,4 +1,4 @@
-from train import train
+from train import Train
 from multiprocessing import Pool
 import json
 
@@ -12,8 +12,10 @@ def parallel_train(config):
      for key in sorted(config.keys()):
           name += key+"_"+str(config[key])+"_"
           
-     _, metric = train(config)
-                    
+     t = Train()
+     _, metric = t.train(config)
+     del t
+     
      total = 0.0
      for key in metric:
           total += metric[key]

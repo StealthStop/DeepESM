@@ -17,6 +17,16 @@ class Validation:
         self.trainBg = trainBg
         self.result_log = result_log
         self.metric = {}
+
+    def __del__(self):
+        del self.model
+        del self.config
+        del self.sgTrainSet
+        del self.trainData
+        del self.trainSg
+        del self.trainBg
+        del self.result_log
+        del self.metric
         
     def plot2DVar(self, name, binxl, binxh, numbin, xIn, yIn, nbiny):
         fig = plt.figure()
