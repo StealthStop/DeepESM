@@ -47,8 +47,9 @@ class Validation:
 
     def plot(self):
         sgValSet = sum( (glob(self.config["dataSet"]+"trainingTuple_*_division_1_*_"+mass+"*_validation_0.h5") for mass in self.config["massModels"]) , [])
-        bgValSet = glob(self.config["dataSet"]+"trainingTuple_*_division_1_"+self.config["ttbarMC"]+"_validation_0.h5")
-        bgOTrainSet = glob(self.config["dataSet"]+"trainingTuple_*_division_0_"+self.config["otherttbarMC"]+"_training_0.h5")
+        bgValSet = sum( (glob(self.config["dataSet"]+"trainingTuple_*_division_1_"+ttbar+"_validation_0.h5") for ttbar in self.config["ttbarMC"][1]) , [])
+        bgOTrainSet = sum( (glob(self.config["dataSet"]+"trainingTuple_*_division_0_"+ttbar+"_training_0.h5") for ttbar in self.config["otherttbarMC"][1]) , [])
+
         valData, valSg, valBg = get_data(sgValSet, bgValSet, self.config)
         trainOData, trainOSg, trainOBg = get_data(self.sgTrainSet, bgOTrainSet, self.config)
         y_Val = self.model.predict(valData["data"])[0][:,0].ravel()
@@ -89,6 +90,7 @@ class Validation:
         #    index += 1
 
         # Plot loss of training vs test
+        print "Plotting loss and acc vs epoch"
         fig = plt.figure()
         plt.plot(self.result_log.history['loss'])
         plt.plot(self.result_log.history['val_loss'])
@@ -140,10 +142,10 @@ class Validation:
         ax.set_title('')
         ax.set_ylabel('Norm Events')
         ax.set_xlabel('Discriminator')
-        plt.hist(y_Train_Sg, bins, color='xkcd:red', alpha=0.9, histtype='step', lw=2, label='Sg Train', density=True)
-        plt.hist(y_Val_Sg, bins, color='xkcd:green', alpha=0.9, histtype='step', lw=2, label='Sg Val', density=True)
-        plt.hist(y_Train_Bg, bins, color='xkcd:blue', alpha=0.9, histtype='step', lw=2, label='Bg Train', density=True, weights=self.trainBg["Weight"])
-        plt.hist(y_Val_Bg, bins, color='xkcd:magenta', alpha=0.9, histtype='step', lw=2, label='Bg Val', density=True, weights=valBg["Weight"])
+        plt.hist(y_Train_Sg, bins, color='xkcd:red', alpha=0.9, histtype='step', lw=2, label='Sg Train', density=True, log=True, weights=self.trainSg["Weight"])
+        plt.hist(y_Val_Sg, bins, color='xkcd:green', alpha=0.9, histtype='step', lw=2, label='Sg Val', density=True, log=True, weights=valSg["Weight"])
+        plt.hist(y_Train_Bg, bins, color='xkcd:blue', alpha=0.9, histtype='step', lw=2, label='Bg Train', density=True, log=True, weights=self.trainBg["Weight"])
+        plt.hist(y_Val_Bg, bins, color='xkcd:magenta', alpha=0.9, histtype='step', lw=2, label='Bg Val', density=True, log=True, weights=valBg["Weight"])
         ax.legend(loc='best', frameon=False)
         fig.savefig(self.config["outputDir"]+"/discriminator.png", dpi=fig.dpi)
         
@@ -161,19 +163,18 @@ class Validation:
                 if key.find("mask") != -1:
                     yt = y_train_Sp[trainSample[key]]                
                     wt = weights[trainSample[key]]
-                    plt.hist(yt, bins, alpha=0.9, histtype='step', lw=2, label=sample+" Train "+key, density=True, weights=wt)
+                    if yt.size != 0 and wt.size != 0:
+                        plt.hist(yt, bins, alpha=0.9, histtype='step', lw=2, label=sample+" Train "+key, density=True, log=True, weights=wt)
             plt.legend(loc='best')
             fig.savefig(self.config["outputDir"]+"/discriminator_nJet_"+sample+".png", dpi=fig.dpi)
         
         # Plot validation roc curve
-        fpr_Val, tpr_Val, thresholds_Val = roc_curve(valData["labels"][:,0], y_Val, sample_weight=valData["Weight"])
-        fpr_Train, tpr_Train, thresholds_Train = roc_curve(self.trainData["labels"][:,0], y_Train, sample_weight=self.trainData["Weight"])
-        fpr_OTrain, tpr_OTrain, thresholds_OTrain = roc_curve(trainOData["labels"][:,0], y_OTrain, sample_weight=trainOData["Weight"])
+        fpr_Val, tpr_Val, thresholds_Val = roc_curve(valData["labels"][:,0], y_Val, sample_weight=valData["Weight"][:,0])
+        fpr_Train, tpr_Train, thresholds_Train = roc_curve(self.trainData["labels"][:,0], y_Train, sample_weight=self.trainData["Weight"][:,0])
+        fpr_OTrain, tpr_OTrain, thresholds_OTrain = roc_curve(trainOData["labels"][:,0], y_OTrain, sample_weight=trainOData["Weight"][:,0])
         auc_Val = auc(fpr_Val, tpr_Val)
         auc_Train = auc(fpr_Train, tpr_Train)
         auc_OTrain = auc(fpr_OTrain, tpr_OTrain)
-        #self.metric["OverTrain"] = abs(auc_Val - auc_Train)
-        #self.metric["Performance"] = abs(1 - auc_Train)
         
         fig = plt.figure()
         plt.plot([0, 1], [0, 1], 'k--')
@@ -187,8 +188,8 @@ class Validation:
         
         fig = plt.figure()
         plt.plot([0, 1], [0, 1], 'k--')
-        plt.plot(fpr_OTrain, tpr_OTrain, color='xkcd:black', label="Train "+self.config["otherttbarMC"]+" (area = {:.3f})".format(auc_OTrain))
-        plt.plot(fpr_Train, tpr_Train, color='xkcd:red', label="Train "+self.config["ttbarMC"]+" (area = {:.3f})".format(auc_Train))
+        plt.plot(fpr_OTrain, tpr_OTrain, color='xkcd:black', label="Train "+self.config["otherttbarMC"][0]+" (area = {:.3f})".format(auc_OTrain))
+        plt.plot(fpr_Train, tpr_Train, color='xkcd:red', label="Train "+self.config["ttbarMC"][0]+" (area = {:.3f})".format(auc_Train))
         plt.xlabel('False positive rate')
         plt.ylabel('True positive rate')
         plt.title('ROC curve')
@@ -204,7 +205,7 @@ class Validation:
         for key in sorted(self.trainData.keys()):
             if key.find("mask") != -1:
                 labels = self.trainData["labels"][self.trainData[key]]
-                weights = self.trainData["Weight"][self.trainData[key]]
+                weights = self.trainData["Weight"][self.trainData[key]][:,0]
                 y = y_Train[self.trainData[key]]
                 if len(y)==0:
                     continue
@@ -213,22 +214,18 @@ class Validation:
                 njetPerformance.append(auc_Train)
                 plt.plot(fpr_Train, tpr_Train, label="Train "+key+" (area = {:.3f})".format(auc_Train))
         plt.legend(loc='best')
-        fig.savefig(self.config["outputDir"]+"/roc_plot_"+self.config["ttbarMC"]+"_nJet.png", dpi=fig.dpi)    
-        #if not self.config["Mask"]:
-        #    self.metric["nJetPerformance"] = 0.0
-        #    for i in njetPerformance:
-        #        self.metric["nJetPerformance"] += abs(i - self.metric["Performance"])
+        fig.savefig(self.config["outputDir"]+"/roc_plot_"+self.config["ttbarMC"][0]+"_nJet.png", dpi=fig.dpi)    
         
         fig = plt.figure()
         plt.plot([0, 1], [0, 1], 'k--')
         plt.xlabel('False positive rate')
         plt.ylabel('True positive rate')
-        plt.title(self.config["otherttbarMC"]+" ROC curve")
+        plt.title(self.config["otherttbarMC"][0]+" ROC curve")
         njetPerformance = []
         for key in sorted(trainOData.keys()):
             if key.find("mask") != -1:
                 labels = trainOData["labels"][trainOData[key]]
-                weights = trainOData["Weight"][trainOData[key]]
+                weights = trainOData["Weight"][trainOData[key]][:,0]
                 y = y_OTrain[trainOData[key]]
                 if len(y)==0:
                     continue
@@ -237,7 +234,7 @@ class Validation:
                 njetPerformance.append(auc_Train)
                 plt.plot(fpr_Train, tpr_Train, label="Train "+key+" (area = {:.3f})".format(auc_Train))
         plt.legend(loc='best')
-        fig.savefig(self.config["outputDir"]+"/roc_plot_"+self.config["otherttbarMC"]+"_nJet.png", dpi=fig.dpi)    
+        fig.savefig(self.config["outputDir"]+"/roc_plot_"+self.config["otherttbarMC"][0]+"_nJet.png", dpi=fig.dpi)    
         
         # Plot NJet dependance
         binxl = self.config["minNJetBin"]
@@ -252,38 +249,53 @@ class Validation:
         
         # Make njet distribution for 4 different bins
         nMVABins = 4
-        inds = y_Train_Bg.argsort()
-        sortednJet = self.trainBg["nJet"][:,0][inds[::-1]]
-        sorted_y = y_Train_Bg[inds[::-1]]
-        nJetDeepESMBins = np.array_split(sortednJet, nMVABins)
-        sorted_y_split = np.array_split(sorted_y, nMVABins)
-        index=0
-        fig = plt.figure()
-        bins = []
-        for a in nJetDeepESMBins:
-            print "DeepESM bin ", len(nJetDeepESMBins) - index, ": ", " NEvents: ", len(a)," bin cuts: ", sorted_y_split[index][0], " ", sorted_y_split[index][-1]
-            plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=True, label='Bin {}'.format(len(nJetDeepESMBins) - index))
-            bins.append([str(sorted_y_split[index][0]), str(sorted_y_split[index][-1])])
-            index += 1
-        plt.hist(sortednJet, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=True, label='Total')
-        plt.legend(loc='upper right')
-        fig.savefig(self.config["outputDir"]+"/nJet_log.png", dpi=fig.dpi)
-        
-        index=0
-        MVABinNJetShapeContent = []
-        fig = plt.figure()
-        for a in nJetDeepESMBins:
-            n, _, _ = plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=False, label='Bin {}'.format(len(nJetDeepESMBins) - index))
-            MVABinNJetShapeContent.append(n)
-            index += 1
-        TotalMVAnJetShape, _, _ = plt.hist(sortednJet, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=False, label='Total')
-        plt.legend(loc='upper right')
-        fig.savefig(self.config["outputDir"]+"/nJet.png", dpi=fig.dpi)
-        #if not self.config["Mask"]:
-        #    self.metric["nJetShape"] = 0.0
-        #    for l in MVABinNJetShapeContent:
-        #        for i in range(len(l)):
-        #            self.metric["nJetShape"] += abs(l[i] - TotalMVAnJetShape[i])    
+        nJetDeepESMBins = None
+        sorted_y_split = None
+        for key in sorted(self.trainBg.keys()):
+            if key.find("mask") != -1:
+                y = y_Train_Bg[self.trainBg[key]]
+                nJet = self.trainBg["nJet"][:,0][self.trainBg[key]]
+                inds = y.argsort()
+                sortednJet = nJet[inds[::-1]]
+                sorted_y = y[inds[::-1]]
+                perNJetBins = np.array_split(sortednJet, nMVABins)
+                perNJet_y_split = np.array_split(sorted_y, nMVABins)
+                perNJet_bins = []
+                print "-----------------------------------------------------------------------------------------------------------------------------------"
+                for i in range(len(perNJet_y_split)):
+                    print "NJet: ", key, " DeepESM bin ", len(perNJet_y_split) - i, ": "," bin cuts: ", perNJet_y_split[i][0], " ", perNJet_y_split[i][-1]
+                    perNJet_bins.append([str(perNJet_y_split[i][0]), str(perNJet_y_split[i][-1])]) 
+                self.config[key] = perNJet_bins 
+                if nJetDeepESMBins == None:
+                    nJetDeepESMBins = perNJetBins
+                    sorted_y_split = perNJet_y_split
+                else:
+                    for i in range(len(nJetDeepESMBins)):
+                        nJetDeepESMBins[i] = np.hstack((nJetDeepESMBins[i], perNJetBins[i]))
+                        sorted_y_split[i] = np.hstack((sorted_y_split[i], perNJet_y_split[i]))
+                
+        #index=0
+        #fig = plt.figure()
+        #bins = []
+        #for a in nJetDeepESMBins:
+        #    print "DeepESM bin ", len(nJetDeepESMBins) - index, ": ", " NEvents: ", len(a)," bin cuts: ", sorted_y_split[index][0], " ", sorted_y_split[index][-1]
+        #    plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=True, label='Bin {}'.format(len(nJetDeepESMBins) - index))
+        #    bins.append([str(sorted_y_split[index][0]), str(sorted_y_split[index][-1])])
+        #    index += 1
+        #plt.hist(self.trainBg["nJet"][:,0], bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=True, label='Total')
+        #plt.legend(loc='upper right')
+        #fig.savefig(self.config["outputDir"]+"/nJet_log.png", dpi=fig.dpi)
+        #
+        #index=0
+        #MVABinNJetShapeContent = []
+        #fig = plt.figure()
+        #for a in nJetDeepESMBins:
+        #    n, _, _ = plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=False, label='Bin {}'.format(len(nJetDeepESMBins) - index))
+        #    MVABinNJetShapeContent.append(n)
+        #    index += 1
+        #TotalMVAnJetShape, _, _ = plt.hist(self.trainBg["nJet"][:,0], bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=False, label='Total')
+        #plt.legend(loc='upper right')
+        #fig.savefig(self.config["outputDir"]+"/nJet.png", dpi=fig.dpi)
 
         # Define metrics for the training
         self.metric["OverTrain"] = abs(auc_Val - auc_Train)
@@ -292,15 +304,10 @@ class Validation:
             self.metric["nJetPerformance"] = 0.0
             for i in njetPerformance:
                 self.metric["nJetPerformance"] += abs(i - self.metric["Performance"])
-        if not self.config["Mask"]:
-            self.metric["nJetShape"] = 0.0
-            for l in MVABinNJetShapeContent:
-                for i in range(len(l)):
-                    self.metric["nJetShape"] += abs(l[i] - TotalMVAnJetShape[i])
                     
         # Save useful stuff
-        np.save(self.config["outputDir"]+"/deepESMbin_dis_nJet.npy", {"nJetBins" : nJetDeepESMBins, "y" : sorted_y_split, "nJet" : sortednJet})
-        self.config["bins"] = bins
+        self.trainData["y"] = y_Train
+        np.save(self.config["outputDir"]+"/deepESMbin_dis_nJet.npy", self.trainData)
         with open(self.config["outputDir"]+"/config.json",'w') as configFile:
             json.dump(self.config, configFile, indent=4, sort_keys=True)
 

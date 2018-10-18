@@ -34,7 +34,7 @@ def make_loss_adversary(c):
     return loss_adversary
     
 def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":70, "nNodesD":10,
-                    "nHLayers":1, "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":100,
+                    "nHLayers":1, "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":40,
                     "lr":0.001, "verbose":1, "Mask":False, "Mask_nJet":7}):
 
     # Define ouputDir based on input config
@@ -56,34 +56,32 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     
     # Import data
     print("----------------Preparing data------------------")
+    TTJets = ("TTJets", ["TTJets_SingleLeptFromT", "TTJets_SingleLeptFromTbar", "TTJets_DiLept", "TTJets_HT-600to800", "TTJets_HT-800to1200", "TTJets_HT-1200to2500", "TTJets_HT-2500toInf"])
+    TT = ("TT", ["TT"])                  
+    TT_TTJets = ("TT+TTJets", ["TT", "TTJets_SingleLeptFromT", "TTJets_SingleLeptFromTbar", "TTJets_DiLept", "TTJets_HT-600to800", "TTJets_HT-800to1200", "TTJets_HT-1200to2500", "TTJets_HT-2500toInf"])
+    TTJets_SingleLep = ("TTJets_SingleLep", ["TTJets_SingleLeptFromT_Train", "TTJets_SingleLeptFromTbar_Train"])
+    config["dataSet"] = "BackGroundMVA_V10_CM_All_GoodJets_AllTTbarSamples/"
     
-    
-    #config["dataSet"] = "EventShapeTrainingData_V3/"
-    #config["dataSet"] = "BackGroundMVA_V4_CM_GoodJets/"
-    #config["dataSet"] = "BackGroundMVA_V5_CM_Jets/"
-    #config["dataSet"] = "BackGroundMVA_V6_noCM_GoodJets/"
-    config["dataSet"] = "BackGroundMVA_V8_CM_GoodJets/"
-    #config["dataSet"] = "BackGroundMVA_V9_CM_All_GoodJets_Inclusive/"
     config["massModels"] = ["350","450","550","650","750","850"]
-    #ttMClist = ["TTJets*", "TT"]
-    ttMClist = ["T*", "TT"]
-    config["ttbarMC"] = ttMClist[0]
-    config["otherttbarMC"] = ttMClist[1]
+    config["ttbarMC"] = TT_TTJets
+    config["otherttbarMC"] = TTJets_SingleLep
+    config["doBgWeight"] = True
+    config["doSgWeight"] = False
     print "Using "+config["dataSet"]+" data set"
     print "Training variables:"
     print config["allVars"]
     print "Training on mass models: ", config["massModels"]
-    print "Training on ttbarMC: ", config["ttbarMC"]
+    print "Training on ttbarMC: ", config["ttbarMC"][0]
     if os.path.exists(config["outputDir"]):
         print "Removing old training files: ", config["outputDir"]
         shutil.rmtree(config["outputDir"])
     os.makedirs(config["outputDir"]+"/log_graph")    
     
     sgTrainSet = sum( (glob(config["dataSet"]+"trainingTuple_*_division_0_*_"+mass+"*_training_0.h5") for mass in config["massModels"]) , [])
-    bgTrainSet = glob(config["dataSet"]+"trainingTuple_*_division_0_"+config["ttbarMC"]+"_training_0.h5")
+    bgTrainSet = sum( (glob(config["dataSet"]+"trainingTuple_*_division_0_"+ttbar+"_training_0.h5") for ttbar in config["ttbarMC"][1]) , [])
 
     sgTestSet = sum( (glob(config["dataSet"]+"trainingTuple_*_division_2_*_"+mass+"*_test_0.h5") for mass in config["massModels"]) , [])
-    bgTestSet = glob(config["dataSet"]+"trainingTuple_*_division_2_"+config["ttbarMC"]+"_test_0.h5")
+    bgTestSet = sum( (glob(config["dataSet"]+"trainingTuple_*_division_2_"+ttbar+"_test_0.h5") for ttbar in config["ttbarMC"][1]) , [])
     
     trainData, trainSg, trainBg = get_data(sgTrainSet, bgTrainSet, config)
     testData, testSg, testBg = get_data(sgTestSet, bgTestSet, config)
@@ -111,6 +109,9 @@ def train(config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":
     n_hidden_layers_D = list(config["nNodesD"] for x in range(config["nHLayersD"]))
     Flip = GradientReversal(config["gr_lambda"])    
 
+    cfg = K.tf.ConfigProto()
+    cfg.gpu_options.allow_growth = True
+    K.set_session(K.tf.Session(config=cfg))
     main_input = keras.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
     # Set the rescale inputs to have unit variance centered at 0 between -1 and 1
     layer = keras.layers.Lambda(lambda x: (x - K.constant(trainDataTT["mean"])) * K.constant(trainDataTT["scale"]), name='normalizeData')(main_input)
