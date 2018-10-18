@@ -28,7 +28,7 @@ if __name__ == '__main__':
      totals = {}
      result = {}
      for epochs in range(15, 35+5, 5):
-          for nNodes in range(60, 80+2, 2):
+          for nNodes in range(60, 80+5, 5):
                for nHLayers in range(1, 3+1, 1):
                     for drop_out in range(5, 9+1, 1):
                          #for nNodesD in range(2, 20, 2):

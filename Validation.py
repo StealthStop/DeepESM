@@ -261,10 +261,10 @@ class Validation:
         nMVABins = 4
         nJetDeepESMBins = None
         sorted_y_split = None
-        for key in sorted(self.trainBg.keys()):
+        for key in sorted(trainOBg.keys()):
             if key.find("mask") != -1:
-                y = y_Train_Bg[self.trainBg[key]]
-                nJet = self.trainBg["nJet"][:,0][self.trainBg[key]]
+                y = y_OTrain_Bg[trainOBg[key]]
+                nJet = trainOBg["nJet"][:,0][trainOBg[key]]
                 inds = y.argsort()
                 sortednJet = nJet[inds[::-1]]
                 sorted_y = y[inds[::-1]]
