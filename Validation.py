@@ -3,7 +3,7 @@ from DataGetter import get_data
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
-from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score
 import json
 
 class Validation:
@@ -17,6 +17,7 @@ class Validation:
         self.trainBg = trainBg
         self.result_log = result_log
         self.metric = {}
+        self.doLog = False
 
     def __del__(self):
         del self.model
@@ -152,10 +153,10 @@ class Validation:
         ax.set_title('')
         ax.set_ylabel('Norm Events')
         ax.set_xlabel('Discriminator')
-        plt.hist(y_Train_Sg, bins, color='xkcd:red', alpha=0.9, histtype='step', lw=2, label='Sg Train', density=True, log=True, weights=self.trainSg["Weight"])
-        plt.hist(y_Val_Sg, bins, color='xkcd:green', alpha=0.9, histtype='step', lw=2, label='Sg Val', density=True, log=True, weights=valSg["Weight"])
-        plt.hist(y_Train_Bg, bins, color='xkcd:blue', alpha=0.9, histtype='step', lw=2, label='Bg Train', density=True, log=True, weights=self.trainBg["Weight"])
-        plt.hist(y_Val_Bg, bins, color='xkcd:magenta', alpha=0.9, histtype='step', lw=2, label='Bg Val', density=True, log=True, weights=valBg["Weight"])
+        plt.hist(y_Train_Sg, bins, color='xkcd:red', alpha=0.9, histtype='step', lw=2, label='Sg Train', density=True, log=self.doLog, weights=self.trainSg["Weight"])
+        plt.hist(y_Val_Sg, bins, color='xkcd:green', alpha=0.9, histtype='step', lw=2, label='Sg Val', density=True, log=self.doLog, weights=valSg["Weight"])
+        plt.hist(y_Train_Bg, bins, color='xkcd:blue', alpha=0.9, histtype='step', lw=2, label='Bg Train', density=True, log=self.doLog, weights=self.trainBg["Weight"])
+        plt.hist(y_Val_Bg, bins, color='xkcd:magenta', alpha=0.9, histtype='step', lw=2, label='Bg Val', density=True, log=self.doLog, weights=valBg["Weight"])
         ax.legend(loc='best', frameon=False)
         fig.savefig(self.config["outputDir"]+"/discriminator.png", dpi=fig.dpi)
         
@@ -174,7 +175,7 @@ class Validation:
                     yt = y_train_Sp[trainSample[key]]                
                     wt = weights[trainSample[key]]
                     if yt.size != 0 and wt.size != 0:
-                        plt.hist(yt, bins, alpha=0.9, histtype='step', lw=2, label=sample+" Train "+key, density=True, log=True, weights=wt)
+                        plt.hist(yt, bins, alpha=0.9, histtype='step', lw=2, label=sample+" Train "+key, density=True, log=self.doLog, weights=wt)
             plt.legend(loc='best')
             fig.savefig(self.config["outputDir"]+"/discriminator_nJet_"+sample+".png", dpi=fig.dpi)
         
@@ -245,6 +246,23 @@ class Validation:
                 plt.plot(fpr_Train, tpr_Train, label="Train "+key+" (area = {:.3f})".format(auc_Train))
         plt.legend(loc='best')
         fig.savefig(self.config["outputDir"]+"/roc_plot_"+self.config["otherttbarMC"][0]+"_nJet.png", dpi=fig.dpi)    
+
+        # Plot validation precision recall
+        precision_Val, recall_Val, _ = precision_recall_curve(valData["labels"][:,0], y_Val, sample_weight=valData["Weight"][:,0])
+        precision_Train, recall_Train, _ = precision_recall_curve(self.trainData["labels"][:,0], y_Train, sample_weight=self.trainData["Weight"][:,0])
+        ap_Val = average_precision_score(valData["labels"][:,0], y_Val, sample_weight=valData["Weight"][:,0])
+        ap_Train = average_precision_score(self.trainData["labels"][:,0], y_Train, sample_weight=self.trainData["Weight"][:,0])
+        
+        fig = plt.figure()
+        plt.ylim(0,1)
+        plt.xlim(0,1)
+        plt.plot(precision_Val, recall_Val, color='xkcd:black', label='Val (AP = {:.3f})'.format(ap_Val))
+        plt.plot(precision_Train, recall_Train, color='xkcd:red', label='Train (AP = {:.3f})'.format(ap_Train))
+        plt.xlabel('Recall')
+        plt.ylabel('Precision')
+        plt.title('Precision and Recall curve')
+        plt.legend(loc='best')
+        fig.savefig(self.config["outputDir"]+"/PandR_plot.png", dpi=fig.dpi)        
         
         # Plot NJet dependance
         binxl = self.config["minNJetBin"]
@@ -289,10 +307,10 @@ class Validation:
         #bins = []
         #for a in nJetDeepESMBins:
         #    print "DeepESM bin ", len(nJetDeepESMBins) - index, ": ", " NEvents: ", len(a)," bin cuts: ", sorted_y_split[index][0], " ", sorted_y_split[index][-1]
-        #    plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=True, label='Bin {}'.format(len(nJetDeepESMBins) - index))
+        #    plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=self.doLog, label='Bin {}'.format(len(nJetDeepESMBins) - index))
         #    bins.append([str(sorted_y_split[index][0]), str(sorted_y_split[index][-1])])
         #    index += 1
-        #plt.hist(self.trainBg["nJet"][:,0], bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=True, label='Total')
+        #plt.hist(self.trainBg["nJet"][:,0], bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=self.doLog, label='Total')
         #plt.legend(loc='upper right')
         #fig.savefig(self.config["outputDir"]+"/nJet_log.png", dpi=fig.dpi)
         #

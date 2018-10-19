@@ -37,8 +37,8 @@ class Train:
             #return c * keras.backend.binary_crossentropy(y_true, y_pred)
         return loss_adversary
         
-    def train(self, config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 0, "nNodes":70, "nNodesD":10,
-                              "nHLayers":1, "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":2,
+    def train(self, config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 4, "nNodes":70, "nNodesD":10,
+                              "nHLayers":1, "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":100,
                               "lr":0.001, "verbose":1, "Mask":False, "Mask_nJet":7}):
     
         # Define ouputDir based on input config
@@ -102,7 +102,8 @@ class Train:
         n_hidden_layers_D = list(config["nNodesD"] for x in range(config["nHLayersD"]))
         Flip = GradientReversal(config["gr_lambda"])    
     
-        cfg = K.tf.ConfigProto()
+        # Setting inter_op_parallelism_threads=1 fixes a memory leak when calling model.predict()
+        cfg = K.tf.ConfigProto(inter_op_parallelism_threads=1)
         cfg.gpu_options.allow_growth = True
         K.set_session(K.tf.Session(config=cfg))
         main_input = keras.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
@@ -156,7 +157,8 @@ class Train:
         print("----------------Validation of training------------------")
         val = Validation(model, config, sgTrainSet, trainData, trainSg, trainBg, result_log)
         config, metric = val.plot()
-    
+        del val
+        
         #Clean up training
         K.clear_session()
         tf.reset_default_graph()
