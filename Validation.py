@@ -186,6 +186,10 @@ class Validation:
         auc_Val = auc(fpr_Val, tpr_Val)
         auc_Train = auc(fpr_Train, tpr_Train)
         auc_OTrain = auc(fpr_OTrain, tpr_OTrain)
+
+        # Define metrics for the training
+        self.metric["OverTrain"] = abs(auc_Val - auc_Train)
+        self.metric["Performance"] = abs(1 - auc_Train)
         
         fig = plt.figure()
         plt.plot([0, 1], [0, 1], 'k--')
@@ -325,14 +329,6 @@ class Validation:
         #plt.legend(loc='upper right')
         #fig.savefig(self.config["outputDir"]+"/nJet.png", dpi=fig.dpi)
 
-        # Define metrics for the training
-        self.metric["OverTrain"] = abs(auc_Val - auc_Train)
-        self.metric["Performance"] = abs(1 - auc_Train)
-        if not self.config["Mask"]:
-            self.metric["nJetPerformance"] = 0.0
-            for i in njetPerformance:
-                self.metric["nJetPerformance"] += abs(i - self.metric["Performance"])
-                    
         # Save useful stuff
         self.trainData["y"] = y_Train
         np.save(self.config["outputDir"]+"/deepESMbin_dis_nJet.npy", self.trainData)
