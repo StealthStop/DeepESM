@@ -102,8 +102,7 @@ class Train:
         n_hidden_layers_D = list(config["nNodesD"] for x in range(config["nHLayersD"]))
         Flip = GradientReversal(config["gr_lambda"])    
     
-        # Setting inter_op_parallelism_threads=1 fixes a memory leak when calling model.predict()
-        cfg = K.tf.ConfigProto(inter_op_parallelism_threads=1)
+        cfg = K.tf.ConfigProto()
         cfg.gpu_options.allow_growth = True
         K.set_session(K.tf.Session(config=cfg))
         main_input = keras.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
