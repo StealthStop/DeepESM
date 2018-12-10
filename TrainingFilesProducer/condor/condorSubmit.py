@@ -8,27 +8,15 @@ sys.path = [environ["CMSSW_BASE"] + "/src/SusyAnaTools/Tools/condor/",] + sys.pa
 from samples import SampleCollection
 import optparse 
 import subprocess
-
-#mvaFileName = ""
-#with file(environ["CMSSW_BASE"] + "/src/ZInvisible/Tools/TopTagger.cfg") as meowttcfgFile:
-#    for line in meowttcfgFile:
-#        if "modelFile" in line:
-#            mvaFileName = line.split("=")[1].strip().strip("\"")
-#            break
-
+from pyxrootd import client
 
 filestoTransferGTP = [environ["CMSSW_BASE"] + "/src/TopTagger/Tools/makeTrainingTuples",
                       environ["CMSSW_BASE"] + "/src/TopTagger/TopTagger/test/libTopTagger.so",
                       environ["CMSSW_BASE"] + "/src/TopTagger/Tools/TopTaggerClusterOnly.cfg",
-                      #environ["CMSSW_BASE"] + "/src/TopTagger/Tools/sampleSets.txt",
-                      #environ["CMSSW_BASE"] + "/src/TopTagger/Tools/sampleCollections.txt",
                       "/uscms_data/d3/pastika/zinv/dev/CMSSW_7_4_8/src/opencv/lib/libopencv_core.so.3.1",
                       "/uscms_data/d3/pastika/zinv/dev/CMSSW_7_4_8/src/opencv/lib/libopencv_ml.so.3.1",
                       environ["CMSSW_BASE"] + "/src/TopTagger/Tools/sampleSets.cfg",
                       environ["CMSSW_BASE"] + "/src/TopTagger/Tools/sampleCollections.cfg",
-#                      environ["CMSSW_BASE"] + "/src/hdf5-1.8.19/lib/libhdf5.so",
-#                      environ["CMSSW_BASE"] + "/src/hdf5-1.8.19/lib/libhdf5.so.10",
-#                      environ["CMSSW_BASE"] + "/src/hdf5-1.8.19/lib/libhdf5.so.10.3.0",
                       ]
 
 
@@ -57,6 +45,7 @@ parser.add_option ('-l',  dest='dataCollections', action='store_true', default =
 parser.add_option ('-L',  dest='dataCollectionslong', action='store_true', default = False, help="List all datacollections and sub collections")
 parser.add_option ('-r',  dest='refLumi', type='string', default = None, help="Data collection to define lumi (uses default lumi if no reference data collection is defined)")
 parser.add_option ('-c',  dest='noSubmit', action='store_true', default = False, help="Do not submit jobs.  Only create condor_submit.txt.")
+parser.add_option ('--output', dest='outputDir', type='string', default = 'defaultPath', help="Name of directory where output of each condor job goes in cmadrid eos area")
 
 options, args = parser.parse_args()
 
@@ -87,7 +76,6 @@ makeExeAndFriendsTarrball(filestoTransferGTP, "gtp")
 nFilesPerJob = options.numfile
 
 fileParts = [submitFile]
-#sc = SampleCollection("../sampleSets.txt", "../sampleCollections.txt")
 sc = SampleCollection("../sampleSets.cfg", "../sampleCollections.cfg")
 datasets = []
 
@@ -129,7 +117,7 @@ for ds in datasets:
                 if '.root' in l and not 'failed' in l:
                     count = count + 1
             for startFileNum in xrange(0, count, nFilesPerJob):
-                fileParts.append("Arguments = %s $ENV(CMSSW_VERSION) %i %i %f %s\n"%(n, nFilesPerJob, startFileNum, lumi, s))
+                fileParts.append("Arguments = %s $ENV(CMSSW_VERSION) %i %i %f %s %s\n"%(n, nFilesPerJob, startFileNum, lumi, s, options.outputDir))
                 fileParts.append("Output = logs/%s_%s_%i.stdout\n"%(exeName, n, startFileNum))
                 fileParts.append("Error = logs/%s_%s_%i.stderr\n"%(exeName, n, startFileNum))
                 fileParts.append("Log = logs/%s_%s_%i.log\n"%(exeName, n, startFileNum))
@@ -141,8 +129,18 @@ fout = open("condor_submit.txt", "w")
 fout.write(''.join(fileParts))
 fout.close()
 
+#Make output path on eos
+fs = client.FileSystem("root://cmseos.fnal.gov")
+eosOutputPath = "/store/user/cmadrid/trainingTuples/%s" % options.outputDir
+output = fs.dirlist(eosOutputPath)
+if output[0]['ok']:
+    print "Output directory \" %s \" already exist on EOS: delete or use a different output directory" % eosOutputPath
+    exit(0)
+else:
+    fs.mkdir(eosOutputPath)
+    print "Made directory on EOS \" %s \" " % eosOutputPath 
+
 if not options.noSubmit: 
     system('mkdir -p logs')
     system("echo 'condor_submit condor_submit.txt'")
     system('condor_submit condor_submit.txt')
-
