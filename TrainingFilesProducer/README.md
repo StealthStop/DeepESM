@@ -13,5 +13,5 @@ Test locally before submitting
 
 Run on condor
 ```
-python condorSubmit.py -d AllSignal,TT,TTJets,TTJets_Incl_Train,TTJets_SingleLept_Train -n 20
+python condorSubmit.py -d AllSignal,TT,TTJets,TTJets_Incl_Train,TTJets_SingleLept_Train -n 20 --output trainingFiles_VX
 ```
