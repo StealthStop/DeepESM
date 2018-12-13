@@ -10,23 +10,23 @@ import optparse
 import subprocess
 from pyxrootd import client
 
-filestoTransferGTP = [environ["CMSSW_BASE"] + "/src/TopTagger/Tools/makeTrainingTuples",
-                      environ["CMSSW_BASE"] + "/src/TopTagger/TopTagger/test/libTopTagger.so",
-                      environ["CMSSW_BASE"] + "/src/TopTagger/Tools/TopTaggerClusterOnly.cfg",
+filestoTransferGTP = [environ["CMSSW_BASE"] + "/src/DeepESM/TrainingFilesProducer/makeTrainingTuples",
+                      environ["CMSSW_BASE"] + "/src/TopTagger/TopTagger/test/libTopTagger.so", #Might need to fix this for new working path
+                      environ["CMSSW_BASE"] + "/src/TopTagger/Tools/TopTaggerClusterOnly.cfg", #Might need to fix this for new working path
                       "/uscms_data/d3/pastika/zinv/dev/CMSSW_7_4_8/src/opencv/lib/libopencv_core.so.3.1",
                       "/uscms_data/d3/pastika/zinv/dev/CMSSW_7_4_8/src/opencv/lib/libopencv_ml.so.3.1",
-                      environ["CMSSW_BASE"] + "/src/TopTagger/Tools/sampleSets.cfg",
-                      environ["CMSSW_BASE"] + "/src/TopTagger/Tools/sampleCollections.cfg",
+                      environ["CMSSW_BASE"] + "/src/DeepESM/TrainingFilesProducer/sampleSets.cfg",
+                      environ["CMSSW_BASE"] + "/src/DeepESM/TrainingFilesProducer/sampleCollections.cfg",
                       ]
 
 
 #go make top plots!
 submitFileGTP = """universe = vanilla
-Executable = $ENV(CMSSW_BASE)/src/TopTagger/Tools/condor/goMakeTrainingTuples.sh
+Executable = $ENV(CMSSW_BASE)/src/DeepESM/TrainingFilesProducer/condor/goMakeTrainingTuples.sh
 request_memory = 5100
 Should_Transfer_Files = YES
 WhenToTransferOutput = ON_EXIT
-Transfer_Input_Files = $ENV(CMSSW_BASE)/src/TopTagger/Tools/condor/goMakeTrainingTuples.sh,$ENV(CMSSW_BASE)/src/TopTagger/Tools/condor/gtp.tar.gz,$ENV(CMSSW_BASE)/src/TopTagger/Tools/condor/$ENV(CMSSW_VERSION).tar.gz 
+Transfer_Input_Files = $ENV(CMSSW_BASE)/src/DeepESM/TrainingFilesProducer/condor/goMakeTrainingTuples.sh,$ENV(CMSSW_BASE)/src/DeepESM/TrainingFilesProducer/condor/gtp.tar.gz,$ENV(CMSSW_BASE)/src/DeepESM/TrainingFilesProducer/condor/$ENV(CMSSW_VERSION).tar.gz 
 Output = logs/makePlots_$(Process).stdout
 Error = logs/makePlots_$(Process).stderr
 Log = logs/makePlots_$(Process).log
