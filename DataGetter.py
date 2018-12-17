@@ -66,21 +66,41 @@ class DataGetter:
 
     def getList(self):
         return self.list
+
+    def getColumnHeaders(self, sample, name, att):
+        f = h5py.File(sample, "r")
+        columnHeaders = f[name].attrs[att]
+        f.close()
+        return columnHeaders
+
+    def getDataSets(self, samplesToRun, name):
+        dsets = []
+        for filename in samplesToRun:
+            try:
+                dsets.append( h5py.File(filename, mode='r')[name] )
+            except:
+                print "Warning: \"%s\" is empty" % filename
+                continue
+        return dsets
     
     def importData(self, samplesToRun, maxNJetBin = 11):
         #variables to train
         variables = self.getList()
 
-        f = h5py.File(samplesToRun[0], "r")
-        columnHeaders = f["EventShapeVar"].attrs["column_headers"]
-        f.close()
+        for fNum in range(len(samplesToRun)):
+            try:
+                columnHeaders = self.getColumnHeaders(samplesToRun[fNum], "EventShapeVar", "column_headers")
+                break
+            except:
+                pass
 
         for v in variables:
             if not v in columnHeaders:
-                print "Variable not found: %s"%v
+                print "Error: Variable not found: %s"%v
+                exit()
 
         #load data files 
-        dsets = [h5py.File(filename, mode='r')['EventShapeVar'] for filename in samplesToRun]
+        dsets = self.getDataSets(samplesToRun, "EventShapeVar")
         arrays = [da.from_array(dset, chunks=(65536, 1024)) for dset in dsets]
         x = da.concatenate(arrays, axis=0)
          
