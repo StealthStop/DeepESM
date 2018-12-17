@@ -266,12 +266,6 @@ int main(int argc, char* argv[])
     {
         std::cout<<"What are you doing???"<<std::endl;
         return 0;
-        //fileMap["DYJetsToLL"]  = {ss["DYJetsToLL_HT_600toInf"]};
-        //fileMap["ZJetsToNuNu"] = {ss["ZJetsToNuNu_HT_2500toInf"]};
-        //fileMap["DYJetsToLL_HT_600toInf"] = {ss["DYJetsToLL_HT_600toInf"]};
-        //fileMap["ZJetsToNuNu_HT_2500toInf"] = {ss["ZJetsToNuNu_HT_2500toInf"]};
-        //fileMap["TTbarDiLep"] = {ss["TTbarDiLep"]};
-        //fileMap["TTbarNoHad"] = {ss["TTbarDiLep"]};
     }
     else
     {
@@ -337,10 +331,13 @@ int main(int argc, char* argv[])
         mtmVec.emplace_back(std::unique_ptr<HDF5Writer>(new HDF5Writer(variables, 500000, ofname)), splitNum);
     }
 
+    bool breakAll = false;
     for(auto& fileVec : fileMap)
     {
+        if(breakAll) break;
         for(auto& file : fileVec.second)
         {
+            if(breakAll) break;
             int startCount = 0, fileCount = 0, NEvtsTotal = 0;
 
             std::cout << fileVec.first << std::endl;
@@ -348,11 +345,20 @@ int main(int argc, char* argv[])
 
             for(const std::string& fname : file.filelist_)
             {
+                if(breakAll) break;
                 if(startCount++ < startFile) continue;
-                if(nFiles > 0 && fileCount++ >= nFiles) break;
+                if(nFiles > 0 && fileCount++ >= nFiles)
+                {
+                    breakAll = true;
+                    break;
+                }
 
                 if(nFiles > 0) NEvtsTotal = 0;
-                else if(nEvts >= 0 && NEvtsTotal > nEvts) break;
+                else if(nEvts >= 0 && NEvtsTotal > nEvts)
+                {
+                    breakAll = true;
+                    break;
+                }
 
                 //open input file and tree
                 TFile *f = TFile::Open(fname.c_str());
@@ -377,8 +383,6 @@ int main(int argc, char* argv[])
                     NTupleReader tr(t);
 
                     //register variable prep class with NTupleReader
-                    //PrepVariables prepVars(variables);
-                    //tr.registerFunction(prepVars);
                     std::string runtype = (file.tag.find("Data") != std::string::npos) ? "Data" : "MC";
                     tr.registerDerivedVar<std::string>("runtype",runtype);
                     tr.registerDerivedVar<std::string>("filetag",file.tag);
@@ -412,33 +416,20 @@ int main(int argc, char* argv[])
                     while(tr.getNextEvent())
                     {
                         //If nEvts is set, stop after so many events
-                        if(nEvts > 0 && NEvtsTotal > nEvts) break;
+                        if(nEvts > 0 && NEvtsTotal > nEvts)
+                        {
+                            breakAll = true;
+                            break;
+                        }
+                        
                         if(tr.getEvtNum() % printInterval == 0) std::cout << "Event #: " << tr.getEvtNum() << std::endl;
-
-                        ////Make top 7 cm jets 4 vector
-                        //const auto& Jets_cm_top6 = tr.getVec<TLorentzVector>("Jets_cm_top6");
-                        //for(unsigned int i = 0; i < Jets_cm_top6.size(); i++)
-                        //{
-                        //    tr.registerDerivedVar("Jet_pt_"+std::to_string(i+1),  static_cast<double>(Jets_cm_top6[i].Pt()));
-                        //    tr.registerDerivedVar("Jet_eta_"+std::to_string(i+1), static_cast<double>(Jets_cm_top6[i].Eta()));
-                        //    tr.registerDerivedVar("Jet_phi_"+std::to_string(i+1), static_cast<double>(Jets_cm_top6[i].Phi()));
-                        //    tr.registerDerivedVar("Jet_m_"+std::to_string(i+1),   static_cast<double>(Jets_cm_top6[i].M()));
-                        //}
-                        //
-                        ////Get/make the mass variables
-                        //const auto& BestCombo            = tr.getVar<std::pair<TLorentzVector, TLorentzVector>>("BestCombo");
-                        //double bestComboAvgMass = ( BestCombo.first.M() + BestCombo.second.M() )/2;
-                        //tr.registerDerivedVar("BestComboAvgMass", bestComboAvgMass);
-                        //double bestComboMassDiff = BestCombo.first.M() - BestCombo.second.M();
-                        //double bestComboAvgPt = ( BestCombo.first.Pt() + BestCombo.second.Pt() )/2;
-                        //double bestComboRelDiff = bestComboMassDiff / bestComboAvgMass;
 
                         //Get sample lumi weight and correct for the actual number of events 
                         //This needs to happen before we ad sampleWgt to the mini tuple variables to save
                         double weight = file.getWeight();
                         tr.registerDerivedVar("sampleWgt", weight);
                         tr.registerDerivedVar("EvtNum_double", static_cast<double>(tr.getVar<long int>("EvtNum"))); 
-                        const auto NGoodJets = tr.getVar<int>("NGoodJets");
+                        const auto NGoodJets = tr.getVar<int>("NGoodJets_pt30");
                         tr.registerDerivedVar("NGoodJets_double", static_cast<double>(NGoodJets)); 
                         
                         //Things to run only on first event
@@ -469,7 +460,7 @@ int main(int argc, char* argv[])
                         const auto& passBaseline1l_Good = tr.getVar<bool>("passBaseline1l_Good");
                         const auto& Mbl = tr.getVar<double>("Mbl");
 			//fill mini tuple
-			bool passbaseline = passBaseline1l_Good && Mbl>30 && Mbl<180;
+			bool passbaseline = passBaseline1l_Good;
 			if(passbaseline)
                         {
                             //std::cout<<"Got one"<<std::endl;
@@ -480,8 +471,8 @@ int main(int argc, char* argv[])
                                 splitCounter = 0;
                                 mtmIndex = (mtmIndex + 1)%mtmVec.size();
                             }
-                            ++NEvtsTotal;
                         }
+                        ++NEvtsTotal;                            
                     }
                     f->Close();
                 }
