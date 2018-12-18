@@ -56,13 +56,24 @@ class Validation:
         plt.errorbar(bin_centersx, y, xerr=xerr, yerr=ye, fmt='o', color='xkcd:red')
         fig.savefig(self.config["outputDir"]+"/"+name+"_discriminator.png", dpi=fig.dpi)        
 
+    def getAUC(self, fpr, tpr):
+        try:
+            return auc(fpr, tpr, reorder=True)
+        except:
+            print "Roc curve didn't work?????"
+            print fpr
+            print tpr
+            return -1
+
     def plot(self):
-        sgValSet = sum( (glob(self.config["dataSet"]+"trainingTuple_*_division_1_*_"+mass+"*_validation_0.h5") for mass in self.config["massModels"]) , [])
+        sgValSet = sum( (glob(self.config["dataSet"]+"trainingTuple_*_division_1_"+mass+"*_validation_0.h5") for mass  in self.config["massModels"]) , [])
         bgValSet = sum( (glob(self.config["dataSet"]+"trainingTuple_*_division_1_"+ttbar+"_validation_0.h5") for ttbar in self.config["ttbarMC"][1]) , [])
+
+        sgOTrainSet = sum( (glob(self.config["dataSet"]+"trainingTuple_*_division_0_"+mass+"*_training_0.h5") for mass  in self.config["othermassModels"]) , [])
         bgOTrainSet = sum( (glob(self.config["dataSet"]+"trainingTuple_*_division_0_"+ttbar+"_training_0.h5") for ttbar in self.config["otherttbarMC"][1]) , [])
 
         valData, valSg, valBg = get_data(sgValSet, bgValSet, self.config)
-        trainOData, trainOSg, trainOBg = get_data(self.sgTrainSet, bgOTrainSet, self.config)
+        trainOData, trainOSg, trainOBg = get_data(sgOTrainSet, bgOTrainSet, self.config)
         y_Val = self.model.predict(valData["data"])[0][:,0].ravel()
         y_Val_Sg = self.model.predict(valSg["data"])[0][:,0].ravel()
         y_Val_Bg = self.model.predict(valBg["data"])[0][:,0].ravel()
@@ -85,7 +96,7 @@ class Validation:
         #    plt.xlabel(var)
         #    fig.savefig(self.config["outputDir"]+"/"+var+".png", dpi=fig.dpi)
         #    index += 1
-        #
+        
         ## Normalize
         #index=0
         #tBg = self.trainData["scale"]*(self.trainBg["data"] - self.trainData["mean"])
@@ -183,9 +194,9 @@ class Validation:
         fpr_Val, tpr_Val, thresholds_Val = roc_curve(valData["labels"][:,0], y_Val, sample_weight=valData["Weight"][:,0])
         fpr_Train, tpr_Train, thresholds_Train = roc_curve(self.trainData["labels"][:,0], y_Train, sample_weight=self.trainData["Weight"][:,0])
         fpr_OTrain, tpr_OTrain, thresholds_OTrain = roc_curve(trainOData["labels"][:,0], y_OTrain, sample_weight=trainOData["Weight"][:,0])
-        auc_Val = auc(fpr_Val, tpr_Val)
-        auc_Train = auc(fpr_Train, tpr_Train)
-        auc_OTrain = auc(fpr_OTrain, tpr_OTrain)
+        auc_Val = self.getAUC(fpr_Val, tpr_Val)
+        auc_Train = self.getAUC(fpr_Train, tpr_Train)
+        auc_OTrain = self.getAUC(fpr_OTrain, tpr_OTrain)
 
         # Define metrics for the training
         self.metric["OverTrain"] = abs(auc_Val - auc_Train)
@@ -225,7 +236,7 @@ class Validation:
                 if len(y)==0:
                     continue
                 fpr_Train, tpr_Train, thresholds_Train = roc_curve(labels[:,0], y, sample_weight=weights)
-                auc_Train = auc(fpr_Train, tpr_Train)    
+                auc_Train = self.getAUC(fpr_Train, tpr_Train)    
                 njetPerformance.append(auc_Train)
                 plt.plot(fpr_Train, tpr_Train, label="Train "+key+" (area = {:.3f})".format(auc_Train))
         plt.legend(loc='best')
@@ -245,7 +256,7 @@ class Validation:
                 if len(y)==0:
                     continue
                 fpr_Train, tpr_Train, thresholds_Train = roc_curve(labels[:,0], y, sample_weight=weights)
-                auc_Train = auc(fpr_Train, tpr_Train)    
+                auc_Train = self.getAUC(fpr_Train, tpr_Train)    
                 njetPerformance.append(auc_Train)
                 plt.plot(fpr_Train, tpr_Train, label="Train "+key+" (area = {:.3f})".format(auc_Train))
         plt.legend(loc='best')
@@ -332,7 +343,10 @@ class Validation:
         # Save useful stuff
         self.trainData["y"] = y_Train
         np.save(self.config["outputDir"]+"/deepESMbin_dis_nJet.npy", self.trainData)
+
+        for key in self.metric:
+            print key, self.metric[key]
+
+        self.config["metric"] = self.metric
         with open(self.config["outputDir"]+"/config.json",'w') as configFile:
             json.dump(self.config, configFile, indent=4, sort_keys=True)
-
-        return self.config, self.metric
