@@ -37,8 +37,8 @@ class Train:
             #return c * keras.backend.binary_crossentropy(y_true, y_pred)
         return loss_adversary
         
-    def train(self, config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 4, "nNodes":70, "nNodesD":10,
-                              "nHLayers":1, "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":100,
+    def train(self, config = {"minNJetBin": 7, "maxNJetBin": 11, "gr_lambda": 2.5, "nNodes":70, "nNodesD":10,
+                              "nHLayers":1, "nHLayersD":1, "drop_out":0.7, "batch_size":2048, "epochs":120,
                               "lr":0.001, "verbose":1, "Mask":False, "Mask_nJet":7}):
     
         # Define ouputDir based on input config
@@ -56,18 +56,30 @@ class Train:
         nJets = 7
         if config["Mask"]: nJets = config["Mask_nJet"]
         jVecs = list(y+str(x+1) for y in jVec for x in range(nJets))
-        config["allVars"] = jVecs + lepton
+        config["allVars"] = jVecs + lepton + eventShapeVars
         
         # Import data
         print("----------------Preparing data------------------")
-        TTJets = ("TTJets", ["TTJets_SingleLeptFromT", "TTJets_SingleLeptFromTbar", "TTJets_DiLept", "TTJets_HT-600to800", "TTJets_HT-800to1200", "TTJets_HT-1200to2500", "TTJets_HT-2500toInf"])
-        TT = ("TT", ["TT"])                  
-        TT_TTJets = ("TT+TTJets", ["TT", "TTJets_SingleLeptFromT", "TTJets_SingleLeptFromTbar", "TTJets_DiLept", "TTJets_HT-600to800", "TTJets_HT-800to1200", "TTJets_HT-1200to2500", "TTJets_HT-2500toInf"])
-        TTJets_SingleLep = ("TTJets_SingleLep", ["TTJets_SingleLeptFromT_Train", "TTJets_SingleLeptFromTbar_Train"])
-        config["dataSet"] = "BackGroundMVA_V10_CM_All_GoodJets_AllTTbarSamples/"
-        config["massModels"] = ["350","450","550","650","750","850"]
-        config["ttbarMC"] = TT_TTJets
-        config["otherttbarMC"] = TTJets_SingleLep
+        TTJets_2016 = ["2016_TTJets_Incl", "2016_TTJets_SingleLeptFromT", "2016_TTJets_SingleLeptFromTbar", "2016_TTJets_DiLept", 
+                       "2016_TTJets_HT-600to800", "2016_TTJets_HT-800to1200", "2016_TTJets_HT-1200to2500", "2016_TTJets_HT-2500toInf"]
+        TTJets_2017 = ["2017_TTJets_Incl", "2017_TTJets_SingleLeptFromT", "2017_TTJets_SingleLeptFromTbar", "2017_TTJets_DiLept", 
+                       "2017_TTJets_HT-600to800", "2017_TTJets_HT-800to1200", "2017_TTJets_HT-1200to2500", "2017_TTJets_HT-2500toInf"]
+        TT_2016 = ["2016_TT"]
+        TT_2017 = ["2017_TTToSemiLeptonic","2017_TTTo2L2Nu","2017_TTToHadronic"]
+        Signal_2017 = ["2017*mStop-300","2017*mStop-350","2017*mStop-400","2017*mStop-450","2017*mStop-500","2017*mStop-550",
+                       "2017*mStop-600","2017*mStop-650","2017*mStop-700","2017*mStop-750","2017*mStop-800","2017*mStop-850","2017*mStop-900"]
+        Signal_2016 = ["2016*350","2016*450","2016*550","2016*650","2016*750","2016*850"]
+
+        config["ttbarMC"] = ("TT+TTJets_2017", TT_2017+TTJets_2017)
+        config["massModels"] = Signal_2017
+        config["otherttbarMC"] = ("TT+TTJets_2016", TT_2016+TTJets_2016)
+        config["othermassModels"] = Signal_2016
+        #config["ttbarMC"] = ("TT+TTJets_2017+2016", TT_2017+TTJets_2017+TT_2016+TTJets_2016)
+        #config["massModels"] = Signal_2016+Signal_2017
+        #config["otherttbarMC"] = ("TT+TTJets_2016", TT_2016+TTJets_2016)
+        #config["othermassModels"] = Signal_2016
+
+        config["dataSet"] = "BackGroundMVA_V11_2017_2016/"
         config["doBgWeight"] = True
         config["doSgWeight"] = False
         print "Using "+config["dataSet"]+" data set"
@@ -80,18 +92,20 @@ class Train:
             shutil.rmtree(config["outputDir"])
         os.makedirs(config["outputDir"]+"/log_graph")    
         
-        sgTrainSet = sum( (glob(config["dataSet"]+"trainingTuple_*_division_0_*_"+mass+"*_training_0.h5") for mass in config["massModels"]) , [])
+        sgTrainSet = sum( (glob(config["dataSet"]+"trainingTuple_*_division_0_"+mass+"*_training_0.h5") for mass in config["massModels"]) , [])
         bgTrainSet = sum( (glob(config["dataSet"]+"trainingTuple_*_division_0_"+ttbar+"_training_0.h5") for ttbar in config["ttbarMC"][1]) , [])
     
-        sgTestSet = sum( (glob(config["dataSet"]+"trainingTuple_*_division_2_*_"+mass+"*_test_0.h5") for mass in config["massModels"]) , [])
+        sgTestSet = sum( (glob(config["dataSet"]+"trainingTuple_*_division_2_"+mass+"*_test_0.h5") for mass in config["massModels"]) , [])
         bgTestSet = sum( (glob(config["dataSet"]+"trainingTuple_*_division_2_"+ttbar+"_test_0.h5") for ttbar in config["ttbarMC"][1]) , [])
-        
+
+        #Get Data set used in training and validation
         trainData, trainSg, trainBg = get_data(sgTrainSet, bgTrainSet, config)
         testData, testSg, testBg = get_data(sgTestSet, bgTestSet, config)
-    
-        bgTrainTT = glob(config["dataSet"]+"trainingTuple_*_division_0_TT_training_0.h5")
+
+        #Data set used to shift and sale the mean and std to 0 and 1 for all input variales into the network 
+        bgTrainTT = glob(config["dataSet"]+"trainingTuple_*_division_0_2016_TT_training_0.h5")
         trainDataTT, trainSgTT, trainBgTT = get_data(sgTrainSet, bgTrainTT, config)
-    
+        
         # Make and train model
         print("----------------Preparing training model------------------")
         class_weight = None#{0: {0: 1.0, 1: 1.0}, 1: {0: 1.0, 1: 5.0, 2: 25.0, 3: 125.0, 4: 625.0}}    
@@ -101,7 +115,7 @@ class Train:
         n_hidden_layers = list(config["nNodes"] for x in range(config["nHLayers"]))
         n_hidden_layers_D = list(config["nNodesD"] for x in range(config["nHLayersD"]))
         Flip = GradientReversal(config["gr_lambda"])    
-    
+        
         cfg = K.tf.ConfigProto()
         cfg.gpu_options.allow_growth = True
         K.set_session(K.tf.Session(config=cfg))
@@ -132,7 +146,7 @@ class Train:
             callbacks = [log_model, tbCallBack]
         result_log = model.fit(trainData["data"], [trainData["labels"], trainData["domain"]], batch_size=config["batch_size"], epochs=config["epochs"], class_weight=class_weight,
                                validation_data=(testData["data"], [testData["labels"], testData["domain"]]), callbacks=callbacks, sample_weight=sample_weight)
-    
+        
         # Model Visualization
         keras.utils.plot_model(model, to_file=outputDir+"/model.png", show_shapes=True)
         
@@ -155,7 +169,7 @@ class Train:
         #Plot results
         print("----------------Validation of training------------------")
         val = Validation(model, config, sgTrainSet, trainData, trainSg, trainBg, result_log)
-        config, metric = val.plot()
+        val.plot()
         del val
         
         #Clean up training
@@ -163,12 +177,16 @@ class Train:
         tf.reset_default_graph()
         del model
         
-        return config, metric
-
 if __name__ == '__main__':
+    import sys
+    import ast
+
     t = Train()
-    config, metric = t.train()
-    print config
-    
-    for key in metric:
-        print key, metric[key]
+    if len(sys.argv) == 2:
+        config=ast.literal_eval(sys.argv[1])
+        t.train(config)
+    else:
+        t.train()
+        print "------------------------"
+        print "Ran with default config"
+        print "------------------------"
