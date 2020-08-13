@@ -3,7 +3,7 @@ from DataGetter import get_data
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
-from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score
+from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score, roc_auc_score
 import json
 
 class Validation:
@@ -58,11 +58,11 @@ class Validation:
 
     def getAUC(self, fpr, tpr):
         try:
-            return auc(fpr, tpr, reorder=True)
+            return auc(fpr, tpr)
         except:
-            print "Roc curve didn't work?????"
-            print fpr
-            print tpr
+            print("Roc curve didn't work?????")
+            print(fpr)
+            print(tpr)
             return -1
 
     def plot(self):
@@ -81,10 +81,63 @@ class Validation:
         y_Train = self.model.predict(self.trainData["data"])[0][:,0].ravel()
         y_Train_Sg = self.model.predict(self.trainSg["data"])[0][:,0].ravel()
         y_Train_Bg = self.model.predict(self.trainBg["data"])[0][:,0].ravel()
+        
+        y_Val_new = self.model.predict(valData["data"])[1][:,0].ravel()
+        y_Val_Sg_new = self.model.predict(valSg["data"])[1][:,0].ravel()
+        y_Val_Bg_new = self.model.predict(valBg["data"])[1][:,0].ravel()
 
+        y_Train_new = self.model.predict(self.trainData["data"])[1][:,0].ravel()
+        y_Train_Sg_new = self.model.predict(self.trainSg["data"])[1][:,0].ravel()
+        y_Train_Bg_new = self.model.predict(self.trainBg["data"])[1][:,0].ravel()
+        
         y_OTrain = self.model.predict(trainOData["data"])[0][:,0].ravel()
         y_OTrain_Bg = self.model.predict(trainOBg["data"])[0][:,0].ravel()
-    
+        
+        # Plot discriminator distribution
+        bins = np.linspace(0, 1, 100)
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ax.set_title('')
+        ax.set_ylabel('Norm Events')
+        ax.set_xlabel('Discriminator')
+        plt.hist(y_Train_Sg, bins, color='xkcd:red', alpha=0.9, histtype='step', lw=2, label='Sg Train', density=True, log=self.doLog, weights=self.trainSg["Weight"])
+        plt.hist(y_Val_Sg, bins, color='xkcd:green', alpha=0.9, histtype='step', lw=2, label='Sg Val', density=True, log=self.doLog, weights=valSg["Weight"])
+        plt.hist(y_Train_Bg, bins, color='xkcd:blue', alpha=0.9, histtype='step', lw=2, label='Bg Train', density=True, log=self.doLog, weights=self.trainBg["Weight"])
+        plt.hist(y_Val_Bg, bins, color='xkcd:magenta', alpha=0.9, histtype='step', lw=2, label='Bg Val', density=True, log=self.doLog, weights=valBg["Weight"])
+        ax.legend(loc='best', frameon=False)
+        fig.savefig(self.config["outputDir"]+"/discriminator.png", dpi=fig.dpi)
+        
+        bins = np.linspace(0, 1, 100)
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ax.set_title('')
+        ax.set_ylabel('Norm Events')
+        ax.set_xlabel('Discriminator')
+        plt.hist(y_Train_Sg_new, bins, color='xkcd:red', alpha=0.9, histtype='step', lw=2, label='Sg Train', density=True, log=self.doLog, weights=self.trainSg["Weight"])
+        plt.hist(y_Val_Sg_new, bins, color='xkcd:green', alpha=0.9, histtype='step', lw=2, label='Sg Val', density=True, log=self.doLog, weights=valSg["Weight"])
+        plt.hist(y_Train_Bg_new, bins, color='xkcd:blue', alpha=0.9, histtype='step', lw=2, label='Bg Train', density=True, log=self.doLog, weights=self.trainBg["Weight"])
+        plt.hist(y_Val_Bg_new, bins, color='xkcd:magenta', alpha=0.9, histtype='step', lw=2, label='Bg Val', density=True, log=self.doLog, weights=valBg["Weight"])
+        ax.legend(loc='best', frameon=False)
+        fig.savefig(self.config["outputDir"]+"/discriminator_new.png", dpi=fig.dpi)
+        
+        
+        fig = plt.figure()
+        ax1 = fig.add_subplot(111)
+        ax1.scatter(y_Train_Bg, y_Train_Bg_new, s=10, c='b', marker="s", label='background')
+        ax1.scatter(y_Train_Sg, y_Train_Sg_new, s=10, c='r', marker="o", label='signal')
+        ax1.set_xlim([0, 1])
+        ax1.set_ylim([0, 1])
+        plt.legend(loc='upper left');
+        fig.savefig(self.config["outputDir"]+"/discriminator_discriminator_new.png", dpi=fig.dpi)        
+        
+        fig = plt.figure() 
+        plt.hist2d(y_Train_Bg, y_Train_Bg_new, bins=[20, 20], range=[[0, 1], [0, 1]], cmap=plt.cm.binary, weights=self.trainBg["Weight"][:,0])
+        plt.colorbar()
+        fig.savefig(self.config["outputDir"]+"/2D_BG_discriminators.png", dpi=fig.dpi)
+        
+        fig = plt.figure() 
+        plt.hist2d(y_Train_Sg, y_Train_Sg_new, bins=[20, 20], range=[[0, 1], [0, 1]], cmap=plt.cm.binary, weights=self.trainSg["Weight"][:,0])
+        plt.colorbar()
+        fig.savefig(self.config["outputDir"]+"/2D_SG_discriminators.png", dpi=fig.dpi)
+        
         ## Make input variable plots
         #index=0
         #for var in self.config["allVars"]:
@@ -110,9 +163,9 @@ class Validation:
         #    plt.xlabel("norm "+var)
         #    fig.savefig(self.config["outputDir"]+"/norm_"+var+".png", dpi=fig.dpi)
         #    index += 1
-
+        
         # Plot loss of training vs test
-        print "Plotting loss and acc vs epoch"
+        print("Plotting loss and acc vs epoch")
         fig = plt.figure()
         plt.plot(self.result_log.history['loss'])
         plt.plot(self.result_log.history['val_loss'])
@@ -131,14 +184,14 @@ class Validation:
         plt.legend(['train', 'test'], loc='upper left')
         fig.savefig(self.config["outputDir"]+"/first_output_loss_train_val.png", dpi=fig.dpi)
         
-        fig = plt.figure()
-        plt.plot(self.result_log.history['first_output_acc'])
-        plt.plot(self.result_log.history['val_first_output_acc'])
-        plt.title('first output acc')
-        plt.ylabel('acc')
-        plt.xlabel('epoch')
-        plt.legend(['train', 'test'], loc='upper left')
-        fig.savefig(self.config["outputDir"]+"/first_output_acc_train_val.png", dpi=fig.dpi)
+        #fig = plt.figure()
+        #plt.plot(self.result_log.history['first_output_acc'])
+        #plt.plot(self.result_log.history['val_first_output_acc'])
+        #plt.title('first output acc')
+        #plt.ylabel('acc')
+        #plt.xlabel('epoch')
+        #plt.legend(['train', 'test'], loc='upper left')
+        #fig.savefig(self.config["outputDir"]+"/first_output_acc_train_val.png", dpi=fig.dpi)
         
         fig = plt.figure()
         plt.plot(self.result_log.history['second_output_loss'])
@@ -149,14 +202,14 @@ class Validation:
         plt.legend(['train', 'test'], loc='upper left')
         fig.savefig(self.config["outputDir"]+"/second_output_loss_train_val.png", dpi=fig.dpi)
         
-        fig = plt.figure()
-        plt.plot(self.result_log.history['second_output_acc'])
-        plt.plot(self.result_log.history['val_second_output_acc'])
-        plt.title('second output acc')
-        plt.ylabel('acc')
-        plt.xlabel('epoch')
-        plt.legend(['train', 'test'], loc='upper left')
-        fig.savefig(self.config["outputDir"]+"/second_output_acc_train_val.png", dpi=fig.dpi)
+        #fig = plt.figure()
+        #plt.plot(self.result_log.history['second_output_acc'])
+        #plt.plot(self.result_log.history['val_second_output_acc'])
+        #plt.title('second output acc')
+        #plt.ylabel('acc')
+        #plt.xlabel('epoch')
+        #plt.legend(['train', 'test'], loc='upper left')
+        #fig.savefig(self.config["outputDir"]+"/second_output_acc_train_val.png", dpi=fig.dpi)
         
         # Plot discriminator distribution
         bins = np.linspace(0, 1, 100)
@@ -194,10 +247,10 @@ class Validation:
         fpr_Val, tpr_Val, thresholds_Val = roc_curve(valData["labels"][:,0], y_Val, sample_weight=valData["Weight"][:,0])
         fpr_Train, tpr_Train, thresholds_Train = roc_curve(self.trainData["labels"][:,0], y_Train, sample_weight=self.trainData["Weight"][:,0])
         fpr_OTrain, tpr_OTrain, thresholds_OTrain = roc_curve(trainOData["labels"][:,0], y_OTrain, sample_weight=trainOData["Weight"][:,0])
-        auc_Val = self.getAUC(fpr_Val, tpr_Val)
-        auc_Train = self.getAUC(fpr_Train, tpr_Train)
-        auc_OTrain = self.getAUC(fpr_OTrain, tpr_OTrain)
-
+        auc_Val = roc_auc_score(valData["labels"][:,0], y_Val)
+        auc_Train = roc_auc_score(self.trainData["labels"][:,0], y_Train)
+        auc_OTrain = roc_auc_score(trainOData["labels"][:,0], y_OTrain)
+        
         # Define metrics for the training
         self.metric["OverTrain"] = abs(auc_Val - auc_Train)
         self.metric["Performance"] = abs(1 - auc_Train)
@@ -236,7 +289,7 @@ class Validation:
                 if len(y)==0:
                     continue
                 fpr_Train, tpr_Train, thresholds_Train = roc_curve(labels[:,0], y, sample_weight=weights)
-                auc_Train = self.getAUC(fpr_Train, tpr_Train)    
+                auc_Train = roc_auc_score(labels[:,0], y)    
                 njetPerformance.append(auc_Train)
                 plt.plot(fpr_Train, tpr_Train, label="Train "+key+" (area = {:.3f})".format(auc_Train))
         plt.legend(loc='best')
@@ -256,12 +309,12 @@ class Validation:
                 if len(y)==0:
                     continue
                 fpr_Train, tpr_Train, thresholds_Train = roc_curve(labels[:,0], y, sample_weight=weights)
-                auc_Train = self.getAUC(fpr_Train, tpr_Train)    
+                auc_Train = roc_auc_score(labels[:,0], y)    
                 njetPerformance.append(auc_Train)
                 plt.plot(fpr_Train, tpr_Train, label="Train "+key+" (area = {:.3f})".format(auc_Train))
         plt.legend(loc='best')
         fig.savefig(self.config["outputDir"]+"/roc_plot_"+self.config["otherttbarMC"][0]+"_nJet.png", dpi=fig.dpi)    
-
+        
         # Plot validation precision recall
         precision_Val, recall_Val, _ = precision_recall_curve(valData["labels"][:,0], y_Val, sample_weight=valData["Weight"][:,0])
         precision_Train, recall_Train, _ = precision_recall_curve(self.trainData["labels"][:,0], y_Train, sample_weight=self.trainData["Weight"][:,0])
@@ -304,9 +357,9 @@ class Validation:
                 perNJetBins = np.array_split(sortednJet, nMVABins)
                 perNJet_y_split = np.array_split(sorted_y, nMVABins)
                 perNJet_bins = []
-                print "-----------------------------------------------------------------------------------------------------------------------------------"
+                print("-----------------------------------------------------------------------------------------------------------------------------------")
                 for i in range(len(perNJet_y_split)):
-                    print "NJet: ", key, " DeepESM bin ", len(perNJet_y_split) - i, ": "," bin cuts: ", perNJet_y_split[i][0], " ", perNJet_y_split[i][-1]
+                    print("NJet: ", key, " DeepESM bin ", len(perNJet_y_split) - i, ": "," bin cuts: ", perNJet_y_split[i][0], " ", perNJet_y_split[i][-1])
                     perNJet_bins.append([str(perNJet_y_split[i][0]), str(perNJet_y_split[i][-1])]) 
                 self.config[key] = perNJet_bins 
                 if nJetDeepESMBins == None:
@@ -321,7 +374,7 @@ class Validation:
         #fig = plt.figure()
         #bins = []
         #for a in nJetDeepESMBins:
-        #    print "DeepESM bin ", len(nJetDeepESMBins) - index, ": ", " NEvents: ", len(a)," bin cuts: ", sorted_y_split[index][0], " ", sorted_y_split[index][-1]
+        #    print("DeepESM bin ", len(nJetDeepESMBins) - index, ": ", " NEvents: ", len(a)," bin cuts: ", sorted_y_split[index][0], " ", sorted_y_split[index][-1])
         #    plt.hist(a, bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=self.doLog, label='Bin {}'.format(len(nJetDeepESMBins) - index))
         #    bins.append([str(sorted_y_split[index][0]), str(sorted_y_split[index][-1])])
         #    index += 1
@@ -339,14 +392,14 @@ class Validation:
         #TotalMVAnJetShape, _, _ = plt.hist(self.trainBg["nJet"][:,0], bins=numbin, range=(binxl, binxh), histtype='step', density=True, log=False, label='Total')
         #plt.legend(loc='upper right')
         #fig.savefig(self.config["outputDir"]+"/nJet.png", dpi=fig.dpi)
-
+        
         # Save useful stuff
         self.trainData["y"] = y_Train
         np.save(self.config["outputDir"]+"/deepESMbin_dis_nJet.npy", self.trainData)
-
+        
         for key in self.metric:
-            print key, self.metric[key]
-
+            print(key, self.metric[key])
+        
         self.config["metric"] = self.metric
         with open(self.config["outputDir"]+"/config.json",'w') as configFile:
             json.dump(self.config, configFile, indent=4, sort_keys=True)

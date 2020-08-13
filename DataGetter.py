@@ -11,9 +11,9 @@ def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgW
     dataSig = dgSig.importData(samplesToRun = tuple(signalDataSet), maxNJetBin=config["maxNJetBin"])
     dataBg = dgBg.importData(samplesToRun = tuple(backgroundDataSet), maxNJetBin=config["maxNJetBin"])
     # Change the weight to 1 if needed
-    if config["doSgWeight"]: dataSig["Weight"] = 35900*dataSig["Weight"]
+    if config["doSgWeight"]: dataSig["Weight"] = config["lumi"]*dataSig["Weight"]
     else: dataSig["Weight"] = np.full(dataSig["Weight"].shape, 1)
-    if config["doBgWeight"]: dataBg["Weight"] = 35900*dataBg["Weight"]
+    if config["doBgWeight"]: dataBg["Weight"] = config["lumi"]*dataBg["Weight"]
     else: dataBg["Weight"] = np.full(dataBg["Weight"].shape, 1)
 
     minLen = min(len(dataSig["data"]),len(dataBg["data"]))
@@ -70,6 +70,7 @@ class DataGetter:
     def getColumnHeaders(self, sample, name, att):
         f = h5py.File(sample, "r")
         columnHeaders = f[name].attrs[att]
+        columnHeaders = np.array([x.decode() for x in columnHeaders])
         f.close()
         return columnHeaders
 
@@ -79,7 +80,7 @@ class DataGetter:
             try:
                 dsets.append( h5py.File(filename, mode='r')[name] )
             except:
-                print "Warning: \"%s\" is empty" % filename
+                print("Warning: \"%s\" is empty" % filename)
                 continue
         return dsets
     
@@ -96,7 +97,7 @@ class DataGetter:
 
         for v in variables:
             if not v in columnHeaders:
-                print "Error: Variable not found: %s"%v
+                print("Error: Variable not found: %s"%v)
                 exit()
 
         #load data files 
@@ -108,7 +109,7 @@ class DataGetter:
         dataColumns = np.array([np.flatnonzero(columnHeaders == v)[0] for v in variables])
         data = x[:,dataColumns]
         npyInputData = data.compute()
-        #print data.shape
+        #print(data.shape)
         
         #setup and get labels
         npyInputAnswers = np.zeros((npyInputData.shape[0], 2))
