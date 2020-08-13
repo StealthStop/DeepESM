@@ -4,19 +4,18 @@ Produces the DeepESM training model
 ## Python packages needed (As far as I can tell)
 
 ```
-python                        2.7
-dask                          0.19.0   
-h5py                          2.8.0    
-Keras                         2.2.2    
-matplotlib                    2.2.3    
-numpy                         1.14.5   
-pandas                        0.23.4   
-pip                           18.0     
-protobuf                      3.6.1    
-scikit-learn                  0.19.2   
-tensorboard                   1.10.0   
-tensorflow                    1.10.1   
-Theano                        1.0.2    
+python 
+dask   
+h5py   
+Keras  
+matplotlib 
+numpy      
+pandas     
+pip        
+protobuf   
+scikit-learn
+tensorboard 
+tensorflow  
 ```
 Install using pip
 ```
@@ -99,35 +98,40 @@ Variables in latest training
 
 ## Running the training
 
-Get the code, make sure you have the training file and run
+# Running on the LPC
 
-```
-git clone git@github.com:StealthStop/DeepESM.git
-cd DeepESM
-# add the training files here currently using: BackGroundMVA_V4_CM_GoodJets
-rm -rf TEST && python train.py
-```
-
-
-## Running on the LPC
-
-Log into one of the three gpu nodes, and go into bash if it is not your default shell.
+Log into one of the three gpu nodes and setting up..
 
 ```
 ssh -Y username@cmslpcgpu1.fnal.gov # can be cmslpcgpu 1-3
-bash                                # only if you are in tcsh by default
+cd ~/nobackup/
+curl -O https://repo.anaconda.com/archive/Anaconda3-2019.10-Linux-x86_64.sh
+bash Anaconda3-2019.10-Linux-x86_64.sh <<< $'\nyes\n~/nobackup/anaconda3\nyes\n'
+rm Anaconda3-2019.10-Linux-x86_64.sh
 source /cvmfs/cms-lpc.opensciencegrid.org/sl7/gpu/Setup.sh
-source activate mlenv3
-rm -rf TEST && python train.py
+source ~/nobackup/anaconda3/bin/activate
+conda update -n base -c defaults conda <<< $'y\n'
+conda create -n pt python=3.7 anaconda <<< $'y\n'
+conda activate pt
+conda install -n pt libgcc pandas scikit-learn tensorboard tensorflow-gpu Keras matplotlib numpy=1.16.6 dask h5py protobuf pydot pytorch torchvision cudatoolkit=10.0 <<< $'y\n'
+pip install uproot
+pip install coffea
+pip install mplhep
+cd anaconda3/envs/pt
+git clone git@github.com:fizisist/LorentzGroupNetwork.git
+cd LorentzGroupNetwork
+pip install -e .
+
 ```
 
-You can download the training files like this:
+Get the code, make sure you have the training file and run
+
 ```
-mkdir BackGroundMVA_V4_CM_GoodJets
-xrdcp -r root://cmseos.fnal.gov///store/user/cmadrid/trainingTuples/BackGroundMVA_V4_CM_GoodJets/ ./BackGroundMVA_V4_CM_GoodJets/
+cd WORKINGAREA
+git clone git@github.com:StealthStop/DeepESM.git
+cd DeepESM
+mkdir BackGroundMVA_V11_2017_2016
+xrdcp -r root://cmseos.fnal.gov///store/user/cmadrid/trainingTuples/BackGroundMVA_V11_2017_2016/ ./BackGroundMVA_V11_2017_2016/
+python train.py
 ```
 
-When you're done: 
-```
-source deactivate
-```
