@@ -117,11 +117,22 @@ conda install -n pt libgcc pandas scikit-learn tensorboard tensorflow-gpu Keras 
 pip install uproot
 pip install coffea
 pip install mplhep
+pip install pypi
+pip install matplotlib==3.3.0
 cd anaconda3/envs/pt
 git clone git@github.com:fizisist/LorentzGroupNetwork.git
 cd LorentzGroupNetwork
 pip install -e .
 
+cd ~/nobackup/
+conda create -n tf python=3.7 anaconda <<< $'y\n'
+conda activate tf
+conda install -n tf libgcc pandas scikit-learn tensorboard tensorflow tensorflow-gpu Keras matplotlib numpy dask h5py protobuf pydot pytorch torchvision cudatoolkit <<< $'y\n'
+pip install uproot
+pip install coffea
+pip install mplhep
+pip install pypi
+pip install matplotlib==3.3.0
 ```
 
 Get the code, make sure you have the training file and run
