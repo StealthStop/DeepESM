@@ -1,15 +1,22 @@
+import uproot
 import numpy as np
 import pandas as pd
-import dask.array as da
-import h5py
+from glob import glob
+
+def getSamplesToRun(names):
+    s = glob(names)
+    if len(s) == 0:
+        raise Exception("No files find that correspond to: "+names)
+    return s
 
 # Takes training vars, signal and background files and returns training data
 def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgWeight = False):
     dgSig = DataGetter.DefinedVariables(config["allVars"], signal = True,  background = False)
     dgBg = DataGetter.DefinedVariables(config["allVars"],  signal = False, background = True)
-    
-    dataSig = dgSig.importData(samplesToRun = tuple(signalDataSet), maxNJetBin=config["maxNJetBin"])
-    dataBg = dgBg.importData(samplesToRun = tuple(backgroundDataSet), maxNJetBin=config["maxNJetBin"])
+
+    dataSig = dgSig.importData(samplesToRun = tuple(signalDataSet), treename = "myMiniTree", maxNJetBin=config["maxNJetBin"])
+    dataBg = dgBg.importData(samplesToRun = tuple(backgroundDataSet), treename = "myMiniTree", maxNJetBin=config["maxNJetBin"])
+
     # Change the weight to 1 if needed
     if config["doSgWeight"]: dataSig["Weight"] = config["lumi"]*dataSig["Weight"]
     else: dataSig["Weight"] = np.full(dataSig["Weight"].shape, 1)
@@ -35,29 +42,33 @@ def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgW
 
     # Get the rescale inputs to have unit variance centered at 0 between -1 and 1
     def scale(data):
-        # Get the masks for the different nJet bins (7 is hard coded njet start point...should fix this)
+        # Get the masks for the different stop masses
+        for m in range(config["minStopMass"],config["maxStopMass"]+50,50):
+            mask = ~np.ma.masked_where(data["masses"] != m, data["masses"]).mask
+            data["mask_m"+str(m)] = mask[:,0]        
+        # Get the masks for the different nJet bins
         for i in range(len(data["domain"][0])):
             mask = (1 - data["domain"][:,i]).astype(bool)
-            data["mask_%02d" % (7+i)] = ~np.array(mask)
+            data["mask_nJet_%02d" % (config["minNJetBin"]+i)] = ~np.array(mask)
         if config["Mask"]:
             mask = data["mask_%02d" % (config["Mask_nJet"])]
             for key in data:
                 data[key] = data[key][mask]
         data["mean"] = np.mean(data["data"], 0)
         data["std"] = np.std(data["data"], 0)
-        data["scale"] = 1.0 / np.std(data["data"], 0)
+        data["scale"] = 1.0 / data["std"]  
     scale(trainData)
     scale(dataSig)
     scale(dataBg)
-    return trainData, dataSig, dataBg    
+    return trainData, dataSig, dataBg
 
 class DataGetter:
-
-    #The constructor simply takes in a list and saves it to self.list
+    #The constructor simply takes in a list and saves it to self.l
     def __init__(self, variables, signal = False, background = False):
-        self.list = variables
+        self.l = variables
         self.signal = signal
         self.background = background
+        self.columnHeaders = None
 
     #Simply accept a list and pass it to the constructor
     @classmethod
@@ -65,52 +76,54 @@ class DataGetter:
         return cls(variables, signal, background)
 
     def getList(self):
-        return self.list
+        return self.l
 
-    def getColumnHeaders(self, sample, name, att):
-        f = h5py.File(sample, "r")
-        columnHeaders = f[name].attrs[att]
-        columnHeaders = np.array([x.decode() for x in columnHeaders])
-        f.close()
-        return columnHeaders
+    def getColumnHeaders(self, samplesToRun, treename):
+        if self.columnHeaders is None:
+            try:
+                sample = samplesToRun[0]                
+                f = uproot.open(sample)
+                self.columnHeaders = f[treename].pandas.df().columns.tolist()
+                f.close()
+            except IndexError as e:
+                print(e)
+                raise IndexError("No sample in samplesToRun")
+        return self.columnHeaders
 
-    def getDataSets(self, samplesToRun, name):
+    def checkVariables(self, variables):
+        for v in variables:            
+            if not v in self.columnHeaders:
+                raise ValueError("Variable not found in input root file: %s"%v)
+        
+    def getDataSets(self, samplesToRun, treename):
         dsets = []
+        if len(samplesToRun) == 0:
+            raise IndexError("No sample in samplesToRun")
         for filename in samplesToRun:
             try:
-                dsets.append( h5py.File(filename, mode='r')[name] )
-            except:
-                print("Warning: \"%s\" is empty" % filename)
+                f = uproot.open(filename)
+                #dsets.append( f[treename].pandas.df(branches=variables) )
+                dsets.append( f[treename].pandas.df() )
+                f.close()
+            except Exception as e:
+                print("Warning: \"%s\" has issues" % filename, e)
                 continue
         return dsets
     
-    def importData(self, samplesToRun, maxNJetBin = 11):
+    def importData(self, samplesToRun, treename = "myMiniTree", maxNJetBin = 11):
         #variables to train
         variables = self.getList()
-
-        for fNum in range(len(samplesToRun)):
-            try:
-                columnHeaders = self.getColumnHeaders(samplesToRun[fNum], "EventShapeVar", "column_headers")
-                break
-            except:
-                pass
-
-        for v in variables:
-            if not v in columnHeaders:
-                print("Error: Variable not found: %s"%v)
-                exit()
-
-        #load data files 
-        dsets = self.getDataSets(samplesToRun, "EventShapeVar")
-        arrays = [da.from_array(dset, chunks=(65536, 1024)) for dset in dsets]
-        x = da.concatenate(arrays, axis=0)
-         
-        #setup and get data
-        dataColumns = np.array([np.flatnonzero(columnHeaders == v)[0] for v in variables])
-        data = x[:,dataColumns]
-        npyInputData = data.compute()
-        #print(data.shape)
+        self.getColumnHeaders(samplesToRun, treename)
+        self.checkVariables(variables)
         
+        #load data files and get data
+        dsets = self.getDataSets(samplesToRun, treename)
+        data = pd.concat(dsets)
+        data = data.dropna()
+
+        #setup and get training data
+        npyInputData = data[variables].astype(float).values
+
         #setup and get labels
         npyInputAnswers = np.zeros((npyInputData.shape[0], 2))
         if self.signal:
@@ -119,33 +132,24 @@ class DataGetter:
             npyInputAnswers[:,1] = 1
         
         #setup and get domains
-        domainColumnNames = ["NGoodJets_double"]
-        #maxNJetBin = 11
-        domainColumns = np.array([np.flatnonzero(columnHeaders == v)[0] for v in domainColumnNames])
-        inputDomains = x[:,domainColumns]
+        domainColumnNames = ["NGoodJets_pt30"]
+        inputDomains = data[domainColumnNames]
         tempInputDomains = inputDomains.astype(int)
-        tempInputDomains = da.reshape(tempInputDomains, [-1])
         tempInputDomains[tempInputDomains > maxNJetBin] = maxNJetBin 
-        minNJetBin = tempInputDomains.min().compute()
+        minNJetBin = tempInputDomains.min().values[0]
         numDomains = maxNJetBin + 1 - minNJetBin
+        npyNJet = tempInputDomains.astype(float).values
         tempInputDomains = tempInputDomains - tempInputDomains.min()
-        d =  np.zeros((npyInputData.shape[0], numDomains))
-        d[np.arange(d.shape[0]), tempInputDomains] = 1
-            
+        npyInputDomain = np.zeros((npyInputData.shape[0], numDomains))
+        npyInputDomain[np.arange(npyInputDomain.shape[0]), tempInputDomains.values.flatten()] = 1
+
         #setup and get weights
         wgtColumnNames = ["Weight"]
-        wgtColumns = np.array([np.flatnonzero(columnHeaders == v)[0] for v in wgtColumnNames])
-        npyInputSampleWgts = x[:,wgtColumns].compute()
+        npyInputSampleWgts = data[wgtColumnNames].values
 
-        #NJet
-        npyNJet = np.zeros((npyInputData.shape[0], 1))
-        for i in range(0, len(d)):
-            nJet = minNJetBin
-            for j in range(len(d[i])):
-                if d[i][j] == 1:
-                    break
-                else:
-                    nJet +=1
-            npyNJet[i][0] = int(nJet)
-            
-        return {"data":npyInputData, "labels":npyInputAnswers, "domain":d, "Weight":npyInputSampleWgts, "nJet":npyNJet}
+        #setup and get masses
+        massNames = ["mass"]
+        npyMasses = data[massNames].values
+        
+        return {"data":npyInputData, "labels":npyInputAnswers, "domain":npyInputDomain, "Weight":npyInputSampleWgts, "nJet":npyNJet, "masses":npyMasses}
+
