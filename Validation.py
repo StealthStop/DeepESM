@@ -1,4 +1,4 @@
-from DataGetter import get_data,getSamplesToRun
+from DataGetter import get_data, getSamplesToRun
 import numpy as np
 import matplotlib.pyplot as plt
 import mplhep as hep
@@ -7,6 +7,7 @@ plt.style.use({'legend.frameon':False,'legend.fontsize':16,'legend.edgecolor':'b
 from matplotlib.colors import LogNorm
 from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score, roc_auc_score
 import json
+from Correlation import Correlation as cor
 
 class Validation:
 
@@ -96,7 +97,7 @@ class Validation:
         y_OTrain, y_OTrain_Sg, y_OTrain_Bg = self.getResults(output_OTrain, output_OTrain_Sg, output_OTrain_Bg, 0, 0)
 
         # Plot predicted mass
-        bins = np.linspace(0, 1000, 100)
+        bins = np.linspace(0, 1500, 150)
         fig, ax = plt.subplots(figsize=(10, 10))
         ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         ax.set_ylabel('Norm Events')
@@ -109,12 +110,14 @@ class Validation:
         ax.legend(loc='best', frameon=False)
         fig.savefig(self.config["outputDir"]+"/mass.png", dpi=fig.dpi)        
 
-        bins = np.linspace(0, 1000, 100)
+        bins = np.linspace(0, 1500, 150)
         fig, ax = plt.subplots(figsize=(10, 10))
         ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         ax.set_ylabel('Norm Events')
         ax.set_xlabel('predicted mass')
 
+        #plt.hist(y_Train_mass_Sg[self.trainSg["mask_m350"]], bins, color='xkcd:black', alpha=0.9, histtype='step', lw=2, label='mass 350', 
+        #         density=True, log=self.doLog, weights=self.trainSg["Weight"][self.trainSg["mask_m350"]])
         plt.hist(y_Train_mass_Sg[self.trainSg["mask_m550"]], bins, color='xkcd:red', alpha=0.9, histtype='step', lw=2, label='mass 550', 
                  density=True, log=self.doLog, weights=self.trainSg["Weight"][self.trainSg["mask_m550"]])
         plt.hist(y_Train_mass_Sg[self.trainSg["mask_m850"]], bins, color='xkcd:green', alpha=0.9, histtype='step', lw=2, label='mass 850', 
