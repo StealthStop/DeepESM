@@ -99,7 +99,7 @@ class Validation:
         # Plot predicted mass
         bins = np.linspace(0, 1500, 150)
         fig, ax = plt.subplots(figsize=(10, 10))
-        ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         ax.set_ylabel('Norm Events')
         ax.set_xlabel('predicted mass')
         plt.hist(y_Train_mass_Sg, bins, color='xkcd:red', alpha=0.9, histtype='step', lw=2, label='Sg Train', density=True, log=self.doLog, weights=self.trainSg["Weight"])
@@ -112,7 +112,7 @@ class Validation:
 
         bins = np.linspace(0, 1500, 150)
         fig, ax = plt.subplots(figsize=(10, 10))
-        ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         ax.set_ylabel('Norm Events')
         ax.set_xlabel('predicted mass')
 
@@ -132,7 +132,7 @@ class Validation:
         # Plot discriminator distribution
         bins = np.linspace(0, 1, 100)
         fig, ax = plt.subplots(figsize=(10, 10))
-        ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)        
         ax.set_ylabel('Norm Events')
         ax.set_xlabel('Discriminator')
         plt.hist(y_Train_Sg, bins, color='xkcd:red', alpha=0.9, histtype='step', lw=2, label='Sg Train', density=True, log=self.doLog, weights=self.trainSg["Weight"])
@@ -144,7 +144,7 @@ class Validation:
         
         bins = np.linspace(0, 1, 100)
         fig, ax = plt.subplots(figsize=(10, 10))
-        ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         ax.set_ylabel('Norm Events')
         ax.set_xlabel('Discriminator new')
         plt.hist(y_Train_Sg_new, bins, color='xkcd:red', alpha=0.9, histtype='step', lw=2, label='Sg Train', density=True, log=self.doLog, weights=self.trainSg["Weight"])
@@ -157,7 +157,7 @@ class Validation:
         
         fig = plt.figure()
         ax1 = fig.add_subplot(111)
-        ax1 = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax1)
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax1)
         ax1.scatter(y_Train_Sg, y_Train_Sg_new, s=10, c='r', marker="o", label='signal')
         ax1.scatter(y_Train_Bg, y_Train_Bg_new, s=10, c='b', marker="s", label='background')
         ax1.set_xlim([0, 1])
@@ -167,7 +167,7 @@ class Validation:
 
         fig = plt.figure()
         ax1 = fig.add_subplot(111)
-        ax1 = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax1)
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax1)
         ax1.scatter(y_Train_Bg, y_Train_Bg_new, s=10, c='b', marker="s", label='background')
         ax1.scatter(y_Train_Sg, y_Train_Sg_new, s=10, c='r', marker="o", label='signal')
         ax1.set_xlim([0, 1])
@@ -216,7 +216,7 @@ class Validation:
         # Plot loss of training vs test
         print("Plotting loss and acc vs epoch")
         fig = plt.figure()
-        ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         plt.plot(self.result_log.history['loss'])
         plt.plot(self.result_log.history['val_loss'])
         plt.title('model loss')
@@ -226,7 +226,7 @@ class Validation:
         fig.savefig(self.config["outputDir"]+"/loss_train_val.png", dpi=fig.dpi)
         
         fig = plt.figure()
-        ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         plt.plot(self.result_log.history['first_output_loss'])
         plt.plot(self.result_log.history['val_first_output_loss'])
         plt.title('first output loss')
@@ -236,7 +236,7 @@ class Validation:
         fig.savefig(self.config["outputDir"]+"/first_output_loss_train_val.png", dpi=fig.dpi)
         
         fig = plt.figure()
-        ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         plt.plot(self.result_log.history['second_output_loss'])
         plt.plot(self.result_log.history['val_second_output_loss'])
         plt.title('second output loss')
@@ -246,7 +246,7 @@ class Validation:
         fig.savefig(self.config["outputDir"]+"/second_output_loss_train_val.png", dpi=fig.dpi)
 
         fig = plt.figure()
-        ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         plt.plot(self.result_log.history['third_output_loss'])
         plt.plot(self.result_log.history['val_third_output_loss'])
         plt.title('third output loss')
@@ -256,7 +256,7 @@ class Validation:
         fig.savefig(self.config["outputDir"]+"/third_output_loss_train_val.png", dpi=fig.dpi)
 
         fig = plt.figure()
-        ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         plt.plot(self.result_log.history['fourth_output_loss'])
         plt.plot(self.result_log.history['val_fourth_output_loss'])
         plt.title('fourth output loss')
@@ -266,7 +266,7 @@ class Validation:
         fig.savefig(self.config["outputDir"]+"/fourth_output_loss_train_val.png", dpi=fig.dpi)
         
         fig = plt.figure()
-        ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         plt.plot(self.result_log.history['correlation_layer_loss'])
         plt.plot(self.result_log.history['val_correlation_layer_loss'])
         plt.title('correlation_layer output loss')
@@ -278,7 +278,7 @@ class Validation:
         # Plot discriminator distribution
         bins = np.linspace(0, 1, 100)
         fig, ax = plt.subplots(figsize=(10, 10))
-        ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         ax.set_ylabel('Norm Events')
         ax.set_xlabel('Discriminator')
         plt.hist(y_Train_Sg, bins, color='xkcd:red', alpha=0.9, histtype='step', lw=2, label='Sg Train', density=True, log=self.doLog, weights=self.trainSg["Weight"])
@@ -295,7 +295,7 @@ class Validation:
             weights = samples[sample][2] 
             bins = np.linspace(0, 1, 100)
             fig, ax = plt.subplots(figsize=(10, 10))
-            ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+            hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
             ax.set_ylabel('Norm Events')
             ax.set_xlabel('Discriminator')
             for key in sorted(trainSample.keys()):
@@ -314,7 +314,7 @@ class Validation:
             weights = samples[sample][2] 
             bins = np.linspace(0, 1, 100)
             fig, ax = plt.subplots(figsize=(10, 10))
-            ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+            hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
             ax.set_ylabel('Norm Events')
             ax.set_xlabel('Discriminator new')
             for key in sorted(trainSample.keys()):
@@ -345,7 +345,7 @@ class Validation:
         self.metric["Performance_new"] = abs(1 - auc_Train_new)
         
         fig = plt.figure()
-        ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         plt.plot([0, 1], [0, 1], 'k--')
         plt.plot(fpr_Val, tpr_Val, color='xkcd:black', label='Val (area = {:.3f})'.format(auc_Val))
         plt.plot(fpr_Train, tpr_Train, color='xkcd:red', label='Train (area = {:.3f})'.format(auc_Train))
@@ -356,7 +356,7 @@ class Validation:
         fig.savefig(self.config["outputDir"]+"/roc_plot.png", dpi=fig.dpi)
 
         fig = plt.figure()
-        ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         plt.plot([0, 1], [0, 1], 'k--')
         plt.plot(fpr_Val_new, tpr_Val_new, color='xkcd:black', label='Val (area = {:.3f})'.format(auc_Val_new))
         plt.plot(fpr_Train_new, tpr_Train_new, color='xkcd:red', label='Train (area = {:.3f})'.format(auc_Train_new))
@@ -367,7 +367,7 @@ class Validation:
         fig.savefig(self.config["outputDir"]+"/roc_plot_new.png", dpi=fig.dpi)
         
         fig = plt.figure()
-        ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         plt.plot([0, 1], [0, 1], 'k--')
         plt.plot(fpr_OTrain, tpr_OTrain, color='xkcd:black', label="Train "+self.config["otherttbarMC"][0]+" (area = {:.3f})".format(auc_OTrain))
         plt.plot(fpr_Train, tpr_Train, color='xkcd:red', label="Train "+self.config["ttbarMC"][0]+" (area = {:.3f})".format(auc_Train))
@@ -378,7 +378,7 @@ class Validation:
         fig.savefig(self.config["outputDir"]+"/roc_plot_TT_TTJets.png", dpi=fig.dpi)
         
         fig = plt.figure()
-        ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         plt.plot([0, 1], [0, 1], 'k--')
         plt.xlabel('False positive rate')
         plt.ylabel('True positive rate')
@@ -399,7 +399,7 @@ class Validation:
         fig.savefig(self.config["outputDir"]+"/roc_plot_"+self.config["ttbarMC"][0]+"_nJet.png", dpi=fig.dpi)    
 
         fig = plt.figure()
-        ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         plt.plot([0, 1], [0, 1], 'k--')
         plt.xlabel('False positive rate')
         plt.ylabel('True positive rate')
@@ -420,7 +420,7 @@ class Validation:
         fig.savefig(self.config["outputDir"]+"/roc_plot_"+self.config["ttbarMC"][0]+"_nJet_new.png", dpi=fig.dpi)    
         
         fig = plt.figure()
-        ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         plt.plot([0, 1], [0, 1], 'k--')
         plt.xlabel('False positive rate')
         plt.ylabel('True positive rate')
@@ -447,7 +447,7 @@ class Validation:
         ap_Train = average_precision_score(self.trainData["labels"][:,0], y_Train, sample_weight=self.trainData["Weight"][:,0])
         
         fig = plt.figure()
-        ax = hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         plt.ylim(0,1)
         plt.xlim(0,1)
         plt.plot(precision_Val, recall_Val, color='xkcd:black', label='Val (AP = {:.3f})'.format(ap_Val))
