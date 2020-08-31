@@ -141,8 +141,8 @@ Get the code, make sure you have the training file and run
 cd WORKINGAREA
 git clone git@github.com:StealthStop/DeepESM.git
 cd DeepESM
-mkdir BackGroundMVA_V11_2017_2016
-xrdcp -r root://cmseos.fnal.gov///store/user/cmadrid/trainingTuples/BackGroundMVA_V11_2017_2016/ ./BackGroundMVA_V11_2017_2016/
+mkdir MVA_Training_Files_FullRun2_V2
+xrdcp -r root://cmseos.fnal.gov///store/user/cmadrid/trainingTuples/MVA_Training_Files_FullRun2_V2/ ./MVA_Training_Files_FullRun2_V2/
 python train.py
 ```
 

@@ -11,7 +11,7 @@ from DataGetter import get_data,getSamplesToRun
 from flipGradientTF2 import GradientReversal 
 import shutil
 from Validation import Validation
-from Disco_tf import distance_corr
+from Correlation import Correlation as cor
 import json
 
 class Train:
@@ -73,7 +73,7 @@ class Train:
             val_1 = tf.boolean_mask(val_1, mask)
             val_2 = tf.boolean_mask(val_2, mask)
             normedweight = tf.boolean_mask(normedweight, mask)
-            return c * distance_corr(val_1, val_2, normedweight, 1)
+            return c * cor.distance_corr(val_1, val_2, normedweight, 1)
         return discoLoss
 
     def get_callbacks(self, config):
@@ -111,6 +111,7 @@ class Train:
         # Get frozen ConcreteFunction
         frozen_func = convert_variables_to_constants_v2(full_model)
         frozen_func.graph.as_graph_def()
+        config["input_output"] = list(x.name.split(':')[0] for x in frozen_func.inputs + frozen_func.outputs)
         
         # Save frozen graph from frozen ConcreteFunction to hard drive
         tf.io.write_graph(graph_or_graph_def=frozen_func.graph, logdir=config["outputDir"], name="keras_frozen.pb", as_text=False)
@@ -198,9 +199,9 @@ class Train:
         config["allVars"] = jVecs + lepton + eventShapeVars + MET + numJets + extra
         return config
         
-    def train(self, config = {"gr_lambda": 0.0, "cor_lambda": 10000, "nNodes":100, "nNodesD":1, "nNodesM":100,
+    def train(self, config = {"gr_lambda": 0.0, "cor_lambda": 100.0, "nNodes":250, "nNodesD":40, "nNodesM":250,
                               "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3,
-                              "batch_size":16384, "epochs":60, "lr":0.001}):
+                              "batch_size":16384, "epochs":2, "lr":0.001}):
         # Define ouputDir based on input config
         config = self.makeOutputDir(config)
 
@@ -244,7 +245,7 @@ class Train:
         #config["lumi"] = 35900.0 + 41500.0
         print("Using "+config["dataSet"]+" data set")
         print("Training variables:")
-        print(config["allVars"])
+        print(len(config["allVars"]), config["allVars"])
         print("Training on mass models: ", config["massModels"])
         print("Training on ttbarMC: ", config["ttbarMC"][1])
         
