@@ -288,7 +288,7 @@ class Train:
         #Plot results
         print("----------------Validation of training------------------")
         val = Validation(model, config, sgTrainSet, trainData, trainSg, trainBg, result_log)
-        metric = val.plot()
+        metric = val.makePlots()
         del val
         
         #Clean up training
