@@ -303,7 +303,11 @@ if __name__ == '__main__':
         with open(str(sys.argv[1]), "r") as f:
             config = json.load(f)
         print(config)
-        t.train(config)
+
+        metric = t.train(config)
+
+        with open(str(sys.argv[1]), 'w') as f:
+          json.dump(metric, f)
     else:
         t.train()
         print("----------------Ran with default config------------------")
