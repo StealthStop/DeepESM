@@ -274,7 +274,6 @@ class Validation:
         ap_Val = average_precision_score(valData["labels"][:,0], y_Val, sample_weight=valData["Weight"][:,0])
         ap_Train = average_precision_score(self.trainData["labels"][:,0], y_Train, sample_weight=self.trainData["Weight"][:,0])
         
-        print("plotPandR")
         self.plotPandR(precision_Val, recall_Val, precision_Train, recall_Train, ap_Val, ap_Train)
         
         # Plot NJet dependance
