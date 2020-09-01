@@ -20,8 +20,17 @@ def parallel_train(config):
      command = "run \"./train.py temp.json\""
      print( command )
      os.system(command)
+
+     metric = None
+     with open("temp.json", "r") as f:
+          metric = json.load(f)
+
+     total = 0.0
+     for key in metric:
+          total += metric[key]
+     
      os.system("rm temp.json")
-     return (name, 0.0, {"total":0.0, "metric": 0.0})
+     return (name, total, {"total":total, "metric": metric})
      #############################################
 
      ###############################################
@@ -42,19 +51,21 @@ if __name__ == '__main__':
      index = 0
      totals = {}
      result = {}
-     for cor_lambda in [0.0, 10.0, 50.0, 200.0, 500.0, 1000.0, 2000.0]:
+     for cor_lambda in [0.0, 10.0]:
+     #for cor_lambda in [0.0, 10.0, 50.0, 200.0, 500.0, 1000.0, 2000.0]:
           index += 1.0
           config = {"gr_lambda": 0.0, "cor_lambda": float(cor_lambda), "nNodes":100, "nNodesD":1, "nNodesM":100,
                     "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3,
-                    "batch_size":16384, "epochs":60, "lr":0.001}
+                    #"batch_size":16384, "epochs":60, "lr":0.001}
+                    "batch_size":16384, "epochs":2, "lr":0.001}
           configList.append(config)
 
-     for epoch in [40, 50, 65, 70, 80]:
-          index += 1.0
-          config = {"gr_lambda": 0.0, "cor_lambda": 100.0, "nNodes":100, "nNodesD":1, "nNodesM":100,
-                    "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3,
-                    "batch_size":16384, "epochs":epoch, "lr":0.001}
-          configList.append(config)
+     #for epoch in [40, 50, 65, 70, 80]:
+     #     index += 1.0
+     #     config = {"gr_lambda": 0.0, "cor_lambda": 100.0, "nNodes":100, "nNodesD":1, "nNodesM":100,
+     #               "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3,
+     #               "batch_size":16384, "epochs":epoch, "lr":0.001}
+     #     configList.append(config)
 
      #for epochs in range(110, 130+5, 5):
      #     for nNodes in range(60, 80+5, 5):
