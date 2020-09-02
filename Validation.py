@@ -102,7 +102,7 @@ class Validation:
         hep.cms.label(data=True, paper=False, year=self.config["year"])
         plt.plot(self.result_log.history[h1])
         plt.plot(self.result_log.history[h2])
-        plt.title(title)
+        plt.title(title, pad=45.0)
         plt.ylabel('loss')
         plt.xlabel('epoch')
         plt.legend(['train', 'test'], loc='best')
@@ -137,7 +137,7 @@ class Validation:
         plt.plot([0, 1], [0, 1], 'k--')
         plt.xlabel('False positive rate')
         plt.ylabel('True positive rate')
-        plt.title('ROC curve')
+        plt.title('ROC curve', pad=45.0)
 
         if y_Train is None:
             plt.plot(xVal, yVal, color='xkcd:black', label='Val (area = {:.3f})'.format(valLab))
@@ -183,7 +183,7 @@ class Validation:
         plt.plot(ptrain, rtrain, color='xkcd:red', label='Train (AP = {:.3f})'.format(trainLab))
         plt.xlabel('Recall')
         plt.ylabel('Precision')
-        plt.title('Precision and Recall curve')
+        plt.title('Precision and Recall curve', pad=45.0)
         plt.legend(loc='best')
         fig.savefig(self.config["outputDir"]+"/PandR_plot.png", dpi=fig.dpi)        
         plt.close(fig)
