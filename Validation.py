@@ -1,7 +1,10 @@
 from DataGetter import get_data, getSamplesToRun
 import numpy as np
+
+# Little incantation to display trying to X display
 import matplotlib as mpl
 mpl.use('Agg')
+
 import matplotlib.pyplot as plt
 import mplhep as hep
 plt.style.use([hep.style.ROOT,hep.style.CMS]) # For now ROOT defaults to CMS
@@ -85,6 +88,8 @@ class Validation:
 
         return output[outputNum][:,columnNum].ravel(), output_Sg[outputNum][:,columnNum].ravel(), output_Bg[outputNum][:,columnNum].ravel()
 
+    # Plot a set of 1D hists together, where the hists, colors, labels, weights
+    # are provided as a list argument.
     def plotDisc(self, hists, colors, labels, weights, bins, name, xlab, ylab):
 
         # Plot predicted mass
@@ -96,6 +101,38 @@ class Validation:
 
         ax.legend(loc='best', frameon=False)
         fig.savefig(self.config["outputDir"]+"/%s.png"%(name), dpi=fig.dpi)        
+        plt.close(fig)
+
+    # Member function to plot the discriminant variable while making a selection on another discriminant
+    # The result for signal and background are shown together
+    def plotDiscAndCut(self, c, b1, b2, bw, s1, s2, sw, tag1, tag2):
+
+        fig, ax = plt.subplots(figsize=(10, 10))
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        ax.set_ylabel('A.U.'); ax.set_xlabel('Disc. %s'%(tag1))
+
+        bnew = np.zeros(len(b1)); bwnew = np.zeros(len(b1)); snew = np.zeros(len(s1)); swnew = np.zeros(len(s1))
+        j = 0
+        for i in range(0, len(b2)):
+        
+            if b2[i] > c:
+                bnew[j] = b1[i]; bwnew[j] = bw[i]
+                j += 1
+
+        j = 0
+        for i in range(0, len(s2)):
+
+            if s2[i] > c:
+                snew[j] = s1[i]; swnew[j] = sw[i]
+                j += 1
+       
+        plt.hist(bnew, np.linspace(0, 1, 100), color="xkcd:black", alpha=0.9, histtype='step', lw=2, label="Background", density=True, log=self.doLog, weights=bwnew)
+        plt.hist(snew, np.linspace(0, 1, 100), color="xkcd:red", alpha=0.9, histtype='step', lw=2, label="Signal", density=True, log=self.doLog, weights=swnew)
+        plt.text(0.05, 0.94, r"$\bf{Disc. %s}$ > %.3f"%(tag2,c), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
+
+        ax.legend(loc='best', frameon=False)
+        fig.savefig(self.config["outputDir"]+"/disc%s_BvsS.png"%(tag1))
+        plt.close(fig)
 
     # Plot loss of training vs test
     def plotAccVsEpoch(self, h1, h2, title, name):
@@ -190,6 +227,8 @@ class Validation:
         fig.savefig(self.config["outputDir"]+"/PandR_plot.png", dpi=fig.dpi)        
         plt.close(fig)
 
+    # Provided with a selection on discriminant 1 and 2, this function calculates
+    # the simple significance s / sqrt(b) post selection
     def calcSignificance(self, c1, c2, b1, b2, bw, s1, s2, sw):
 
         bsum = 0.0
@@ -201,6 +240,17 @@ class Validation:
             if s1[i] > c1 and s2[i] > c2: ssum += sw[i]
 
         return ssum / bsum**0.5
+
+    def plotDisc1vsDisc2(self, disc1, disc2, bw, sw, significance):
+
+        fig = plt.figure() 
+        corr = cor.pearson_corr(disc1, disc2)
+        plt.hist2d(disc1, disc2, bins=[100, 100], range=[[0, 1], [0, 1]], cmap=plt.cm.jet, weights=bw, cmin = sw.min())
+        plt.colorbar()
+        plt.text(0.05, 0.90, r"$\bf{CC}$ = %.3f"%(corr), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
+        plt.text(0.05, 0.95, r"$\bf{Significance}$ = %.3f"%(significance), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
+        hep.cms.label(data=True, paper=False, year=self.config["year"])
+        fig.savefig(self.config["outputDir"]+"/2D_BG_discriminators.png", dpi=fig.dpi)
 
     def makePlots(self):
 
@@ -237,23 +287,13 @@ class Validation:
         
         significance = self.calcSignificance(0.8, 0.8, y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0], y_Train_Sg, y_Train_Sg_new, self.trainSg["Weight"][:,0])
 
-        fig = plt.figure() 
-        corr = cor.pearson_corr(y_Train_Bg, y_Train_Bg_new)
-        plt.hist2d(y_Train_Bg, y_Train_Bg_new, bins=[100, 100], range=[[0, 1], [0, 1]], cmap=plt.cm.jet, weights=self.trainBg["Weight"][:,0], cmin = self.trainSg["Weight"][:,0].min())
-        plt.colorbar()
-        plt.text(0.05, 0.90, r"$\bf{CC}$ = %.3f"%(corr), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
-        plt.text(0.05, 0.95, r"$\bf{Significance}$ = %.3f"%(significance), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
-        hep.cms.label(data=True, paper=False, year=self.config["year"])
-        fig.savefig(self.config["outputDir"]+"/2D_BG_discriminators.png", dpi=fig.dpi)
-    
-        fig = plt.figure() 
-        corr = cor.pearson_corr(y_Train_Sg, y_Train_Sg_new)
-        plt.hist2d(y_Train_Sg, y_Train_Sg_new, bins=[100, 100], range=[[0, 1], [0, 1]], cmap=plt.cm.jet, weights=self.trainSg["Weight"][:,0], cmin = self.trainSg["Weight"][:,0].min())
-        plt.colorbar()
-        plt.text(0.05, 0.90, r"$\bf{CC}$ = %.3f"%(corr), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
-        plt.text(0.05, 0.95, r"$\bf{Significance}$ = %.3f"%(significance), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
-        hep.cms.label(data=True, paper=False, year=self.config["year"])
-        fig.savefig(self.config["outputDir"]+"/2D_SG_discriminators.png", dpi=fig.dpi)
+        # Plot each discriminant for sig and background while making cut on other disc
+        self.plotDiscAndCut(0.8, y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0], y_Train_Sg, y_Train_Sg_new, self.trainSg["Weight"][:,0], "1", "2")
+        self.plotDiscAndCut(0.8, y_Train_Bg_new, y_Train_Bg, self.trainBg["Weight"][:,0], y_Train_Sg_new, y_Train_Sg, self.trainSg["Weight"][:,0], "2", "1")
+
+        # Plot 2D of the discriminants
+        self.plotDisc1vsDisc2(y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0], self.trainSg["Weight"][:,0], significance)
+        self.plotDisc1vsDisc2(y_Train_Sg, y_Train_Sg_new, self.trainSg["Weight"][:,0], self.trainSg["Weight"][:,0], significance)
 
         # Plot Acc vs Epoch
         self.plotAccVsEpoch('loss', 'val_loss', 'model loss', 'loss_train_val')
