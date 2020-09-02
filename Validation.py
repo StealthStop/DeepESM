@@ -190,6 +190,18 @@ class Validation:
         fig.savefig(self.config["outputDir"]+"/PandR_plot.png", dpi=fig.dpi)        
         plt.close(fig)
 
+    def calcSignificance(self, c1, c2, b1, b2, bw, s1, s2, sw):
+
+        bsum = 0.0
+        for i in range(0, len(b1)):
+            if b1[i] > c1 and b2[i] > c2: bsum += bw[i]
+            
+        ssum = 0.0
+        for i in range(0, len(s1)):
+            if s1[i] > c1 and s2[i] > c2: ssum += sw[i]
+
+        return ssum / bsum**0.5
+
     def makePlots(self):
 
         sgValSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+mass+"*Val.root") for mass in self.config["massModels"]) , [])
@@ -223,19 +235,23 @@ class Validation:
 
         self.plotDiscVsNew(y_Train_Bg, y_Train_Bg_new, y_Train_Sg, y_Train_Sg_new)
         
+        significance = self.calcSignificance(0.8, 0.8, y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0], y_Train_Sg, y_Train_Sg_new, self.trainSg["Weight"][:,0])
+
         fig = plt.figure() 
         corr = cor.pearson_corr(y_Train_Bg, y_Train_Bg_new)
         plt.hist2d(y_Train_Bg, y_Train_Bg_new, bins=[100, 100], range=[[0, 1], [0, 1]], cmap=plt.cm.jet, weights=self.trainBg["Weight"][:,0], cmin = self.trainSg["Weight"][:,0].min())
         plt.colorbar()
-        plt.text(0.65, 0.08, r"$\bf{CC}$ = %.3f"%(corr), fontfamily='sans-serif', fontsize=24, bbox=dict(facecolor='white', alpha=1.0))
+        plt.text(0.05, 0.90, r"$\bf{CC}$ = %.3f"%(corr), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
+        plt.text(0.05, 0.95, r"$\bf{Significance}$ = %.3f"%(significance), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
         hep.cms.label(data=True, paper=False, year=self.config["year"])
         fig.savefig(self.config["outputDir"]+"/2D_BG_discriminators.png", dpi=fig.dpi)
-        
+    
         fig = plt.figure() 
         corr = cor.pearson_corr(y_Train_Sg, y_Train_Sg_new)
         plt.hist2d(y_Train_Sg, y_Train_Sg_new, bins=[100, 100], range=[[0, 1], [0, 1]], cmap=plt.cm.jet, weights=self.trainSg["Weight"][:,0], cmin = self.trainSg["Weight"][:,0].min())
         plt.colorbar()
-        plt.text(0.65, 0.08, r"$\bf{CC}$ = %.3f"%(corr), fontfamily='sans-serif', fontsize=24, bbox=dict(facecolor='white', alpha=1.0))
+        plt.text(0.05, 0.90, r"$\bf{CC}$ = %.3f"%(corr), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
+        plt.text(0.05, 0.95, r"$\bf{Significance}$ = %.3f"%(significance), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
         hep.cms.label(data=True, paper=False, year=self.config["year"])
         fig.savefig(self.config["outputDir"]+"/2D_SG_discriminators.png", dpi=fig.dpi)
 
