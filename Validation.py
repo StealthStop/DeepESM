@@ -38,6 +38,8 @@ class Validation:
         
     def plot2DVar(self, name, binxl, binxh, numbin, xIn, yIn, nbiny):
 
+        corr = cor.pearson_corr(xIn, yIn)
+
         fig = plt.figure()
         h, xedges, yedges, image = plt.hist2d(xIn, yIn, bins=[numbin, nbiny], range=[[binxl, binxh], [0, 1]], cmap=plt.cm.jet, cmin = 1)
         plt.colorbar()
@@ -222,14 +224,18 @@ class Validation:
         self.plotDiscVsNew(y_Train_Bg, y_Train_Bg_new, y_Train_Sg, y_Train_Sg_new)
         
         fig = plt.figure() 
+        corr = cor.pearson_corr(y_Train_Bg, y_Train_Bg_new)
         plt.hist2d(y_Train_Bg, y_Train_Bg_new, bins=[100, 100], range=[[0, 1], [0, 1]], cmap=plt.cm.jet, weights=self.trainBg["Weight"][:,0], cmin = self.trainSg["Weight"][:,0].min())
         plt.colorbar()
+        plt.text(0.65, 0.08, r"$\bf{CC}$ = %.3f"%(corr), fontfamily='sans-serif', fontsize=24, bbox=dict(facecolor='white', alpha=1.0))
         hep.cms.label(data=True, paper=False, year=self.config["year"])
         fig.savefig(self.config["outputDir"]+"/2D_BG_discriminators.png", dpi=fig.dpi)
         
         fig = plt.figure() 
+        corr = cor.pearson_corr(y_Train_Sg, y_Train_Sg_new)
         plt.hist2d(y_Train_Sg, y_Train_Sg_new, bins=[100, 100], range=[[0, 1], [0, 1]], cmap=plt.cm.jet, weights=self.trainSg["Weight"][:,0], cmin = self.trainSg["Weight"][:,0].min())
         plt.colorbar()
+        plt.text(0.65, 0.08, r"$\bf{CC}$ = %.3f"%(corr), fontfamily='sans-serif', fontsize=24, bbox=dict(facecolor='white', alpha=1.0))
         hep.cms.label(data=True, paper=False, year=self.config["year"])
         fig.savefig(self.config["outputDir"]+"/2D_SG_discriminators.png", dpi=fig.dpi)
 
