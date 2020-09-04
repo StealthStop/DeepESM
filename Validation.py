@@ -10,6 +10,7 @@ import mplhep as hep
 plt.style.use([hep.style.ROOT,hep.style.CMS]) # For now ROOT defaults to CMS
 plt.style.use({'legend.frameon':False,'legend.fontsize':16,'legend.edgecolor':'black'})
 from matplotlib.colors import LogNorm
+import matplotlib.lines as ml
 from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score, roc_auc_score
 import json
 from Correlation import Correlation as cor
@@ -131,7 +132,7 @@ class Validation:
         plt.text(0.05, 0.94, r"$\bf{Disc. %s}$ > %.3f"%(tag2,c), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
 
         ax.legend(loc='best', frameon=False)
-        fig.savefig(self.config["outputDir"]+"/disc%s_BvsS.png"%(tag1))
+        fig.savefig(self.config["outputDir"]+"/Disc%s_BvsS.png"%(tag1))
         plt.close(fig)
 
     # Plot loss of training vs test
@@ -199,17 +200,20 @@ class Validation:
         fig.savefig(self.config["outputDir"]+"/roc_plot"+newtag+".png", dpi=fig.dpi)
         plt.close(fig)
 
-    def plotDiscVsNew(self, b, bnew, s, snew):
+    # Plot disc1 vs disc2 for both background and signal
+    def plotD1VsD2SigVsBkgd(self, b1, b2, s1, s2):
 
         fig = plt.figure()
         ax1 = fig.add_subplot(111)
         hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax1)
-        ax1.scatter(b, bnew, s=10, c='b', marker="s", label='background')
-        ax1.scatter(s, snew, s=10, c='r', marker="o", label='signal')
+        ax1.scatter(b1, b2, s=10, c='b', marker="s", label='background')
+        ax1.scatter(s1, s2, s=10, c='r', marker="o", label='signal')
         ax1.set_xlim([0, 1])
         ax1.set_ylim([0, 1])
+        ax1.set_xlabel("Disc. 1")
+        ax1.set_ylabel("Disc. 2")
         plt.legend(loc='best');
-        fig.savefig(self.config["outputDir"]+"/discriminator_discriminator_new.png", dpi=fig.dpi)        
+        fig.savefig(self.config["outputDir"]+"/2D_SigVsBkgd_discriminators.png", dpi=fig.dpi)        
         plt.close(fig)
 
     def plotPandR(self, pval, rval, ptrain, rtrain, valLab, trainLab):
@@ -239,18 +243,119 @@ class Validation:
         for i in range(0, len(s1)):
             if s1[i] > c1 and s2[i] > c2: ssum += sw[i]
 
-        return ssum / bsum**0.5
+        if bsum: return ssum / bsum**0.5
+        else:    return -1.0
 
-    def plotDisc1vsDisc2(self, disc1, disc2, bw, sw, significance):
+    # Just plot the 2D for either background or signal
+    def plotDisc1vsDisc2(self, disc1, disc2, bw, sw, c1, c2, significance, tag):
 
         fig = plt.figure() 
         corr = cor.pearson_corr(disc1, disc2)
         plt.hist2d(disc1, disc2, bins=[100, 100], range=[[0, 1], [0, 1]], cmap=plt.cm.jet, weights=bw, cmin = sw.min())
         plt.colorbar()
+        ax = plt.gca()
+        l1 = ml.Line2D([0.0, 1.0], [c1, c1], color="red", linewidth=2); l2 = ml.Line2D([c2, c2], [0.0, 1.0], color="red", linewidth=2)
+        ax.add_line(l1); ax.add_line(l2)
+        ax.set_ylabel("Disc. 2"); ax.set_xlabel("Disc. 1")
         plt.text(0.05, 0.90, r"$\bf{CC}$ = %.3f"%(corr), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
         plt.text(0.05, 0.95, r"$\bf{Significance}$ = %.3f"%(significance), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
         hep.cms.label(data=True, paper=False, year=self.config["year"])
-        fig.savefig(self.config["outputDir"]+"/2D_BG_discriminators.png", dpi=fig.dpi)
+        fig.savefig(self.config["outputDir"]+"/2D_%s_discriminators.png"%(tag), dpi=fig.dpi)
+
+    def findDiscCut4SigFrac(self, c1s, c2s, b1, b2, bw, s1, s2, sw, sf = 0.3):
+
+        # First get the total counts in region "D" for all possible c1, c2
+        bcounts = {}  
+        for i in range(0, len(b1)):
+            for c1 in c1s:
+                c1k = "%.2f"%c1
+                if c1k not in bcounts: bcounts[c1k] = {} 
+                for c2 in c2s:
+                    c2k = "%.2f"%c2
+                    if c2k not in bcounts[c1k]: bcounts[c1k][c2k] = 0.0
+
+                    if b1[i] > c1 and b2[i] > c2: bcounts[c1k][c2k] += bw[i]
+
+        scounts = {}  
+        for i in range(0, len(b1)):
+            for c1 in c1s:
+                c1k = "%.2f"%c1
+                if c1k not in scounts: scounts[c1k] = {} 
+                for c2 in c2s:
+                    c2k = "%.2f"%c2
+                    if c2k not in scounts[c1k]: scounts[c1k][c2k] = 0.0
+
+                    if s1[i] > c1 and s2[i] > c2: scounts[c1k][c2k] += sw[i]
+
+        # Now calculate signal fraction and significance 
+        # Pick c1 and c2 that give 30% sig fraction and maximizes significance
+        significance = 0.0; sigFrac = 0.0; finalc1 = 0.0; finalc2 = 0.0; 
+        for c1 in c1s:
+            c1k = "%.2f"%c1
+            for c2 in c2s:
+                c2k = "%.2f"%c2
+                tempsigfrac = -1.0 
+                if bcounts[c1k][c2k]: tempsigfrac = scounts[c1k][c2k] / bcounts[c1k][c2k]
+                else: tempsigfrac = -1.0
+                if tempsigfrac > sf:
+                    sigFrac = tempsigfrac
+                    tempsignificance = -1.0
+                    if bcounts[c1k][c2k]: tempsignificance = scounts[c1k][c2k] / bcounts[c1k][c2k]**0.5
+                    else: tempsignificance = -1.0
+                    if tempsignificance > significance:
+                        finalc1 = c1; finalc2 = c2
+                        significance = tempsignificance
+                
+        return finalc1, finalc2, significance, sigFrac
+
+    # Define closure as how far away prediction for region D is compared to actual 
+    def simpleClosureABCD(self, c1, c2, b1, b2, bw):
+
+        # Define A: < c1, > c2
+        # Define B: < c1, < c2
+        # Define C: > c1, < c2
+        # Define D: > c1, > c2
+
+        bNA = 0.0; bNB = 0.0; bNC = 0.0; bND = 0.0
+        for i in range(0, len(b1)):
+
+            if b1[i] < c1 and b2[i] > c2: bNA += bw[i]
+            if b1[i] < c1 and b2[i] < c2: bNB += bw[i]
+            if b1[i] > c1 and b2[i] < c2: bNC += bw[i]
+            if b1[i] > c1 and b2[i] > c2: bND += bw[i]
+
+        return 1.0 - abs(bND - (bNA * bNC) / bNB) / bND if bNB else -1.0
+
+    # Calculate Eq. 12 from https://arxiv.org/pdf/2007.14400.pdf
+    def normSignalContamination(self, c1, c2, b1, b2, bw, s1, s2, sw):
+
+        bNA = 0.0; bNB = 0.0; bNC = 0.0; bND = 0.0
+        sNA = 0.0; sNB = 0.0; sNC = 0.0; sND = 0.0
+        for i in range(0, len(b1)):
+
+            if b1[i] < c1 and b2[i] > c2: bNA += bw[i]
+            if b1[i] < c1 and b2[i] < c2: bNB += bw[i]
+            if b1[i] > c1 and b2[i] < c2: bNC += bw[i]
+            if b1[i] > c1 and b2[i] > c2: bND += bw[i]
+
+        for i in range(0, len(s1)):
+
+            if s1[i] < c1 and s2[i] > c2: sNA += sw[i]
+            if s1[i] < c1 and s2[i] < c2: sNB += sw[i]
+            if s1[i] > c1 and s2[i] < c2: sNC += sw[i]
+            if s1[i] > c1 and s2[i] > c2: sND += sw[i]
+
+        bN = bNA + bNB + bNC + bND
+        sN = sNA + sNB + sNC + sND
+
+        if not bN or not sN: return -1.0
+        else:
+            efb = (bND + bNB) / bN; egb = (bND + bNC) / bN
+            efs = (sND + sNB) / sN; egs = (sND + sNC) / sN
+
+            r = ((1.0 - efs) / (1 - efs + egs)) * (efb / (1.0 - efb)) + ((1.0 - egs) / (1 - egs + efs)) * (egb / (1.0 - egb))
+
+            return r
 
     def makePlots(self):
 
@@ -283,17 +388,23 @@ class Validation:
 
         self.plotDisc([y_Train_mass_Sg[self.trainSg["mask_m550"]], y_Train_mass_Sg[self.trainSg["mask_m850"]], y_Train_mass_Sg[self.trainSg["mask_m1200"]], y_Train_mass_Bg], colors, ["mass 550", "mass 850", "mass 1200", "ttbar"], [self.trainSg["Weight"][self.trainSg["mask_m550"]], self.trainSg["Weight"][self.trainSg["mask_m850"]], self.trainSg["Weight"][self.trainSg["mask_m1200"]], self.trainBg["Weight"]], np.linspace(0, 1500, 150), "mass_split", 'Norm Events', 'predicted mass')
 
-        self.plotDiscVsNew(y_Train_Bg, y_Train_Bg_new, y_Train_Sg, y_Train_Sg_new)
-        
-        significance = self.calcSignificance(0.8, 0.8, y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0], y_Train_Sg, y_Train_Sg_new, self.trainSg["Weight"][:,0])
+        self.plotD1VsD2SigVsBkgd(y_Train_Bg, y_Train_Bg_new, y_Train_Sg, y_Train_Sg_new)
+
+        c1s = np.arange(0.5, 0.99, 0.05); c2s = np.arange(0.5, 0.99, 0.05)
+        c1, c2, significance, sigfrac = self.findDiscCut4SigFrac(c1s, c2s, y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0], y_Train_Sg, y_Train_Sg_new, self.trainSg["Weight"][:,0])
+
+        closure = self.simpleClosureABCD(c1, c2, y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0])
+        sigContamination = self.normSignalContamination(c1, c2, y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0], y_Train_Sg, y_Train_Sg_new, self.trainSg["Weight"][:,0])
+
+        print("c1: %.3f, c2: %.3f, significance: %.3f, Sig. Frac: %.3f, Closure: %.3f"%(c1, c2, significance, sigfrac, closure))
 
         # Plot each discriminant for sig and background while making cut on other disc
-        self.plotDiscAndCut(0.8, y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0], y_Train_Sg, y_Train_Sg_new, self.trainSg["Weight"][:,0], "1", "2")
-        self.plotDiscAndCut(0.8, y_Train_Bg_new, y_Train_Bg, self.trainBg["Weight"][:,0], y_Train_Sg_new, y_Train_Sg, self.trainSg["Weight"][:,0], "2", "1")
+        self.plotDiscAndCut(c1, y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0], y_Train_Sg, y_Train_Sg_new, self.trainSg["Weight"][:,0], "1", "2")
+        self.plotDiscAndCut(c2, y_Train_Bg_new, y_Train_Bg, self.trainBg["Weight"][:,0], y_Train_Sg_new, y_Train_Sg, self.trainSg["Weight"][:,0], "2", "1")
 
         # Plot 2D of the discriminants
-        self.plotDisc1vsDisc2(y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0], self.trainSg["Weight"][:,0], significance)
-        self.plotDisc1vsDisc2(y_Train_Sg, y_Train_Sg_new, self.trainSg["Weight"][:,0], self.trainSg["Weight"][:,0], significance)
+        self.plotDisc1vsDisc2(y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0], self.trainSg["Weight"][:,0], c1, c2, significance, "BG")
+        self.plotDisc1vsDisc2(y_Train_Sg, y_Train_Sg_new, self.trainSg["Weight"][:,0], self.trainSg["Weight"][:,0], c1, c2, significance, "SG")
 
         # Plot Acc vs Epoch
         self.plotAccVsEpoch('loss', 'val_loss', 'model loss', 'loss_train_val')
