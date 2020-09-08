@@ -13,6 +13,7 @@ import shutil
 from Validation import Validation
 from Correlation import Correlation as cor
 import json
+import argparse
 
 class Train:
     #def __init__(self):
@@ -201,7 +202,7 @@ class Train:
         
     def train(self, config = {"gr_lambda": 0.0, "cor_lambda": 100.0, "nNodes":250, "nNodesD":40, "nNodesM":250,
                               "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3,
-                              "batch_size":16384, "epochs":2, "lr":0.001}):
+                              "batch_size":16384, "epochs":2, "lr":0.001}, doFullVal=False):
         # Define ouputDir based on input config
         config = self.makeOutputDir(config)
 
@@ -288,7 +289,7 @@ class Train:
         #Plot results
         print("----------------Validation of training------------------")
         val = Validation(model, config, sgTrainSet, trainData, trainSg, trainBg, result_log)
-        metric = val.makePlots()
+        metric = val.makePlots(doFullVal)
         del val
         
         #Clean up training
@@ -297,18 +298,24 @@ class Train:
         return metric
         
 if __name__ == '__main__':
+    usage = "usage: %prog [options]"
+    parser = argparse.ArgumentParser(usage)
+    parser.add_argument("--fullVal", dest="fullVal", help="Do full validation", action="store_true", default=False) 
+    parser.add_argument("--json",    dest="json",    help="JSON config file", default="NULL") 
+    args = parser.parse_args()
+
     t = Train()
-    if len(sys.argv) == 2:
+    if args.json != "NULL": 
         config = None
-        with open(str(sys.argv[1]), "r") as f:
+        with open(str(args.json), "r") as f:
             config = json.load(f)
         print(config)
 
-        metric = t.train(config)
+        metric = t.train(config, args.fullVal)
 
-        with open(str(sys.argv[1]), 'w') as f:
+        with open(str(args.json), 'w') as f:
           json.dump(metric, f)
     else:
-        t.train()
+        t.train(doFullVal=args.fullVal)
         print("----------------Ran with default config------------------")
 
