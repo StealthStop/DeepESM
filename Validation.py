@@ -42,8 +42,6 @@ class Validation:
         
     def plot2DVar(self, name, binxl, binxh, numbin, xIn, yIn, nbiny):
 
-        corr = cor.pearson_corr(xIn, yIn)
-
         fig = plt.figure()
         h, xedges, yedges, image = plt.hist2d(xIn, yIn, bins=[numbin, nbiny], range=[[binxl, binxh], [0, 1]], cmap=plt.cm.jet, cmin = 1)
         plt.colorbar()
