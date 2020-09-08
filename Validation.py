@@ -384,14 +384,11 @@ class Validation:
         if not bNC: bNC = 10e-20
         if not bND: bND = 10e-20
 
-        bN = bNA + bNB + bNC + bND
-        sN = sNA + sNB + sNC + sND
-
         Ar = sNA / bNA; Br = sNB / bNB; Cr = sNC / bNC; Dr = sND / bND
         
         r = (Br + Cr - Dr) / Ar
 
-        return r
+        return r if Ar else -1.0
 
     # Simple calculation of background rejection
     def backgroundRejection(self, bNA, bNB, bNC, bND):
@@ -399,7 +396,7 @@ class Validation:
         bN = bNA + bNB + bNC + bND
         reject = bNB + bNC + bND
 
-        return reject / bN
+        return reject / bN if bN else -1.0
 
     def plotBkgdRejVsSigCont(self, bc, sc, closureLimit = 0.9):
 
@@ -430,7 +427,7 @@ class Validation:
         plt.xlabel('Normalized Signal Contamination')
         plt.ylabel('Background Rejection')
         plt.legend(loc='best')
-        plt.text(0.05, 0.94, r"$\bf{ABCD Closure}$ > %.0f%%"%(closureLimit), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
+        plt.text(0.05, 0.94, r"$\bf{ABCD\;Closure}$ > %.1f"%(closureLimit), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
         fig.savefig(self.config["outputDir"]+"/SigContamination_vs_BkgdRejection.png", dpi=fig.dpi)        
         plt.close(fig)
 
