@@ -259,21 +259,6 @@ class Validation:
         fig.savefig(self.config["outputDir"]+"/PandR_plot.png", dpi=fig.dpi)        
         plt.close(fig)
 
-    # Provided with a selection on discriminant 1 and 2, this function calculates
-    # the simple significance s / sqrt(b) post selection
-    def calcSignificance(self, c1, c2, b1, b2, bw, s1, s2, sw):
-
-        bsum = 0.0
-        for i in range(0, len(b1)):
-            if b1[i] > c1 and b2[i] > c2: bsum += bw[i]
-            
-        ssum = 0.0
-        for i in range(0, len(s1)):
-            if s1[i] > c1 and s2[i] > c2: ssum += sw[i]
-
-        if bsum: return ssum / bsum**0.5
-        else:    return -1.0
-
     # Just plot the 2D for either background or signal
     def plotDisc1vsDisc2(self, disc1, disc2, bw, sw, c1, c2, significance, tag):
 
@@ -325,16 +310,16 @@ class Validation:
                         scounts["D"][c1k][c2k] = 0.0
 
                     if i < blong:
-                        if b1[i] < c1 and b2[i] > c2: bcounts["A"][c1k][c2k] += bw[i]
-                        if b1[i] < c1 and b2[i] < c2: bcounts["B"][c1k][c2k] += bw[i]
-                        if b1[i] > c1 and b2[i] < c2: bcounts["C"][c1k][c2k] += bw[i]
-                        if b1[i] > c1 and b2[i] > c2: bcounts["D"][c1k][c2k] += bw[i]
+                        if b1[i] > c1 and b2[i] > c2: bcounts["A"][c1k][c2k] += bw[i]
+                        if b1[i] > c1 and b2[i] < c2: bcounts["B"][c1k][c2k] += bw[i]
+                        if b1[i] < c1 and b2[i] > c2: bcounts["C"][c1k][c2k] += bw[i]
+                        if b1[i] < c1 and b2[i] < c2: bcounts["D"][c1k][c2k] += bw[i]
 
                     if i < slong:
-                        if s1[i] < c1 and s2[i] > c2: scounts["A"][c1k][c2k] += sw[i]
-                        if s1[i] < c1 and s2[i] < c2: scounts["B"][c1k][c2k] += sw[i]
-                        if s1[i] > c1 and s2[i] < c2: scounts["C"][c1k][c2k] += sw[i]
-                        if s1[i] > c1 and s2[i] > c2: scounts["D"][c1k][c2k] += sw[i]
+                        if s1[i] > c1 and s2[i] > c2: scounts["A"][c1k][c2k] += sw[i]
+                        if s1[i] > c1 and s2[i] < c2: scounts["B"][c1k][c2k] += sw[i]
+                        if s1[i] < c1 and s2[i] > c2: scounts["C"][c1k][c2k] += sw[i]
+                        if s1[i] < c1 and s2[i] < c2: scounts["D"][c1k][c2k] += sw[i]
 
         return bcounts, scounts
 
