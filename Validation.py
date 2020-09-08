@@ -371,7 +371,7 @@ class Validation:
             for c2 in c2s:
 
                 closure = self.simpleClosureABCD(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2]) 
-                if closure < closureLimit: continue
+                if closure > closureLimit: continue
 
                 sigContamination = self.normSignalContamination(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2], sc["A"][c1][c2], sc["B"][c1][c2], sc["C"][c1][c2], sc["D"][c1][c2])
                 backgroundReject = self.backgroundRejection(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2])
