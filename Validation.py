@@ -106,26 +106,27 @@ class Validation:
 
     # Member function to plot the discriminant variable while making a selection on another discriminant
     # The result for signal and background are shown together
-    def plotDiscAndCut(self, c, b1, b2, bw, s1, s2, sw, tag1, tag2):
+    def plotDiscWithCut(self, c, b1, b2, bw, s1, s2, sw, tag1, tag2):
 
         fig, ax = plt.subplots(figsize=(10, 10))
         hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         ax.set_ylabel('A.U.'); ax.set_xlabel('Disc. %s'%(tag1))
 
         bnew = np.zeros(len(b1)); bwnew = np.zeros(len(b1)); snew = np.zeros(len(s1)); swnew = np.zeros(len(s1))
-        j = 0
-        for i in range(0, len(b2)):
-        
-            if b2[i] > c:
-                bnew[j] = b1[i]; bwnew[j] = bw[i]
-                j += 1
+        blong = len(b1); slong = len(s1)
+        total = blong if blong > slong else slong 
+        j = 0; k = 0
+        for i in range(0, total):
 
-        j = 0
-        for i in range(0, len(s2)):
+            if i < blong:        
+                if b2[i] > c:
+                    bnew[j] = b1[i]; bwnew[j] = bw[i]
+                    j += 1
 
-            if s2[i] > c:
-                snew[j] = s1[i]; swnew[j] = sw[i]
-                j += 1
+            if i < slong:
+                if s2[i] > c:
+                    snew[k] = s1[i]; swnew[k] = sw[i]
+                    k += 1
        
         plt.hist(bnew, np.linspace(0, 1, 100), color="xkcd:black", alpha=0.9, histtype='step', lw=2, label="Background", density=True, log=self.doLog, weights=bwnew)
         plt.hist(snew, np.linspace(0, 1, 100), color="xkcd:red", alpha=0.9, histtype='step', lw=2, label="Signal", density=True, log=self.doLog, weights=swnew)
@@ -133,6 +134,33 @@ class Validation:
 
         ax.legend(loc='best', frameon=False)
         fig.savefig(self.config["outputDir"]+"/Disc%s_BvsS.png"%(tag1))
+        plt.close(fig)
+
+    # Member function to plot the discriminant variable while making a selection on another discriminant
+    # Compare the discriminant shape on either "side" of the selection on the other disc.
+    def plotDiscWithCutCompare(self, c, d1, d2, dw, tag1, tag2):
+
+        fig, ax = plt.subplots(figsize=(10, 10))
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        ax.set_ylabel('A.U.'); ax.set_xlabel('Disc. %s'%(tag1))
+
+        dgt = np.zeros(len(d1)); dwgt = np.zeros(len(d1))
+        dlt = np.zeros(len(d1)); dwlt = np.zeros(len(d1))
+        j = 0
+        for i in range(0, len(d2)):
+        
+            if d2[i] > c:
+                dgt[j] = d1[i]; dwgt[j] = dw[i]
+                j += 1
+            else:
+                dlt[j] = d1[i]; dwlt[j] = dw[i]
+                j += 1
+
+        plt.hist(dgt, np.linspace(0, 1, 100), color="xkcd:black", alpha=0.9, histtype='step', lw=2, label="Disc. %s > %.2f"%(tag2,c), density=True, log=self.doLog, weights=dwgt)
+        plt.hist(dlt, np.linspace(0, 1, 100), color="xkcd:red", alpha=0.9, histtype='step', lw=2, label="Disc. %s < %.2f"%(tag2,c), density=True, log=self.doLog, weights=dwlt)
+
+        ax.legend(loc='best', frameon=False)
+        fig.savefig(self.config["outputDir"]+"/Disc%s_Compare_Shapes.png"%(tag1))
         plt.close(fig)
 
     # Plot loss of training vs test
@@ -262,100 +290,149 @@ class Validation:
         hep.cms.label(data=True, paper=False, year=self.config["year"])
         fig.savefig(self.config["outputDir"]+"/2D_%s_discriminators.png"%(tag), dpi=fig.dpi)
 
-    def findDiscCut4SigFrac(self, c1s, c2s, b1, b2, bw, s1, s2, sw, sf = 0.3):
-
+    def cutAndCount(self, c1s, c2s, b1, b2, bw, s1, s2, sw, sf = 0.3):
+    
         # First get the total counts in region "D" for all possible c1, c2
-        bcounts = {}  
-        for i in range(0, len(b1)):
+        bcounts = {"A" : {}, "B" : {}, "C" : {}, "D" : {}}  
+        scounts = {"A" : {}, "B" : {}, "C" : {}, "D" : {}}  
+        blong = len(b1); slong = len(s1)
+        total = blong if blong > slong else slong 
+        for i in range(0, total):
             for c1 in c1s:
                 c1k = "%.2f"%c1
-                if c1k not in bcounts: bcounts[c1k] = {} 
+                if c1k not in bcounts["A"]:
+                    bcounts["A"][c1k] = {} 
+                    bcounts["B"][c1k] = {} 
+                    bcounts["C"][c1k] = {} 
+                    bcounts["D"][c1k] = {} 
+                if c1k not in scounts["A"]:
+                    scounts["A"][c1k] = {} 
+                    scounts["B"][c1k] = {} 
+                    scounts["C"][c1k] = {} 
+                    scounts["D"][c1k] = {} 
+
                 for c2 in c2s:
                     c2k = "%.2f"%c2
-                    if c2k not in bcounts[c1k]: bcounts[c1k][c2k] = 0.0
+                    if c2k not in bcounts["A"][c1k]:
+                        bcounts["A"][c1k][c2k] = 0.0
+                        bcounts["B"][c1k][c2k] = 0.0
+                        bcounts["C"][c1k][c2k] = 0.0
+                        bcounts["D"][c1k][c2k] = 0.0
+                    if c2k not in scounts["A"][c1k]:
+                        scounts["A"][c1k][c2k] = 0.0
+                        scounts["B"][c1k][c2k] = 0.0
+                        scounts["C"][c1k][c2k] = 0.0
+                        scounts["D"][c1k][c2k] = 0.0
 
-                    if b1[i] > c1 and b2[i] > c2: bcounts[c1k][c2k] += bw[i]
+                    if i < blong:
+                        if b1[i] < c1 and b2[i] > c2: bcounts["A"][c1k][c2k] += bw[i]
+                        if b1[i] < c1 and b2[i] < c2: bcounts["B"][c1k][c2k] += bw[i]
+                        if b1[i] > c1 and b2[i] < c2: bcounts["C"][c1k][c2k] += bw[i]
+                        if b1[i] > c1 and b2[i] > c2: bcounts["D"][c1k][c2k] += bw[i]
 
-        scounts = {}  
-        for i in range(0, len(b1)):
-            for c1 in c1s:
-                c1k = "%.2f"%c1
-                if c1k not in scounts: scounts[c1k] = {} 
-                for c2 in c2s:
-                    c2k = "%.2f"%c2
-                    if c2k not in scounts[c1k]: scounts[c1k][c2k] = 0.0
+                    if i < slong:
+                        if s1[i] < c1 and s2[i] > c2: scounts["A"][c1k][c2k] += sw[i]
+                        if s1[i] < c1 and s2[i] < c2: scounts["B"][c1k][c2k] += sw[i]
+                        if s1[i] > c1 and s2[i] < c2: scounts["C"][c1k][c2k] += sw[i]
+                        if s1[i] > c1 and s2[i] > c2: scounts["D"][c1k][c2k] += sw[i]
 
-                    if s1[i] > c1 and s2[i] > c2: scounts[c1k][c2k] += sw[i]
+        return bcounts, scounts
+
+    def findDiscCut4SigFrac(self, bcts, scts, sf = 0.3):
 
         # Now calculate signal fraction and significance 
         # Pick c1 and c2 that give 30% sig fraction and maximizes significance
         significance = 0.0; sigFrac = 0.0; finalc1 = 0.0; finalc2 = 0.0; 
-        for c1 in c1s:
-            c1k = "%.2f"%c1
-            for c2 in c2s:
-                c2k = "%.2f"%c2
+        c1s = list(bcts.values())[0].keys(); c2s = list(list(bcts.values())[0].values())[0].keys()
+        for c1k in c1s:
+            for c2k in c2s:
                 tempsigfrac = -1.0 
-                if bcounts[c1k][c2k]: tempsigfrac = scounts[c1k][c2k] / bcounts[c1k][c2k]
+                if bcts["A"][c1k][c2k]: tempsigfrac = scts["A"][c1k][c2k] / (scts["A"][c1k][c2k] + bcts["A"][c1k][c2k])
                 else: tempsigfrac = -1.0
+
+                # Minimum signal fraction requirement
                 if tempsigfrac > sf:
+
                     sigFrac = tempsigfrac
+
                     tempsignificance = -1.0
-                    if bcounts[c1k][c2k]: tempsignificance = scounts[c1k][c2k] / bcounts[c1k][c2k]**0.5
+                    if bcts["A"][c1k][c2k]: tempsignificance = scts["A"][c1k][c2k] / bcts["A"][c1k][c2k]**0.5
                     else: tempsignificance = -1.0
+                    
+                    # Save significance if we found a better one
                     if tempsignificance > significance:
-                        finalc1 = c1; finalc2 = c2
+                        finalc1 = c1k; finalc2 = c2k
                         significance = tempsignificance
                 
         return finalc1, finalc2, significance, sigFrac
 
     # Define closure as how far away prediction for region D is compared to actual 
-    def simpleClosureABCD(self, c1, c2, b1, b2, bw):
+    def simpleClosureABCD(self, bNA, bNB, bNC, bND):
 
-        # Define A: < c1, > c2
-        # Define B: < c1, < c2
-        # Define C: > c1, < c2
-        # Define D: > c1, > c2
+        # Define A: > c1, > c2        C    |    A    
+        # Define B: > c1, < c2   __________|__________        
+        # Define C: < c1, > c2             |        
+        # Define D: < c1, < c2        D    |    B    
 
-        bNA = 0.0; bNB = 0.0; bNC = 0.0; bND = 0.0
-        for i in range(0, len(b1)):
+        return 1.0 - abs(bNA - (bNC * bNB) / bND) / bNA if bNA and bND else -1.0
 
-            if b1[i] < c1 and b2[i] > c2: bNA += bw[i]
-            if b1[i] < c1 and b2[i] < c2: bNB += bw[i]
-            if b1[i] > c1 and b2[i] < c2: bNC += bw[i]
-            if b1[i] > c1 and b2[i] > c2: bND += bw[i]
+    # Calculate Eq. 2.8 from https://arxiv.org/pdf/2007.14400.pdf
+    def normSignalContamination(self, bNA, bNB, bNC, bND, sNA, sNB, sNC, sND):
 
-        return 1.0 - abs(bND - (bNA * bNC) / bNB) / bND if bNB else -1.0
-
-    # Calculate Eq. 12 from https://arxiv.org/pdf/2007.14400.pdf
-    def normSignalContamination(self, c1, c2, b1, b2, bw, s1, s2, sw):
-
-        bNA = 0.0; bNB = 0.0; bNC = 0.0; bND = 0.0
-        sNA = 0.0; sNB = 0.0; sNC = 0.0; sND = 0.0
-        for i in range(0, len(b1)):
-
-            if b1[i] < c1 and b2[i] > c2: bNA += bw[i]
-            if b1[i] < c1 and b2[i] < c2: bNB += bw[i]
-            if b1[i] > c1 and b2[i] < c2: bNC += bw[i]
-            if b1[i] > c1 and b2[i] > c2: bND += bw[i]
-
-        for i in range(0, len(s1)):
-
-            if s1[i] < c1 and s2[i] > c2: sNA += sw[i]
-            if s1[i] < c1 and s2[i] < c2: sNB += sw[i]
-            if s1[i] > c1 and s2[i] < c2: sNC += sw[i]
-            if s1[i] > c1 and s2[i] > c2: sND += sw[i]
+        if not bNA: bNA = 10e-20
+        if not bNB: bNB = 10e-20
+        if not bNC: bNC = 10e-20
+        if not bND: bND = 10e-20
 
         bN = bNA + bNB + bNC + bND
         sN = sNA + sNB + sNC + sND
 
-        if not bN or not sN: return -1.0
-        else:
-            efb = (bND + bNB) / bN; egb = (bND + bNC) / bN
-            efs = (sND + sNB) / sN; egs = (sND + sNC) / sN
+        Ar = sNA / bNA; Br = sNB / bNB; Cr = sNC / bNC; Dr = sND / bND
+        
+        r = (Br + Cr - Dr) / Ar
 
-            r = ((1.0 - efs) / (1 - efs + egs)) * (efb / (1.0 - efb)) + ((1.0 - egs) / (1 - egs + efs)) * (egb / (1.0 - egb))
+        return r
 
-            return r
+    # Simple calculation of background rejection
+    def backgroundRejection(self, bNA, bNB, bNC, bND):
+
+        bN = bNA + bNB + bNC + bND
+        reject = bNB + bNC + bND
+
+        return reject / bN
+
+    def plotBkgdRejVsSigCont(self, bc, sc, closureLimit = 0.9):
+
+        c1s = list(list(bc.values())[0].keys()); c2s = list(list(list(bc.values())[0].values())[0].keys())
+        nVals = len(c1s) * len(c2s)
+        bkgdRej = np.zeros(nVals); sigCont = np.zeros(nVals)
+
+        i = 0
+        for c1 in c1s:
+            for c2 in c2s:
+
+                closure = self.simpleClosureABCD(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2]) 
+                if closure < closureLimit: continue
+
+                sigContamination = self.normSignalContamination(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2], sc["A"][c1][c2], sc["B"][c1][c2], sc["C"][c1][c2], sc["D"][c1][c2])
+                backgroundReject = self.backgroundRejection(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2])
+
+                bkgdRej[i] = backgroundReject; sigCont[i] = sigContamination
+
+                i += 1
+
+        fig = plt.figure()
+        hep.cms.label(data=True, paper=False, year=self.config["year"])
+        plt.ylim(0,1)
+        plt.xlim(0,1)
+        ax = plt.gca()
+        plt.plot(sigCont, bkgdRej, color='xkcd:red', label="30% Signal Fraction")
+        plt.xlabel('Normalized Signal Contamination')
+        plt.ylabel('Background Rejection')
+        plt.legend(loc='best')
+        plt.text(0.05, 0.94, r"$\bf{ABCD Closure}$ > %.0f%%"%(closureLimit), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
+        fig.savefig(self.config["outputDir"]+"/SigContamination_vs_BkgdRejection.png", dpi=fig.dpi)        
+        plt.close(fig)
 
     def makePlots(self):
 
@@ -390,21 +467,36 @@ class Validation:
 
         self.plotD1VsD2SigVsBkgd(y_Train_Bg, y_Train_Bg_new, y_Train_Sg, y_Train_Sg_new)
 
+        # Make arrays for possible values to cut on for both discriminant
+        # starting at a minimum of 0.5 for each
         c1s = np.arange(0.5, 0.99, 0.05); c2s = np.arange(0.5, 0.99, 0.05)
-        c1, c2, significance, sigfrac = self.findDiscCut4SigFrac(c1s, c2s, y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0], y_Train_Sg, y_Train_Sg_new, self.trainSg["Weight"][:,0])
 
-        closure = self.simpleClosureABCD(c1, c2, y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0])
-        sigContamination = self.normSignalContamination(c1, c2, y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0], y_Train_Sg, y_Train_Sg_new, self.trainSg["Weight"][:,0])
+        # Get number of background and signal counts for each A, B, C, D region for every possible combination of cuts on disc 1 and disc 2
+        bc, sc = self.cutAndCount(c1s, c2s, y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0], y_Train_Sg, y_Train_Sg_new, self.trainSg["Weight"][:,0])
 
-        print("c1: %.3f, c2: %.3f, significance: %.3f, Sig. Frac: %.3f, Closure: %.3f"%(c1, c2, significance, sigfrac, closure))
+        # Plot signal contamination versus background rejection
+        self.plotBkgdRejVsSigCont(bc, sc)
+
+        # For a given signal fraction, figure out the cut on disc 1 and disc 2 that maximizes the significance
+        c1, c2, significance, sigfrac = self.findDiscCut4SigFrac(bc, sc)
+        closure = self.simpleClosureABCD(bc["A"][c1][c2],bc["B"][c1][c2],bc["C"][c1][c2],bc["D"][c1][c2])
+        sigContamination = self.normSignalContamination(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2],bc["D"][c1][c2], sc["A"][c1][c2], sc["B"][c1][c2], sc["C"][c1][c2], sc["D"][c1][c2])
+
+        print("c1: %s, c2: %s, significance: %.3f, Sig. Frac: %.3f, Closure: %.3f"%(c1, c2, significance, sigfrac, closure))
 
         # Plot each discriminant for sig and background while making cut on other disc
-        self.plotDiscAndCut(c1, y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0], y_Train_Sg, y_Train_Sg_new, self.trainSg["Weight"][:,0], "1", "2")
-        self.plotDiscAndCut(c2, y_Train_Bg_new, y_Train_Bg, self.trainBg["Weight"][:,0], y_Train_Sg_new, y_Train_Sg, self.trainSg["Weight"][:,0], "2", "1")
+        self.plotDiscWithCut(float(c1), y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0], y_Train_Sg, y_Train_Sg_new, self.trainSg["Weight"][:,0], "1", "2")
+        self.plotDiscWithCut(float(c2), y_Train_Bg_new, y_Train_Bg, self.trainBg["Weight"][:,0], y_Train_Sg_new, y_Train_Sg, self.trainSg["Weight"][:,0], "2", "1")
+
+        self.plotDiscWithCutCompare(float(c1), y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0], "1", "2")
+        self.plotDiscWithCutCompare(float(c1), y_Train_Sg, y_Train_Sg_new, self.trainSg["Weight"][:,0], "1", "2")
+
+        self.plotDiscWithCutCompare(float(c2), y_Train_Bg_new, y_Train_Bg, self.trainBg["Weight"][:,0], "2", "1")
+        self.plotDiscWithCutCompare(float(c2), y_Train_Sg_new, y_Train_Sg, self.trainSg["Weight"][:,0], "2", "1")
 
         # Plot 2D of the discriminants
-        self.plotDisc1vsDisc2(y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0], self.trainSg["Weight"][:,0], c1, c2, significance, "BG")
-        self.plotDisc1vsDisc2(y_Train_Sg, y_Train_Sg_new, self.trainSg["Weight"][:,0], self.trainSg["Weight"][:,0], c1, c2, significance, "SG")
+        self.plotDisc1vsDisc2(y_Train_Bg, y_Train_Bg_new, self.trainBg["Weight"][:,0], self.trainSg["Weight"][:,0], float(c1), float(c2), significance, "BG")
+        self.plotDisc1vsDisc2(y_Train_Sg, y_Train_Sg_new, self.trainSg["Weight"][:,0], self.trainSg["Weight"][:,0], float(c1), float(c2), significance, "SG")
 
         # Plot Acc vs Epoch
         self.plotAccVsEpoch('loss', 'val_loss', 'model loss', 'loss_train_val')
