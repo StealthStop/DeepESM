@@ -2,6 +2,7 @@ import uproot
 import numpy as np
 import pandas as pd
 from glob import glob
+import time 
 
 def getSamplesToRun(names):
     s = glob(names)
@@ -36,6 +37,7 @@ def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgW
                 trainData[key] = data[key][:minLen]
 
     # Randomly shuffle the signal and background 
+    np.random.seed(int(time.time())) 
     perms = np.random.permutation(trainData["data"].shape[0])
     for key in trainData:
         trainData[key] = trainData[key][perms]
@@ -50,8 +52,10 @@ def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgW
         for i in range(len(data["domain"][0])):
             mask = (1 - data["domain"][:,i]).astype(bool)
             data["mask_nJet_%02d" % (config["minNJetBin"]+i)] = ~np.array(mask)
+            mask = (data["domain"][:,i]).astype(bool)
+            data["mask_stuff_%02d" % (config["minNJetBin"]+i)] = ~np.array(mask)            
         if config["Mask"]:
-            mask = data["mask_%02d" % (config["Mask_nJet"])]
+            mask = data["mask_stuff_%02d" % (config["Mask_nJet"])]
             for key in data:
                 data[key] = data[key][mask]
         data["mean"] = np.mean(data["data"], 0)
@@ -69,6 +73,7 @@ class DataGetter:
         self.signal = signal
         self.background = background
         self.columnHeaders = None
+        self.data = None
 
     #Simply accept a list and pass it to the constructor
     @classmethod
@@ -77,6 +82,9 @@ class DataGetter:
 
     def getList(self):
         return self.l
+
+    def getData(self):
+        return self.data
 
     def getColumnHeaders(self, samplesToRun, treename):
         if self.columnHeaders is None:
@@ -118,11 +126,11 @@ class DataGetter:
         
         #load data files and get data
         dsets = self.getDataSets(samplesToRun, treename)
-        data = pd.concat(dsets)
-        data = data.dropna()
+        self.data = pd.concat(dsets)
+        self.data = self.data.dropna()
 
         #setup and get training data
-        npyInputData = data[variables].astype(float).values
+        npyInputData = self.data[variables].astype(float).values
 
         #setup and get labels
         npyInputAnswers = np.zeros((npyInputData.shape[0], 2))
@@ -133,7 +141,7 @@ class DataGetter:
         
         #setup and get domains
         domainColumnNames = ["NGoodJets_pt30"]
-        inputDomains = data[domainColumnNames]
+        inputDomains = self.data[domainColumnNames]
         tempInputDomains = inputDomains.astype(int)
         tempInputDomains[tempInputDomains > maxNJetBin] = maxNJetBin 
         minNJetBin = tempInputDomains.min().values[0]
@@ -145,11 +153,13 @@ class DataGetter:
 
         #setup and get weights
         wgtColumnNames = ["Weight"]
-        npyInputSampleWgts = data[wgtColumnNames].values
+        npyInputSampleWgts = self.data[wgtColumnNames].values
 
         #setup and get masses
         massNames = ["mass"]
-        npyMasses = data[massNames].values
+        npyMasses = self.data[massNames].values
+        unique, counts = np.unique(npyMasses, return_counts=True)
+        print(dict(zip(unique, counts)))
         
         return {"data":npyInputData, "labels":npyInputAnswers, "domain":npyInputDomain, "Weight":npyInputSampleWgts, "nJet":npyNJet, "masses":npyMasses}
 
