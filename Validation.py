@@ -91,7 +91,7 @@ class Validation:
 
         for i in range(0, len(hists)): plt.hist(hists[i], bins, color="xkcd:"+colors[i], alpha=0.9, histtype='step', lw=2, label=labels[i], density=True, log=self.doLog, weights=weights[i])
 
-        ax.legend(loc='best', frameon=False)
+        ax.legend(loc=2, frameon=False)
         fig.savefig(self.config["outputDir"]+"/%s.png"%(name), dpi=fig.dpi)        
         plt.close(fig)
 
@@ -120,9 +120,9 @@ class Validation:
        
         plt.hist(bnew, bins, color="xkcd:black", alpha=0.9, histtype='step', lw=2, label="Background", density=True, log=self.doLog, weights=bwnew)
         plt.hist(snew, bins, color="xkcd:red", alpha=0.9, histtype='step', lw=2, label="Signal", density=True, log=self.doLog, weights=swnew)
-        plt.text(0.05, 0.94, r"$\bf{Disc. %s}$ > %.3f"%(tag2,c), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
+        plt.text(0.05, 0.85, r"$\bf{Disc. %s}$ > %.3f"%(tag2,c), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
 
-        ax.legend(loc='best', frameon=False)
+        ax.legend(loc=2, frameon=False)
         fig.savefig(self.config["outputDir"]+"/Disc%s_BvsS.png"%(tag1))
         plt.close(fig)
 
@@ -148,7 +148,7 @@ class Validation:
         plt.hist(dgt, bins, color="xkcd:black", alpha=0.9, histtype='step', lw=2, label="Disc. %s > %.2f"%(tag2,c), density=True, log=self.doLog, weights=dwgt)
         plt.hist(dlt, bins, color="xkcd:red", alpha=0.9, histtype='step', lw=2, label="Disc. %s < %.2f"%(tag2,c), density=True, log=self.doLog, weights=dwlt)
 
-        ax.legend(loc='best', frameon=False)
+        ax.legend(loc=2, frameon=False)
         fig.savefig(self.config["outputDir"]+"/%s_Disc%s_Compare_Shapes.png"%(tag3, tag1))
         plt.close(fig)
 
@@ -250,7 +250,7 @@ class Validation:
         plt.hist2d(disc1, disc2, bins=[100, 100], range=[[0, 1], [0, 1]], cmap=plt.cm.jet, weights=bw, cmin = sw.min())
         plt.colorbar()
         ax = plt.gca()
-        l1 = ml.Line2D([0.0, 1.0], [c1, c1], color="red", linewidth=2); l2 = ml.Line2D([c2, c2], [0.0, 1.0], color="red", linewidth=2)
+        l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="red", linewidth=2); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="red", linewidth=2)
         ax.add_line(l1); ax.add_line(l2)
         ax.set_ylabel("Disc. 2"); ax.set_xlabel("Disc. 1")
         plt.text(0.05, 0.90, r"$\bf{CC}$ = %.3f"%(corr), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
@@ -305,19 +305,19 @@ class Validation:
 
         return bcounts, scounts
 
-    def findDiscCut4SigFrac(self, bcts, scts, sf = 0.3, band = 0.05):
+    def findDiscCut4SigFrac(self, bcts, scts, sf = 0.3, band = 0.1):
         # Now calculate signal fraction and significance 
         # Pick c1 and c2 that give 30% sig fraction and maximizes significance
-        significance = 0.0; sigFrac = 0.0; finalc1 = 0.0; finalc2 = 0.0; 
+        significance = 0.0; sigFrac = 0.0; finalc1 = -1.0; finalc2 = 0.0; 
         c1s = list(bcts.values())[0].keys(); c2s = list(list(bcts.values())[0].values())[0].keys()
         for c1k in c1s:
             for c2k in c2s:
                 tempsigfrac = -1.0 
-                if bcts["A"][c1k][c2k]: tempsigfrac = scts["A"][c1k][c2k] / (scts["A"][c1k][c2k] + bcts["A"][c1k][c2k])
+                if bcts["A"][c1k][c2k] + scts["A"][c1k][c2k]: tempsigfrac = scts["A"][c1k][c2k] / (scts["A"][c1k][c2k] + bcts["A"][c1k][c2k])
                 else: tempsigfrac = -1.0
 
                 # Minimum signal fraction requirement
-                if tempsigfrac > sf - band or tempsigfrac < sf + band:
+                if tempsigfrac > sf - band and tempsigfrac < sf + band:
 
                     sigFrac = tempsigfrac
 
@@ -339,7 +339,7 @@ class Validation:
         # Define C: < c1, > c2             |        
         # Define D: < c1, < c2        D    |    B    
 
-        return 1.0 - abs(bNA - (bNC * bNB) / bND) / bNA if bNA and bND else -1.0
+        return (bNC * bNB) / (bND * bNA) if bNA and bND else -999.0
 
     # Calculate Eq. 2.8 from https://arxiv.org/pdf/2007.14400.pdf
     def normSignalContamination(self, bNA, bNB, bNC, bND, sNA, sNB, sNC, sND):
@@ -361,7 +361,7 @@ class Validation:
 
         return reject / bN if bN else -1.0
 
-    def plotBkgdRejVsSigCont(self, bc, sc, closureLimit = 0.9):
+    def plotBkgdRejVsSigCont(self, bc, sc, closureLimit = 0.1):
         c1s = list(list(bc.values())[0].keys()); c2s = list(list(list(bc.values())[0].values())[0].keys())
         nVals = len(c1s) * len(c2s)
         bkgdRej = np.zeros(nVals); sigCont = np.zeros(nVals)
@@ -371,7 +371,7 @@ class Validation:
             for c2 in c2s:
 
                 closure = self.simpleClosureABCD(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2]) 
-                if closure > closureLimit: continue
+                if abs(1.0 - closure) < closureLimit: continue
 
                 sigContamination = self.normSignalContamination(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2], sc["A"][c1][c2], sc["B"][c1][c2], sc["C"][c1][c2], sc["D"][c1][c2])
                 backgroundReject = self.backgroundRejection(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2])
@@ -447,24 +447,23 @@ class Validation:
 
             # For a given signal fraction, figure out the cut on disc 1 and disc 2 that maximizes the significance
             c1, c2, significance, sigfrac = self.findDiscCut4SigFrac(bc, sc)
-            closure = self.simpleClosureABCD(bc["A"][c1][c2],bc["B"][c1][c2],bc["C"][c1][c2],bc["D"][c1][c2])
-            sigContamination = self.normSignalContamination(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2],bc["D"][c1][c2], sc["A"][c1][c2], sc["B"][c1][c2], sc["C"][c1][c2], sc["D"][c1][c2])
+            if c1 != -1.0 and c2 != -1.0:
+                closure = self.simpleClosureABCD(bc["A"][c1][c2],bc["B"][c1][c2],bc["C"][c1][c2],bc["D"][c1][c2])
+                print("c1: %s, c2: %s, significance: %.3f, Sig. Frac: %.3f, Closure: %.3f"%(c1, c2, significance, sigfrac, closure))
 
             # Plot each discriminant for sig and background while making cut on other disc
-            self.plotDiscWithCut(float(c1), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], y_Train_Sg_disc1, y_Train_Sg_disc2, self.trainSg["Weight"][:,0], "1", "2")
-            self.plotDiscWithCut(float(c2), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], y_Train_Sg_disc2, y_Train_Sg_disc1, self.trainSg["Weight"][:,0], "2", "1")
+            self.plotDiscWithCut(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], y_Train_Sg_disc1, y_Train_Sg_disc2, self.trainSg["Weight"][:,0], "1", "2")
+            self.plotDiscWithCut(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], y_Train_Sg_disc2, y_Train_Sg_disc1, self.trainSg["Weight"][:,0], "2", "1")
 
-            self.plotDiscWithCutCompare(float(c1), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], "1", "2", "BG")
-            self.plotDiscWithCutCompare(float(c1), y_Train_Sg_disc1, y_Train_Sg_disc2, self.trainSg["Weight"][:,0], "1", "2", "SG")
+            self.plotDiscWithCutCompare(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], "1", "2", "BG")
+            self.plotDiscWithCutCompare(float(c2), y_Train_Sg_disc1, y_Train_Sg_disc2, self.trainSg["Weight"][:,0], "1", "2", "SG")
 
-            self.plotDiscWithCutCompare(float(c2), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], "2", "1", "BG")
-            self.plotDiscWithCutCompare(float(c2), y_Train_Sg_disc2, y_Train_Sg_disc1, self.trainSg["Weight"][:,0], "2", "1", "SG")
+            self.plotDiscWithCutCompare(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], "2", "1", "BG")
+            self.plotDiscWithCutCompare(float(c1), y_Train_Sg_disc2, y_Train_Sg_disc1, self.trainSg["Weight"][:,0], "2", "1", "SG")
 
             # Plot 2D of the discriminants
             self.plotDisc1vsDisc2(y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], self.trainSg["Weight"][:,0], float(c1), float(c2), significance, "BG")
             self.plotDisc1vsDisc2(y_Train_Sg_disc1, y_Train_Sg_disc2, self.trainSg["Weight"][:,0], self.trainSg["Weight"][:,0], float(c1), float(c2), significance, "SG")
-
-            print("c1: %s, c2: %s, significance: %.3f, Sig. Frac: %.3f, Closure: %.3f"%(c1, c2, significance, sigfrac, closure))
 
         # Plot validation roc curve
         fpr_Val_disc1, tpr_Val_disc1, thresholds_Val_disc1 = roc_curve(valData["labels"][:,0], y_Val_disc1, sample_weight=valData["Weight"][:,0])
