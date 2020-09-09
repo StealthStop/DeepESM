@@ -437,8 +437,7 @@ class Validation:
         if doFullVal:
             # Make arrays for possible values to cut on for both discriminant
             # starting at a minimum of 0.5 for each
-            #c1s = np.arange(0.5, 0.99, 0.05); c2s = np.arange(0.5, 0.99, 0.05)
-            c1s = np.arange(0.5, 0.99, 0.45); c2s = np.arange(0.5, 0.99, 0.45)
+            c1s = np.arange(0.5, 0.99, 0.05); c2s = np.arange(0.5, 0.99, 0.05)
 
             # Get number of background and signal counts for each A, B, C, D region for every possible combination of cuts on disc 1 and disc 2
             bc, sc = self.cutAndCount(c1s, c2s, y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], y_Train_Sg_disc1, y_Train_Sg_disc2, self.trainSg["Weight"][:,0])
