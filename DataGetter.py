@@ -18,10 +18,10 @@ def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgW
     dataBg = dgBg.importData(samplesToRun = tuple(backgroundDataSet), treename = "myMiniTree", maxNJetBin=config["maxNJetBin"])
 
     # Change the weight to 1 if needed
-    #if config["doSgWeight"]: dataSig["Weight"] = config["lumi"]*dataSig["Weight"]
-    #else: dataSig["Weight"] = np.full(dataSig["Weight"].shape, 1)
-    #if config["doBgWeight"]: dataBg["Weight"] = config["lumi"]*dataBg["Weight"]
-    #else: dataBg["Weight"] = np.full(dataBg["Weight"].shape, 1)
+    if config["doSgWeight"]: dataSig["Weight"] = config["lumi"]*dataSig["Weight"]
+    else: dataSig["Weight"] = np.full(dataSig["Weight"].shape, 1)
+    if config["doBgWeight"]: dataBg["Weight"] = config["lumi"]*dataBg["Weight"]
+    else: dataBg["Weight"] = np.full(dataBg["Weight"].shape, 1)
 
     minLen = min(len(dataSig["data"]),len(dataBg["data"]))
 
