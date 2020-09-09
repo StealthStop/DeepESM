@@ -317,7 +317,7 @@ class Validation:
                 else: tempsigfrac = -1.0
 
                 # Minimum signal fraction requirement
-                if tempsigfrac > sf - band or tempsigfrac < sf + band:
+                if tempsigfrac > sf - band and tempsigfrac < sf + band:
 
                     sigFrac = tempsigfrac
 
