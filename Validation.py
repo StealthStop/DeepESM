@@ -305,7 +305,7 @@ class Validation:
 
         return bcounts, scounts
 
-    def findDiscCut4SigFrac(self, bcts, scts, sf = 0.3, band = 0.7):
+    def findDiscCut4SigFrac(self, bcts, scts, sf = 0.3, band = 0.1):
         # Now calculate signal fraction and significance 
         # Pick c1 and c2 that give 30% sig fraction and maximizes significance
         significance = 0.0; sigFrac = 0.0; finalc1 = -1.0; finalc2 = 0.0; 
