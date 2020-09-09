@@ -17,7 +17,7 @@ def parallel_train(config):
      #############################################
      with open("temp.json",'w') as f:
           json.dump(config, f)
-     command = "run \"./train.py temp.json\""
+     command = "run \"./train.py --json temp.json\""
      print( command )
      os.system(command)
 

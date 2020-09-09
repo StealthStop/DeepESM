@@ -152,7 +152,7 @@ class DataGetter:
         npyInputDomain[np.arange(npyInputDomain.shape[0]), tempInputDomains.values.flatten()] = 1
 
         #setup and get weights
-        wgtColumnNames = ["Weight"]
+        wgtColumnNames = ["totalEventWeight"]
         npyInputSampleWgts = self.data[wgtColumnNames].values
 
         #setup and get masses
