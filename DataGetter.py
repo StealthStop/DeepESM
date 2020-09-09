@@ -158,6 +158,7 @@ class DataGetter:
         #setup and get masses
         massNames = ["mass"]
         npyMasses = self.data[massNames].values
+        npyMasses[npyMasses == 173.0] = 0
         unique, counts = np.unique(npyMasses, return_counts=True)
         print(dict(zip(unique, counts)))
         

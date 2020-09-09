@@ -226,7 +226,7 @@ class Train:
         #config["allVars"] = jVecs + lepton + eventShapeVars
         return config
         
-    def train(self, config = {"gr_lambda": 1.0, "cor_lambda": 1000.0, "nNodes":250, "nNodesD":40, "nNodesM":250,
+    def train(self, config = {"gr_lambda": 1.0, "cor_lambda": 100.0, "nNodes":250, "nNodesD":40, "nNodesM":250,
                               "nHLayers":1, "nHLayersD":1, "nHLayersM":3, "drop_out":0.3,
                               "batch_size":16384, "epochs":60, "lr":0.001}, doFullVal=False):
         # Define ouputDir based on input config
@@ -235,7 +235,7 @@ class Train:
         config["minNJetBin"] = 7
         config["maxNJetBin"] = 11
         config["verbose"] = 1
-        config["Mask"] = False
+        config["Mask"] = True
         config["Mask_nJet"] = 7
 
         # Define vars for training
@@ -263,8 +263,8 @@ class Train:
         #config["massModels"] = Signal_2016+Signal_2017
         #config["otherttbarMC"] = ("TT_2016", TT_2016)
         #config["othermassModels"] = Signal_2016
-        #config["dataSet"] = "MVA_Training_Files_FullRun2_V2/"
-        config["dataSet"] = "MVA_Training_Files_FullRun2_V2_test/"
+        config["dataSet"] = "MVA_Training_Files_FullRun2_V2/"
+        #config["dataSet"] = "MVA_Training_Files_FullRun2_V2_test/"
         config["doBgWeight"] = True
         config["doSgWeight"] = True
         config["metrics"]=['accuracy']
