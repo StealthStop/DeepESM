@@ -8,12 +8,12 @@ import tensorflow.keras as K
 from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
 import numpy as np
 from DataGetter import get_data,getSamplesToRun
-from flipGradientTF2 import GradientReversal 
 import shutil
 from Validation import Validation
 from Correlation import Correlation as cor
 import json
 import argparse
+from Models import main_model, doubleDisco_model, model_reg
 
 class Train:
     #def __init__(self):
@@ -83,6 +83,24 @@ class Train:
             return c * cor.distance_corr(val_1, val_2, normedweight, 1)
         return discoLoss
 
+    def make_model(self, config, trainData, trainDataTT):
+        model, optimizer = main_model(config, trainData, trainDataTT)
+        model.compile(loss=[self.loss_crossentropy(c=1.0), self.loss_crossentropy(c=1.0), self.make_loss_adversary(c=config["gr_lambda"]), self.loss_disco(c=config["cor_lambda"]), 
+                            self.make_loss_MSE(c=1.0)], optimizer=optimizer, metrics=config["metrics"])
+        return model
+
+    def make_doubleDisco_model(self, config, trainData, trainDataTT):
+        model, optimizer = doubleDisco_model(config, trainData, trainDataTT)
+        model.compile(loss=[self.loss_crossentropy(c=1.0), self.loss_crossentropy(c=1.0), self.make_loss_adversary(c=config["gr_lambda"]), self.loss_disco(c=config["cor_lambda"])], 
+                      optimizer=optimizer, metrics=config["metrics"])
+        return model
+
+    def make_model_reg(self, config, trainData, trainDataTT):
+        model, optimizer = model_reg(config, trainData, trainDataTT)
+        model.compile(loss=[self.make_loss_MSE(c=1.0)], optimizer=optimizer)
+        #model.compile(loss=[self.make_loss_MAPE(c=1.0)], optimizer=optimizer)
+        return model
+
     def get_callbacks(self, config):
         tbCallBack = K.callbacks.TensorBoard(log_dir="./"+config["outputDir"]+"/log_graph", histogram_freq=0, write_graph=True, write_images=True)
         log_model = K.callbacks.ModelCheckpoint(config["outputDir"]+"/BestNN.hdf5", monitor='val_loss', verbose=config["verbose"], save_best_only=True)
@@ -128,76 +146,6 @@ class Train:
             K.utils.plot_model(model, to_file=config["outputDir"]+"/model.png", show_shapes=True)
         except AttributeError as e:
             print("Error: plot_model failed: ",e)
-        
-    def make_model(self, config, trainData, trainDataTT):
-        config["class_weight"] = None#{0: {0: 1.0, 1: 1.0}, 1: {0: 1.0, 1: 5.0, 2: 25.0, 3: 125.0, 4: 625.0}}
-        config["sample_weight"] = None#{0: trainData["Weight"][:,0].tolist(), 1: trainData["Weight"][:,0].tolist()}
-        #optimizer = K.optimizers.Adagrad(lr=0.01, epsilon=None, decay=0.0)
-        optimizer = K.optimizers.Adam(lr=config["lr"], beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
-        n_hidden_layers = list(config["nNodes"] for x in range(config["nHLayers"]))
-        n_hidden_layers_M = list(config["nNodesM"] for x in range(config["nHLayersM"]))
-        n_hidden_layers_D = list(config["nNodesD"] for x in range(config["nHLayersD"]))
-
-        main_input = K.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
-        # Set the rescale inputs to have unit variance centered at 0 between -1 and 1
-        layer = K.layers.Lambda(lambda x: (x - K.backend.constant(trainDataTT["mean"])) * K.backend.constant(trainDataTT["scale"]), name='normalizeData')(main_input)
-        for n in n_hidden_layers:
-            layer = K.layers.Dense(n, activation='relu')(layer)
-        layerSplit = K.layers.Dense(config["nNodes"], activation='relu')(layer)
-
-        layer = K.layers.BatchNormalization()(layerSplit)        
-        for n in n_hidden_layers_M:
-            layer = K.layers.Dense(n, activation='relu')(layer)
-        layer = K.layers.Dropout(config["drop_out"])(layer)
-        fourth_output = K.layers.Dense(trainData["masses"].shape[1], activation=None, name='fourth_output')(layer)
-
-        layerSplit = K.layers.concatenate([layerSplit, fourth_output], name='concat_mass_layer')
-        
-        layer = K.layers.BatchNormalization()(layerSplit)
-        for n in n_hidden_layers:
-            layer = K.layers.Dense(n, activation='relu')(layer)
-        layer = K.layers.Dropout(config["drop_out"])(layer)
-        first_output = K.layers.Dense(trainData["labels"].shape[1], activation='softmax', name='first_output')(layer)
-
-        layer = K.layers.BatchNormalization()(layerSplit)        
-        for n in n_hidden_layers:
-            layer = K.layers.Dense(n, activation='relu')(layer)
-        layer = K.layers.Dropout(config["drop_out"])(layer)
-        second_output = K.layers.Dense(trainData["labels"].shape[1], activation='softmax', name='second_output')(layer)
-
-        corr = K.layers.concatenate([first_output, second_output], name='correlation_layer')
-        
-        layer = GradientReversal()(corr)
-        #layer = GradientReversal()(first_output)
-        layer = K.layers.BatchNormalization()(layer)
-        for n in n_hidden_layers_D:
-            layer = K.layers.Dense(n, activation='relu')(layer)
-        layer = K.layers.Dropout(config["drop_out"])(layer)
-        third_output = K.layers.Dense(trainData["domain"].shape[1], activation='softmax', name='third_output')(layer)
-    
-        model = K.models.Model(inputs=main_input, outputs=[first_output, second_output, third_output, corr, fourth_output], name='model')
-        model.compile(loss=[self.loss_crossentropy(c=1.0), self.loss_crossentropy(c=1.0), self.make_loss_adversary(c=config["gr_lambda"]), self.loss_disco(c=config["cor_lambda"]), self.make_loss_MSE(c=1.0)], optimizer=optimizer, metrics=config["metrics"])
-        #model.summary()
-        return model
-
-    def make_model_reg(self, config, trainData, trainDataTT):
-        config["class_weight"] = None
-        config["sample_weight"] = None
-        optimizer = K.optimizers.Adam(lr=config["lr"], beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
-        n_hidden_layers_M = list(config["nNodesM"] for x in range(config["nHLayersM"]))
-
-        main_input = K.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
-        # Set the rescale inputs to have unit variance centered at 0 between -1 and 1
-        layer = K.layers.Lambda(lambda x: (x - K.backend.constant(trainDataTT["mean"])) * K.backend.constant(trainDataTT["scale"]), name='normalizeData')(main_input)
-        for n in n_hidden_layers_M:
-            layer = K.layers.Dense(n, activation='relu')(layer)
-        layer = K.layers.Dropout(config["drop_out"])(layer)
-        first_output = K.layers.Dense(trainData["masses"].shape[1], activation=None, name='first_output')(layer)
-
-        model = K.models.Model(inputs=main_input, outputs=first_output, name='model')
-        model.compile(loss=[self.make_loss_MSE(c=1.0)], optimizer=optimizer)
-        #model.compile(loss=[self.make_loss_MAPE(c=1.0)], optimizer=optimizer)
-        return model
 
     def makeOutputDir(self,config):
         outputDir = "Output/"
@@ -226,9 +174,9 @@ class Train:
         #config["allVars"] = jVecs + lepton + eventShapeVars
         return config
         
-    def train(self, config = {"gr_lambda": 1.0, "cor_lambda": 100.0, "nNodes":250, "nNodesD":40, "nNodesM":250,
-                              "nHLayers":1, "nHLayersD":1, "nHLayersM":3, "drop_out":0.3,
-                              "batch_size":16384, "epochs":60, "lr":0.001}, doFullVal=False):
+    def train(self, config = {"gr_lambda": 0.0, "cor_lambda": 100.0, "nNodes":300, "nNodesD":40, "nNodesM":300,
+                              "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3,
+                              "batch_size":32768, "epochs":150, "lr":0.001}, doFullVal=False):
         # Define ouputDir based on input config
         config = self.makeOutputDir(config)
 
@@ -249,10 +197,10 @@ class Train:
                        "2017_TTJets_HT-600to800", "2017_TTJets_HT-800to1200", "2017_TTJets_HT-1200to2500", "2017_TTJets_HT-2500toInf"]
         TT_2016 = ["2016_TT"]
         TT_2017 = ["2017_TTToSemiLeptonic","2017_TTTo2L2Nu","2017_TTToHadronic"]
-        config["minStopMass"] = 550
+        config["minStopMass"] = 300
         config["maxStopMass"] = 1400
-        Signal_2017 = list("2017*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
-        Signal_2016 = list("2016*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
+        Signal_2017 = list("2017*RPV*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
+        Signal_2016 = list("2016*RPV*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
 
         config["ttbarMC"] = ("TT 2016", TT_2016)
         config["massModels"] = Signal_2016
@@ -267,6 +215,8 @@ class Train:
         #config["dataSet"] = "MVA_Training_Files_FullRun2_V2_test/"
         config["doBgWeight"] = True
         config["doSgWeight"] = True
+        config["class_weight"] = None
+        config["sample_weight"] = None
         config["metrics"]=['accuracy']
         config["year"] = '2016'
         config["lumi"] = 35900
@@ -295,7 +245,8 @@ class Train:
         # Make model
         print("----------------Preparing training model------------------")
         self.gpu_allow_mem_grow()
-        model = self.make_model(config, trainData, trainDataTT)
+        #model = self.make_model(config, trainData, trainDataTT)
+        model = self.make_doubleDisco_model(config, trainData, trainDataTT)
         #model = self.make_model_reg(config, trainData, trainDataTT)
         callbacks = self.get_callbacks(config)
         maskTrain = np.concatenate((trainData["labels"],trainData["labels"]), axis=1)
@@ -303,12 +254,14 @@ class Train:
         
         # Training model
         print("----------------Training model------------------")
-        result_log = model.fit(trainData["data"], [trainData["labels"], trainData["labels"], trainData["domain"], maskTrain, trainData["masses"]], 
-                               batch_size=config["batch_size"], epochs=config["epochs"], class_weight=config["class_weight"], 
-                               validation_data=(testData["data"], [testData["labels"], testData["labels"], testData["domain"], maskTest, testData["masses"]]), 
-                               callbacks=callbacks, sample_weight=config["sample_weight"])
+        #result_log = model.fit(trainData["data"], [trainData["labels"], trainData["labels"], trainData["domain"], maskTrain, trainData["masses"]], 
+        #                       batch_size=config["batch_size"], epochs=config["epochs"], class_weight=config["class_weight"], 
+        #                       validation_data=(testData["data"], [testData["labels"], testData["labels"], testData["domain"], maskTest, testData["masses"]]), 
+        #                       callbacks=callbacks, sample_weight=config["sample_weight"])
+        result_log = model.fit(trainData["data"], [trainData["labels"], trainData["labels"], trainData["domain"], maskTrain], 
+                               batch_size=config["batch_size"], epochs=config["epochs"], callbacks=callbacks,
+                               validation_data=(testData["data"], [testData["labels"], testData["labels"], testData["domain"], maskTest]))
         #result_log = model.fit(trainData["data"], trainData["masses"], epochs=config["epochs"], validation_data=(testData["data"], testData["masses"]), callbacks=callbacks)
-        print(result_log.history)
 
         # Model Visualization
         print("----------------Printed model layout------------------")
