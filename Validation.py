@@ -1,6 +1,8 @@
 from DataGetter import get_data, getSamplesToRun
 import numpy as np
 
+import os
+
 # Little incantation to display trying to X display
 import matplotlib as mpl
 mpl.use('Agg')
@@ -123,7 +125,7 @@ class Validation:
         plt.text(0.05, 0.85, r"$\bf{Disc. %s}$ > %.3f"%(tag2,c), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
 
         ax.legend(loc=2, frameon=False)
-        fig.savefig(self.config["outputDir"]+"/Disc%s_BvsS_m%s.png"%(tag1,mass))
+        fig.savefig(self.config["outputDirSpec"]+"/Disc%s_BvsS_m%s.png"%(tag1,mass))
         plt.close(fig)
 
     # Member function to plot the discriminant variable while making a selection on another discriminant
@@ -149,7 +151,7 @@ class Validation:
         plt.hist(dlt, bins, color="xkcd:red", alpha=0.9, histtype='step', lw=2, label="Disc. %s < %.2f"%(tag2,c), density=True, log=self.doLog, weights=dwlt)
 
         ax.legend(loc=2, frameon=False)
-        fig.savefig(self.config["outputDir"]+"/%s%s_Disc%s_Compare_Shapes.png"%(tag3, mass, tag1))
+        fig.savefig(self.config["outputDirSpec"]+"/%s%s_Disc%s_Compare_Shapes.png"%(tag3, mass, tag1))
         plt.close(fig)
 
     # Plot loss of training vs test
@@ -256,9 +258,9 @@ class Validation:
         plt.text(0.05, 0.90, r"$\bf{CC}$ = %.3f"%(corr), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
         plt.text(0.05, 0.95, r"$\bf{Significance}$ = %.3f"%(significance), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
         hep.cms.label(data=True, paper=False, year=self.config["year"])
-        fig.savefig(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2.png"%(tag,mass), dpi=fig.dpi)
+        fig.savefig(self.config["outputDirSpec"]+"/2D_%s%s_Disc1VsDisc2.png"%(tag,mass), dpi=fig.dpi)
 
-    def cutAndCount(self, c1s, c2s, b1, b2, bw, s1, s2, sw):
+    def cutAndCount(self, c1s, c2s, b1, b2, bw, s1, s2, sw, cdiff = 0.2):
         # First get the total counts in region "D" for all possible c1, c2
         bcounts = {"A" : {}, "B" : {}, "C" : {}, "D" : {}}  
         scounts = {"A" : {}, "B" : {}, "C" : {}, "D" : {}}  
@@ -279,6 +281,11 @@ class Validation:
                     scounts["D"][c1k] = {} 
 
                 for c2 in c2s:
+                
+                    # Keep scan of c1,c2 close to the diagnonal
+                    # Default c1 and c2 to be within 20% of one another
+                    if abs(1.0 - c1/c2) > cdiff: continue
+
                     c2k = "%.2f"%c2
                     if c2k not in bcounts["A"][c1k]:
                         bcounts["A"][c1k][c2k] = 0.0
@@ -305,19 +312,18 @@ class Validation:
 
         return bcounts, scounts
 
-    def findDiscCut4SigFrac(self, bcts, scts, sf = 0.3, band = 0.1):
+    def findDiscCut4SigFrac(self, bcts, scts, minNB = 5.0, minNS = 5.0):
         # Now calculate signal fraction and significance 
         # Pick c1 and c2 that give 30% sig fraction and maximizes significance
         significance = 0.0; sigFrac = 0.0; finalc1 = -1.0; finalc2 = 0.0; 
-        c1s = list(bcts.values())[0].keys(); c2s = list(list(bcts.values())[0].values())[0].keys()
-        for c1k in c1s:
-            for c2k in c2s:
+        for c1k, c2s in bcts["A"].items():
+            for c2k, temp in c2s.items():
                 tempsigfrac = -1.0 
                 if bcts["A"][c1k][c2k] + scts["A"][c1k][c2k] > 0.0: tempsigfrac = scts["A"][c1k][c2k] / (scts["A"][c1k][c2k] + bcts["A"][c1k][c2k])
                 else: tempsigfrac = -1.0
 
                 # Minimum signal fraction requirement
-                if tempsigfrac > sf - band and tempsigfrac < sf + band:
+                if bcts["A"][c1k][c2k] > minNB and scts["A"][c1k][c2k] > minNS:
 
                     sigFrac = tempsigfrac
 
@@ -360,13 +366,18 @@ class Validation:
         return reject / bN if bN else -1.0
 
     def plotBkgdRejVsSigCont(self, bc, sc, mass, closureLimit = 0.1):
-        c1s = list(list(bc.values())[0].keys()); c2s = list(list(list(bc.values())[0].values())[0].keys())
-        nVals = len(c1s) * len(c2s)
+
+        # Lame way of figuring out how long the array should be
+        nVals = 0
+        for c1, c2s in bc["A"].items():
+            for c2, temp in c2s.items():
+                nVals += 1
+
         bkgdRej = np.zeros(nVals); sigCont = np.zeros(nVals)
 
         i = 0
-        for c1 in c1s:
-            for c2 in c2s:
+        for c1, c2s in bc["A"].items():
+            for c2, temp in c2s.items():
 
                 closure = self.simpleClosureABCD(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2]) 
                 if abs(1.0 - closure) < closureLimit: continue
@@ -449,19 +460,22 @@ class Validation:
                 closure = self.simpleClosureABCD(bc["A"][c1][c2],bc["B"][c1][c2],bc["C"][c1][c2],bc["D"][c1][c2])
                 print("c1: %s, c2: %s, significance: %.3f, Sig. Frac: %.3f, Closure: %.3f"%(c1, c2, significance, sigfrac, closure))
 
-            # Plot each discriminant for sig and background while making cut on other disc
-            self.plotDiscWithCut(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "1", "2", mass)
-            self.plotDiscWithCut(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "2", "1", mass)
+                self.config["outputDirSpec"] = self.config["outputDir"] + "/c1_%s_c2_%s_closure_%.2f_significance_%.2f"%(c1, c2, closure, significance)
+                os.makedirs(self.config["outputDirSpec"])
 
-            self.plotDiscWithCutCompare(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], "1", "2", "BG")
-            self.plotDiscWithCutCompare(float(c2), y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "1", "2", "SG", mass)
+                # Plot each discriminant for sig and background while making cut on other disc
+                self.plotDiscWithCut(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "1", "2", mass)
+                self.plotDiscWithCut(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "2", "1", mass)
 
-            self.plotDiscWithCutCompare(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], "2", "1", "BG")
-            self.plotDiscWithCutCompare(float(c1), y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "2", "1", "SG", mass)
+                self.plotDiscWithCutCompare(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], "1", "2", "BG")
+                self.plotDiscWithCutCompare(float(c2), y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "1", "2", "SG", mass)
 
-            # Plot 2D of the discriminants
-            self.plotDisc1vsDisc2(y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], self.trainSg["Weight"][:,0], float(c1), float(c2), significance, "BG")
-            self.plotDisc1vsDisc2(y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], float(c1), float(c2), significance, "SG", mass)
+                self.plotDiscWithCutCompare(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], "2", "1", "BG")
+                self.plotDiscWithCutCompare(float(c1), y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "2", "1", "SG", mass)
+
+                # Plot 2D of the discriminants
+                self.plotDisc1vsDisc2(y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], self.trainSg["Weight"][:,0], float(c1), float(c2), significance, "BG")
+                self.plotDisc1vsDisc2(y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], float(c1), float(c2), significance, "SG", mass)
 
         # Plot validation roc curve
         fpr_Val_disc1, tpr_Val_disc1, thresholds_Val_disc1 = roc_curve(valData["labels"][:,0], y_Val_disc1, sample_weight=valData["Weight"][:,0])
