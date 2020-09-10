@@ -119,7 +119,7 @@ class Validation:
                     k += 1
        
         plt.hist(bnew, bins, color="xkcd:black", alpha=0.9, histtype='step', lw=2, label="Background", density=True, log=self.doLog, weights=bwnew)
-        plt.hist(snew, bins, color="xkcd:red", alpha=0.9, histtype='step', lw=2, label="Signal (mass = %s)"%(mass), density=True, log=self.doLog, weights=swnew)
+        plt.hist(snew, bins, color="xkcd:red", alpha=0.9, histtype='step', lw=2, label="Signal (mass = %s GeV)"%(mass), density=True, log=self.doLog, weights=swnew)
         plt.text(0.05, 0.85, r"$\bf{Disc. %s}$ > %.3f"%(tag2,c), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
 
         ax.legend(loc=2, frameon=False)
@@ -220,7 +220,7 @@ class Validation:
         ax1 = fig.add_subplot(111)
         hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax1)
         ax1.scatter(b1, b2, s=10, c='b', marker="s", label='background')
-        ax1.scatter(s1, s2, s=10, c='r', marker="o", label='signal (mass = %s)'%(mass))
+        ax1.scatter(s1, s2, s=10, c='r', marker="o", label='signal (mass = %s GeV)'%(mass))
         ax1.set_xlim([0, 1])
         ax1.set_ylim([0, 1])
         ax1.set_xlabel("Disc. 1")
