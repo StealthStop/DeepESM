@@ -305,7 +305,7 @@ class Validation:
 
         return bcounts, scounts
 
-    def findDiscCut4SigFrac(self, bcts, scts, sf = 0.3, band = 0.7):
+    def findDiscCut4SigFrac(self, bcts, scts, sf = 0.3, band = 0.1):
         # Now calculate signal fraction and significance 
         # Pick c1 and c2 that give 30% sig fraction and maximizes significance
         significance = 0.0; sigFrac = 0.0; finalc1 = -1.0; finalc2 = 0.0; 
@@ -435,7 +435,7 @@ class Validation:
         if doFullVal:
             # Make arrays for possible values to cut on for both discriminant
             # starting at a minimum of 0.5 for each
-            c1s = np.arange(0.5, 0.99, 0.45); c2s = np.arange(0.5, 0.99, 0.45)
+            c1s = np.arange(0.5, 0.99, 0.05); c2s = np.arange(0.5, 0.99, 0.05)
 
             # Get number of background and signal counts for each A, B, C, D region for every possible combination of cuts on disc 1 and disc 2
             bc, sc = self.cutAndCount(c1s, c2s, y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]])
