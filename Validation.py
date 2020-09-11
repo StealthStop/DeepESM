@@ -83,13 +83,13 @@ class Validation:
 
     # Plot a set of 1D hists together, where the hists, colors, labels, weights
     # are provided as a list argument.
-    def plotDisc(self, hists, colors, labels, weights, bins, name, xlab, ylab):
+    def plotDisc(self, hists, colors, labels, weights, bins, name, xlab, ylab, doLog=False):
         # Plot predicted mass
         fig, ax = plt.subplots(figsize=(10, 10))
         hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         ax.set_ylabel(xlab); ax.set_xlabel(ylab)
 
-        for i in range(0, len(hists)): plt.hist(hists[i], bins, color="xkcd:"+colors[i], alpha=0.9, histtype='step', lw=2, label=labels[i], density=True, log=self.doLog, weights=weights[i])
+        for i in range(0, len(hists)): plt.hist(hists[i], bins, color="xkcd:"+colors[i], alpha=0.9, histtype='step', lw=2, label=labels[i], density=True, log=doLog, weights=weights[i])
 
         ax.legend(loc=2, frameon=False)
         fig.savefig(self.config["outputDir"]+"/%s.png"%(name), dpi=fig.dpi)        
@@ -165,12 +165,12 @@ class Validation:
         fig.savefig(self.config["outputDir"]+"/%s.png"%(name), dpi=fig.dpi)
         plt.close(fig)
 
-    def plotDiscPerNjet(self, tag, samples):
+    def plotDiscPerNjet(self, tag, samples, nBins=100):
         for sample in samples:
             trainSample = samples[sample][0]
             y_train_Sp = samples[sample][1]
             weights = samples[sample][2] 
-            bins = np.linspace(0, 1, 100)
+            bins = np.linspace(0, 1, nBins)
             fig, ax = plt.subplots(figsize=(10, 10))
             hep.cms.label(data=True, paper=False, year=self.config["year"])
             ax.set_ylabel('Norm Events')
@@ -244,10 +244,10 @@ class Validation:
         plt.close(fig)
 
     # Just plot the 2D for either background or signal
-    def plotDisc1vsDisc2(self, disc1, disc2, bw, sw, c1, c2, significance, tag):
+    def plotDisc1vsDisc2(self, disc1, disc2, bw, sw, c1, c2, significance, tag, nBins=100):
         fig = plt.figure() 
         corr = cor.pearson_corr(disc1, disc2)
-        plt.hist2d(disc1, disc2, bins=[100, 100], range=[[0, 1], [0, 1]], cmap=plt.cm.jet, weights=bw, cmin = sw.min())
+        plt.hist2d(disc1, disc2, bins=[nBins, nBins], range=[[0, 1], [0, 1]], cmap=plt.cm.jet, weights=bw, cmin = sw.min())
         plt.colorbar()
         ax = plt.gca()
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="red", linewidth=2); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="red", linewidth=2)
@@ -305,7 +305,7 @@ class Validation:
 
         return bcounts, scounts
 
-    def findDiscCut4SigFrac(self, bcts, scts, sf = 0.3, band = 0.1):
+    def findDiscCut4SigFrac(self, bcts, scts, sf = 0.5, band = 0.2):
         # Now calculate signal fraction and significance 
         # Pick c1 and c2 that give 30% sig fraction and maximizes significance
         significance = 0.0; sigFrac = 0.0; finalc1 = -1.0; finalc2 = 0.0; 
@@ -408,36 +408,39 @@ class Validation:
 
         y_Val_disc1, y_Val_Sg_disc1, y_Val_Bg_disc1 = self.getResults(output_Val, output_Val_Sg, output_Val_Bg, 0, 0)
         y_Val_disc2, y_Val_Sg_disc2, y_Val_Bg_disc2 = self.getResults(output_Val, output_Val_Sg, output_Val_Bg, 1, 0)
-        y_Val_mass, y_Val_mass_Sg, y_Val_mass_Bg = self.getResults(output_Val, output_Val_Sg, output_Val_Bg, 4, 0)
+        #y_Val_mass, y_Val_mass_Sg, y_Val_mass_Bg = self.getResults(output_Val, output_Val_Sg, output_Val_Bg, 4, 0)
         y_Train_disc1, y_Train_Sg_disc1, y_Train_Bg_disc1 = self.getResults(output_Train, output_Train_Sg, output_Train_Bg, 0, 0)
         y_Train_disc2, y_Train_Sg_disc2, y_Train_Bg_disc2 = self.getResults(output_Train, output_Train_Sg, output_Train_Bg, 1, 0)
-        y_Train_mass, y_Train_mass_Sg, y_Train_mass_Bg = self.getResults(output_Train, output_Train_Sg, output_Train_Bg, 4, 0)
+        #y_Train_mass, y_Train_mass_Sg, y_Train_mass_Bg = self.getResults(output_Train, output_Train_Sg, output_Train_Bg, 4, 0)
         y_OTrain, y_OTrain_Sg, y_OTrain_Bg = self.getResults(output_OTrain, output_OTrain_Sg, output_OTrain_Bg, 0, 0)
 
+        nBins = 20
         colors = ["red", "green", "blue", "magenta"]; labels = ["Sg Train", "Sg Val", "Bg Train", "Bg Val"]
-        self.plotDisc([y_Train_mass_Sg, y_Val_mass_Sg, y_Train_mass_Bg, y_Val_mass_Bg], colors, labels, [self.trainSg["Weight"], valSg["Weight"], self.trainBg["Weight"], valBg["Weight"]], np.linspace(0, 1500, 150), "mass", 'Norm Events', 'predicted mass')
+        #self.plotDisc([y_Train_mass_Sg, y_Val_mass_Sg, y_Train_mass_Bg, y_Val_mass_Bg], colors, labels, [self.trainSg["Weight"], valSg["Weight"], self.trainBg["Weight"], valBg["Weight"]], np.linspace(0, 1500, 150), "mass", 'Norm Events', 'predicted mass')
+        #self.plotDisc([y_Train_mass_Sg, y_Val_mass_Sg, y_Train_mass_Bg, y_Val_mass_Bg], colors, labels, [self.trainSg["Weight"], valSg["Weight"], self.trainBg["Weight"], valBg["Weight"]], np.linspace(0, 1500, 150), "mass_log", 'Norm Events', 'predicted mass', doLog=True)
 
-        self.plotDisc([y_Train_Sg_disc1, y_Val_Sg_disc1, y_Train_Bg_disc1, y_Val_Bg_disc1], colors, labels, [self.trainSg["Weight"], valSg["Weight"], self.trainBg["Weight"], valBg["Weight"]], np.linspace(0, 1, 100), "Disc1", 'Norm Events', 'Disc. 1')
+        self.plotDisc([y_Train_Sg_disc1, y_Val_Sg_disc1, y_Train_Bg_disc1, y_Val_Bg_disc1], colors, labels, [self.trainSg["Weight"], valSg["Weight"], self.trainBg["Weight"], valBg["Weight"]], np.linspace(0, 1, nBins), "Disc1", 'Norm Events', 'Disc. 1')
+        self.plotDisc([y_Train_Sg_disc2, y_Val_Sg_disc2, y_Train_Bg_disc2, y_Val_Bg_disc2], colors, labels, [self.trainSg["Weight"], valSg["Weight"], self.trainBg["Weight"], valBg["Weight"]], np.linspace(0, 1, nBins), "Disc2", 'Norm Events', 'Disc. 2')
 
-        self.plotDisc([y_Train_Sg_disc2, y_Val_Sg_disc2, y_Train_Bg_disc2, y_Val_Bg_disc2], colors, labels, [self.trainSg["Weight"], valSg["Weight"], self.trainBg["Weight"], valBg["Weight"]], np.linspace(0, 1, 100), "Disc2", 'Norm Events', 'Disc. 2')
-
-        self.plotDisc([y_Train_mass_Sg[self.trainSg["mask_m550"]], y_Train_mass_Sg[self.trainSg["mask_m850"]], y_Train_mass_Sg[self.trainSg["mask_m1200"]], y_Train_mass_Bg], colors, ["mass 550", "mass 850", "mass 1200", "ttbar"], [self.trainSg["Weight"][self.trainSg["mask_m550"]], self.trainSg["Weight"][self.trainSg["mask_m850"]], self.trainSg["Weight"][self.trainSg["mask_m1200"]], self.trainBg["Weight"]], np.linspace(0, 1500, 150), "mass_split", 'Norm Events', 'predicted mass')
+        #self.plotDisc([y_Train_mass_Sg[self.trainSg["mask_m550"]], y_Train_mass_Sg[self.trainSg["mask_m850"]], y_Train_mass_Sg[self.trainSg["mask_m1200"]], y_Train_mass_Bg], colors, ["mass 550", "mass 850", "mass 1200", "ttbar"], [self.trainSg["Weight"][self.trainSg["mask_m550"]], self.trainSg["Weight"][self.trainSg["mask_m850"]], self.trainSg["Weight"][self.trainSg["mask_m1200"]], self.trainBg["Weight"]], np.linspace(0, 1500, 150), "mass_split", 'Norm Events', 'predicted mass')
+        #self.plotDisc([y_Train_mass_Sg[self.trainSg["mask_m550"]], y_Train_mass_Sg[self.trainSg["mask_m850"]], y_Train_mass_Sg[self.trainSg["mask_m1200"]], y_Train_mass_Bg], colors, ["mass 550", "mass 850", "mass 1200", "ttbar"], [self.trainSg["Weight"][self.trainSg["mask_m550"]], self.trainSg["Weight"][self.trainSg["mask_m850"]], self.trainSg["Weight"][self.trainSg["mask_m1200"]], self.trainBg["Weight"]], np.linspace(0, 1500, 150), "mass_split_log", 'Norm Events', 'predicted mass', doLog=True)
 
         self.plotD1VsD2SigVsBkgd(y_Train_Bg_disc1, y_Train_Bg_disc2, y_Train_Sg_disc1, y_Train_Sg_disc2)
 
         # Plot Acc vs Epoch
         self.plotAccVsEpoch('loss', 'val_loss', 'model loss', 'loss_train_val')
-        for rank in ["first", "second", "third", "fourth"]: self.plotAccVsEpoch('%s_output_loss'%(rank), 'val_%s_output_loss'%(rank), '%s output loss'%(rank), '%s_output_loss_train_val'%(rank))        
+        for rank in ["first", "second", "third"]: self.plotAccVsEpoch('%s_output_loss'%(rank), 'val_%s_output_loss'%(rank), '%s output loss'%(rank), '%s_output_loss_train_val'%(rank))        
+        #for rank in ["first", "second", "third", "fourth"]: self.plotAccVsEpoch('%s_output_loss'%(rank), 'val_%s_output_loss'%(rank), '%s output loss'%(rank), '%s_output_loss_train_val'%(rank))        
         self.plotAccVsEpoch('correlation_layer_loss', 'val_correlation_layer_loss', 'correlation_layer output loss', 'correlation_layer_loss_train_val')
 
         # Plot disc per njet
-        self.plotDiscPerNjet("_Disc1", {"Bg": [self.trainBg, y_Train_Bg_disc1, self.trainBg["Weight"]], "Sg": [self.trainSg, y_Train_Sg_disc1, self.trainSg["Weight"]]})
-        self.plotDiscPerNjet("_Disc2", {"Bg": [self.trainBg, y_Train_Bg_disc2, self.trainBg["Weight"]], "Sg": [self.trainSg, y_Train_Sg_disc2, self.trainSg["Weight"]]})
+        self.plotDiscPerNjet("_Disc1", {"Bg": [self.trainBg, y_Train_Bg_disc1, self.trainBg["Weight"]], "Sg": [self.trainSg, y_Train_Sg_disc1, self.trainSg["Weight"]]}, nBins=nBins)
+        self.plotDiscPerNjet("_Disc2", {"Bg": [self.trainBg, y_Train_Bg_disc2, self.trainBg["Weight"]], "Sg": [self.trainSg, y_Train_Sg_disc2, self.trainSg["Weight"]]}, nBins=nBins)
 
         if doFullVal:
             # Make arrays for possible values to cut on for both discriminant
             # starting at a minimum of 0.5 for each
-            c1s = np.arange(0.5, 0.99, 0.05); c2s = np.arange(0.5, 0.99, 0.05)
+            c1s = np.arange(0.50, 0.95, 0.05); c2s = np.arange(0.50, 0.95, 0.05)
 
             # Get number of background and signal counts for each A, B, C, D region for every possible combination of cuts on disc 1 and disc 2
             bc, sc = self.cutAndCount(c1s, c2s, y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], y_Train_Sg_disc1, y_Train_Sg_disc2, self.trainSg["Weight"][:,0])
@@ -452,18 +455,18 @@ class Validation:
                 print("c1: %s, c2: %s, significance: %.3f, Sig. Frac: %.3f, Closure: %.3f"%(c1, c2, significance, sigfrac, closure))
 
             # Plot each discriminant for sig and background while making cut on other disc
-            self.plotDiscWithCut(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], y_Train_Sg_disc1, y_Train_Sg_disc2, self.trainSg["Weight"][:,0], "1", "2")
-            self.plotDiscWithCut(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], y_Train_Sg_disc2, y_Train_Sg_disc1, self.trainSg["Weight"][:,0], "2", "1")
+            self.plotDiscWithCut(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], y_Train_Sg_disc1, y_Train_Sg_disc2, self.trainSg["Weight"][:,0], "1", "2", bins=np.linspace(0, 1, nBins))
+            self.plotDiscWithCut(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], y_Train_Sg_disc2, y_Train_Sg_disc1, self.trainSg["Weight"][:,0], "2", "1", bins=np.linspace(0, 1, nBins))
 
-            self.plotDiscWithCutCompare(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], "1", "2", "BG")
-            self.plotDiscWithCutCompare(float(c2), y_Train_Sg_disc1, y_Train_Sg_disc2, self.trainSg["Weight"][:,0], "1", "2", "SG")
+            self.plotDiscWithCutCompare(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], "1", "2", "BG", bins=np.linspace(0, 1, nBins))
+            self.plotDiscWithCutCompare(float(c2), y_Train_Sg_disc1, y_Train_Sg_disc2, self.trainSg["Weight"][:,0], "1", "2", "SG", bins=np.linspace(0, 1, nBins))
 
-            self.plotDiscWithCutCompare(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], "2", "1", "BG")
-            self.plotDiscWithCutCompare(float(c1), y_Train_Sg_disc2, y_Train_Sg_disc1, self.trainSg["Weight"][:,0], "2", "1", "SG")
+            self.plotDiscWithCutCompare(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], "2", "1", "BG", bins=np.linspace(0, 1, nBins))
+            self.plotDiscWithCutCompare(float(c1), y_Train_Sg_disc2, y_Train_Sg_disc1, self.trainSg["Weight"][:,0], "2", "1", "SG", bins=np.linspace(0, 1, nBins))
 
             # Plot 2D of the discriminants
-            self.plotDisc1vsDisc2(y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], self.trainSg["Weight"][:,0], float(c1), float(c2), significance, "BG")
-            self.plotDisc1vsDisc2(y_Train_Sg_disc1, y_Train_Sg_disc2, self.trainSg["Weight"][:,0], self.trainSg["Weight"][:,0], float(c1), float(c2), significance, "SG")
+            self.plotDisc1vsDisc2(y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], self.trainSg["Weight"][:,0], float(c1), float(c2), significance, "BG", nBins=nBins)
+            self.plotDisc1vsDisc2(y_Train_Sg_disc1, y_Train_Sg_disc2, self.trainSg["Weight"][:,0], self.trainSg["Weight"][:,0], float(c1), float(c2), significance, "SG", nBins=nBins)
 
         # Plot validation roc curve
         fpr_Val_disc1, tpr_Val_disc1, thresholds_Val_disc1 = roc_curve(valData["labels"][:,0], y_Val_disc1, sample_weight=valData["Weight"][:,0])
