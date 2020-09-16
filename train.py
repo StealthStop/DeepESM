@@ -176,7 +176,7 @@ class Train:
         
     def train(self, config = {"gr_lambda": 0.0, "cor_lambda": 100.0, "nNodes":300, "nNodesD":40, "nNodesM":300,
                               "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3,
-                              "batch_size":32768, "epochs":150, "lr":0.001}, doFullVal=False):
+                              "batch_size":32768, "epochs":1, "lr":0.001}, doFullVal=False):
         # Define ouputDir based on input config
         config = self.makeOutputDir(config)
 
@@ -265,11 +265,11 @@ class Train:
 
         # Model Visualization
         print("----------------Printed model layout------------------")
-        self.plot_model(model, config)
+        #self.plot_model(model, config)
         
         # Save trainig model as a protocol buffers file
         print("----------------Saving model------------------")
-        self.save_model_pb(model, config)
+        #self.save_model_pb(model, config)
         
         #Plot results
         print("----------------Validation of training------------------")
