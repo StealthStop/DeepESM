@@ -383,7 +383,7 @@ class Validation:
         num = bNC * bNB; den = bND * bNA
 
         if den > 0.0:
-            closureErr = ((bNB * bNAerr / den)**2.0 + (bNBerr * bNA / den)**2.0 + ((num * bNAerr) / (den * bNA))**2.0 + ((num * bNDerr) / (den * bND))**2.0)**0.5
+            closureErr = ((bNB * bNCerr / den)**2.0 + (bNBerr * bNC / den)**2.0 + ((num * bNAerr) / (den * bNA))**2.0 + ((num * bNDerr) / (den * bND))**2.0)**0.5
             closure = num / den
         else:
             closureErr = -999.0
