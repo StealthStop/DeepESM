@@ -85,13 +85,13 @@ class Validation:
 
     # Plot a set of 1D hists together, where the hists, colors, labels, weights
     # are provided as a list argument.
-    def plotDisc(self, hists, colors, labels, weights, bins, name, xlab, ylab, doLog=False):
+    def plotDisc(self, hists, colors, labels, weights, name, xlab, ylab, bins=100, arange=(0,1), doLog=False):
         # Plot predicted mass
         fig, ax = plt.subplots(figsize=(10, 10))
         hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
         ax.set_ylabel(xlab); ax.set_xlabel(ylab)
 
-        for i in range(0, len(hists)): plt.hist(hists[i], bins, color="xkcd:"+colors[i], alpha=0.9, histtype='step', lw=2, label=labels[i], density=True, log=doLog, weights=weights[i])
+        for i in range(0, len(hists)): plt.hist(hists[i], bins=bins, range=arange, color="xkcd:"+colors[i], alpha=0.9, histtype='step', lw=2, label=labels[i], density=True, log=doLog, weights=weights[i])
 
         ax.legend(loc=2, frameon=False)
         fig.savefig(self.config["outputDir"]+"/%s.png"%(name), dpi=fig.dpi)        
@@ -99,12 +99,9 @@ class Validation:
 
     # Member function to plot the discriminant variable while making a selection on another discriminant
     # The result for signal and background are shown together
-    def plotDiscWithCut(self, c, b1, b2, bw, s1, s2, sw, tag1, tag2, mass, bins=np.linspace(0, 1, 100)):
-        fig, ax = plt.subplots(figsize=(10, 10))
-        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
-        ax.set_ylabel('A.U.'); ax.set_xlabel('Disc. %s'%(tag1))
-
-        bnew = np.zeros(len(b1)); bwnew = np.zeros(len(b1)); snew = np.zeros(len(s1)); swnew = np.zeros(len(s1))
+    def plotDiscWithCut(self, c, b1, b2, bw, s1, s2, sw, tag1, tag2, mass, arange=(0,1), bins=100):
+        bnew = np.zeros(len(b1)); bwnew = np.zeros(len(b1)); bw2new = np.zeros(len(b1))
+        snew = np.zeros(len(s1)); swnew = np.zeros(len(s1)); sw2new = np.zeros(len(s1))
         blong = len(b1); slong = len(s1)
         total = blong if blong > slong else slong 
         j = 0; k = 0
@@ -112,45 +109,68 @@ class Validation:
 
             if i < blong:        
                 if b2[i] > c:
-                    bnew[j] = b1[i]; bwnew[j] = bw[i]
+                    bnew[j] = b1[i]; bwnew[j] = bw[i]; bw2new[j] = bw[i]**2.0
                     j += 1
 
             if i < slong:
                 if s2[i] > c:
-                    snew[k] = s1[i]; swnew[k] = sw[i]
+                    snew[k] = s1[i]; swnew[k] = sw[i]; sw2new[j] = sw[i]**2.0
                     k += 1
-       
-        plt.hist(bnew, bins, color="xkcd:black", alpha=0.9, histtype='step', lw=2, label="Background", density=True, log=self.doLog, weights=bwnew)
-        plt.hist(snew, bins, color="xkcd:red", alpha=0.9, histtype='step', lw=2, label="Signal (mass = %s GeV)"%(mass), density=True, log=self.doLog, weights=swnew)
+
+        bwnewBinned, binEdges  = np.histogram(bnew, bins=bins, range=arange, weights=bwnew)
+        swnewBinned, binEdges  = np.histogram(snew, bins=bins, range=arange, weights=swnew)
+        bw2newBinned, binEdges = np.histogram(bnew, bins=bins, range=arange, weights=bw2new)
+        sw2newBinned, binEdges = np.histogram(snew, bins=bins, range=arange, weights=sw2new)
+
+        fig = plt.figure()
+
+        ax = hep.histplot(h=bwnewBinned, bins=binEdges, w2=bw2newBinned, density=True, histtype="step", label="Background", alpha=0.9, lw=2)
+        ax = hep.histplot(h=swnewBinned, bins=binEdges, w2=sw2newBinned, density=True, histtype="step", label="Signal (mass = %s GeV)"%(mass), alpha=0.9, lw=2, ax=ax)
+
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        ax.set_ylabel('A.U.'); ax.set_xlabel('Disc. %s'%(tag1))
+
         plt.text(0.05, 0.85, r"$\bf{Disc. %s}$ > %.3f"%(tag2,c), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
 
-        ax.legend(loc=2, frameon=False)
+        # Stupid nonsense to remove duplicate entries in legend
+        handles, labels = ax.get_legend_handles_labels()
+        ax.legend(handles[-2:], labels[-2:], loc=2, frameon=False)
+ 
         fig.savefig(self.config["outputDirSpec"]+"/Disc%s_BvsS_m%s.png"%(tag1,mass))
         plt.close(fig)
 
     # Member function to plot the discriminant variable while making a selection on another discriminant
     # Compare the discriminant shape on either "side" of the selection on the other disc.
-    def plotDiscWithCutCompare(self, c, d1, d2, dw, tag1, tag2, tag3, mass = "", bins=np.linspace(0, 1, 100)):
-        fig, ax = plt.subplots(figsize=(10, 10))
-        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
-        ax.set_ylabel('A.U.'); ax.set_xlabel('Disc. %s'%(tag1))
-
-        dgt = np.zeros(len(d1)); dwgt = np.zeros(len(d1))
-        dlt = np.zeros(len(d1)); dwlt = np.zeros(len(d1))
+    def plotDiscWithCutCompare(self, c, d1, d2, dw, tag1, tag2, tag3, mass = "", arange=(0,1), bins=100):
+        dgt = np.zeros(len(d1)); dwgt = np.zeros(len(d1)); dw2gt = np.zeros(len(d1))
+        dlt = np.zeros(len(d1)); dwlt = np.zeros(len(d1)); dw2lt = np.zeros(len(d1))
         j = 0
         for i in range(0, len(d2)):
         
             if d2[i] > c:
-                dgt[j] = d1[i]; dwgt[j] = dw[i]
+                dgt[j] = d1[i]; dwgt[j] = dw[i]; dw2gt[j] = dw[i]**2.0
                 j += 1
             else:
-                dlt[j] = d1[i]; dwlt[j] = dw[i]
+                dlt[j] = d1[i]; dwlt[j] = dw[i]; dw2lt[j] = dw[i]**2.0
                 j += 1
 
-        plt.hist(dgt, bins, color="xkcd:black", alpha=0.9, histtype='step', lw=2, label="Disc. %s > %.2f"%(tag2,c), density=True, log=self.doLog, weights=dwgt)
-        plt.hist(dlt, bins, color="xkcd:red", alpha=0.9, histtype='step', lw=2, label="Disc. %s < %.2f"%(tag2,c), density=True, log=self.doLog, weights=dwlt)
+        dwgtBinned,  binEdges = np.histogram(dgt, bins=bins, range=arange, weights=dwgt)
+        dw2gtBinned, binEdges = np.histogram(dgt, bins=bins, range=arange, weights=dw2gt)
+        dwltBinned,  binEdges = np.histogram(dlt, bins=bins, range=arange, weights=dwlt)
+        dw2ltBinned, binEdges = np.histogram(dlt, bins=bins, range=arange, weights=dw2lt)
 
-        ax.legend(loc=2, frameon=False)
+        fig = plt.figure()
+
+        ax = hep.histplot(h=dwgtBinned, bins=binEdges, w2=dw2gtBinned, density=True, histtype="step", label="Disc. %s > %.2f"%(tag2,c), alpha=0.9, lw=2)
+        ax = hep.histplot(h=dwltBinned, bins=binEdges, w2=dw2ltBinned, density=True, histtype="step", label="Disc. %s < %.2f"%(tag2,c), alpha=0.9, lw=2, ax=ax)
+
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        ax.set_ylabel('A.U.'); ax.set_xlabel('Disc. %s'%(tag1))
+
+        # Stupid nonsense to remove duplicate entries in legend
+        handles, labels = ax.get_legend_handles_labels()
+        ax.legend(handles[-2:], labels[-2:], loc=2, frameon=False)
+
         fig.savefig(self.config["outputDirSpec"]+"/%s%s_Disc%s_Compare_Shapes.png"%(tag3, mass, tag1))
         plt.close(fig)
 
@@ -262,23 +282,23 @@ class Validation:
 
     def cutAndCount(self, c1s, c2s, b1, b2, bw, s1, s2, sw, cdiff = 0.2):
         # First get the total counts in region "D" for all possible c1, c2
-        bcounts = {"A" : {}, "B" : {}, "C" : {}, "D" : {}}  
-        scounts = {"A" : {}, "B" : {}, "C" : {}, "D" : {}}  
+        bcounts = {"A" : {}, "B" : {}, "C" : {}, "D" : {}, "A2" : {}, "B2" : {}, "C2" : {}, "D2" : {}}  
+        scounts = {"A" : {}, "B" : {}, "C" : {}, "D" : {}, "A2" : {}, "B2" : {}, "C2" : {}, "D2" : {}}  
         blong = len(b1); slong = len(s1)
         total = blong if blong > slong else slong 
         for i in range(0, total):
             for c1 in c1s:
                 c1k = "%.2f"%c1
                 if c1k not in bcounts["A"]:
-                    bcounts["A"][c1k] = {} 
-                    bcounts["B"][c1k] = {} 
-                    bcounts["C"][c1k] = {} 
-                    bcounts["D"][c1k] = {} 
+                    bcounts["A"][c1k] = {}; bcounts["A2"][c1k] = {}
+                    bcounts["B"][c1k] = {}; bcounts["B2"][c1k] = {}
+                    bcounts["C"][c1k] = {}; bcounts["C2"][c1k] = {}
+                    bcounts["D"][c1k] = {}; bcounts["D2"][c1k] = {}
                 if c1k not in scounts["A"]:
-                    scounts["A"][c1k] = {} 
-                    scounts["B"][c1k] = {} 
-                    scounts["C"][c1k] = {} 
-                    scounts["D"][c1k] = {} 
+                    scounts["A"][c1k] = {}; scounts["A2"][c1k] = {} 
+                    scounts["B"][c1k] = {}; scounts["B2"][c1k] = {} 
+                    scounts["C"][c1k] = {}; scounts["C2"][c1k] = {} 
+                    scounts["D"][c1k] = {}; scounts["D2"][c1k] = {} 
 
                 for c2 in c2s:
                 
@@ -288,27 +308,42 @@ class Validation:
 
                     c2k = "%.2f"%c2
                     if c2k not in bcounts["A"][c1k]:
-                        bcounts["A"][c1k][c2k] = 0.0
-                        bcounts["B"][c1k][c2k] = 0.0
-                        bcounts["C"][c1k][c2k] = 0.0
-                        bcounts["D"][c1k][c2k] = 0.0
+                        bcounts["A"][c1k][c2k] = 0.0; bcounts["A2"][c1k][c2k] = 0.0
+                        bcounts["B"][c1k][c2k] = 0.0; bcounts["B2"][c1k][c2k] = 0.0
+                        bcounts["C"][c1k][c2k] = 0.0; bcounts["C2"][c1k][c2k] = 0.0
+                        bcounts["D"][c1k][c2k] = 0.0; bcounts["D2"][c1k][c2k] = 0.0
                     if c2k not in scounts["A"][c1k]:
-                        scounts["A"][c1k][c2k] = 0.0
-                        scounts["B"][c1k][c2k] = 0.0
-                        scounts["C"][c1k][c2k] = 0.0
-                        scounts["D"][c1k][c2k] = 0.0
+                        scounts["A"][c1k][c2k] = 0.0; scounts["A2"][c1k][c2k] = 0.0
+                        scounts["B"][c1k][c2k] = 0.0; scounts["B2"][c1k][c2k] = 0.0
+                        scounts["C"][c1k][c2k] = 0.0; scounts["C2"][c1k][c2k] = 0.0
+                        scounts["D"][c1k][c2k] = 0.0; scounts["D2"][c1k][c2k] = 0.0
 
                     if i < blong:
-                        if b1[i] > c1 and b2[i] > c2: bcounts["A"][c1k][c2k] += bw[i]
-                        if b1[i] > c1 and b2[i] < c2: bcounts["B"][c1k][c2k] += bw[i]
-                        if b1[i] < c1 and b2[i] > c2: bcounts["C"][c1k][c2k] += bw[i]
-                        if b1[i] < c1 and b2[i] < c2: bcounts["D"][c1k][c2k] += bw[i]
-
+                        if b1[i] > c1 and b2[i] > c2:
+                            bcounts["A"][c1k][c2k]  += bw[i]
+                            bcounts["A2"][c1k][c2k] += bw[i]**2.0
+                        if b1[i] > c1 and b2[i] < c2:
+                            bcounts["B"][c1k][c2k]  += bw[i]
+                            bcounts["B2"][c1k][c2k] += bw[i]**2.0
+                        if b1[i] < c1 and b2[i] > c2:
+                            bcounts["C"][c1k][c2k]  += bw[i]
+                            bcounts["C2"][c1k][c2k] += bw[i]**2.0
+                        if b1[i] < c1 and b2[i] < c2:
+                            bcounts["D"][c1k][c2k]  += bw[i]
+                            bcounts["D2"][c1k][c2k] += bw[i]**2.0
                     if i < slong:
-                        if s1[i] > c1 and s2[i] > c2: scounts["A"][c1k][c2k] += sw[i]
-                        if s1[i] > c1 and s2[i] < c2: scounts["B"][c1k][c2k] += sw[i]
-                        if s1[i] < c1 and s2[i] > c2: scounts["C"][c1k][c2k] += sw[i]
-                        if s1[i] < c1 and s2[i] < c2: scounts["D"][c1k][c2k] += sw[i]
+                        if s1[i] > c1 and s2[i] > c2:
+                            scounts["A"][c1k][c2k]  += sw[i]
+                            scounts["A2"][c1k][c2k] += sw[i]**2.0
+                        if s1[i] > c1 and s2[i] < c2:
+                            scounts["B"][c1k][c2k]  += sw[i]
+                            scounts["B2"][c1k][c2k] += sw[i]**2.0
+                        if s1[i] < c1 and s2[i] > c2:
+                            scounts["C"][c1k][c2k]  += sw[i]
+                            scounts["C2"][c1k][c2k] += sw[i]**2.0
+                        if s1[i] < c1 and s2[i] < c2:
+                            scounts["D"][c1k][c2k]  += sw[i]
+                            scounts["D2"][c1k][c2k] += sw[i]**2.0
 
         return bcounts, scounts
 
@@ -339,13 +374,22 @@ class Validation:
         return finalc1, finalc2, significance, sigFrac
 
     # Define closure as how far away prediction for region D is compared to actual 
-    def simpleClosureABCD(self, bNA, bNB, bNC, bND):
+    def simpleClosureABCD(self, bNA, bNB, bNC, bND, bNAerr, bNBerr, bNCerr, bNDerr):
         # Define A: > c1, > c2        C    |    A    
         # Define B: > c1, < c2   __________|__________        
         # Define C: < c1, > c2             |        
         # Define D: < c1, < c2        D    |    B    
 
-        return (bNC * bNB) / (bND * bNA) if bNA and bND else -999.0
+        num = bNC * bNB; den = bND * bNA
+
+        if den > 0.0:
+            closureErr = ((bNB * bNCerr / den)**2.0 + (bNBerr * bNC / den)**2.0 + ((num * bNAerr) / (den * bNA))**2.0 + ((num * bNDerr) / (den * bND))**2.0)**0.5
+            closure = num / den
+        else:
+            closureErr = -999.0
+            closure = -999.0
+
+        return closure, closureErr
 
     # Calculate Eq. 2.8 from https://arxiv.org/pdf/2007.14400.pdf
     def normSignalContamination(self, bNA, bNB, bNC, bND, sNA, sNB, sNC, sND):
@@ -379,7 +423,7 @@ class Validation:
         for c1, c2s in bc["A"].items():
             for c2, temp in c2s.items():
 
-                closure = self.simpleClosureABCD(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2]) 
+                closure, closureErr = self.simpleClosureABCD(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2], bc["A2"][c1][c2]**0.5, bc["B2"][c1][c2]**0.5, bc["C2"][c1][c2]**0.5, bc["D2"][c1][c2]**0.5) 
                 if abs(1.0 - closure) < closureLimit: continue
 
                 sigContamination = self.normSignalContamination(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2], sc["A"][c1][c2], sc["B"][c1][c2], sc["C"][c1][c2], sc["D"][c1][c2])
@@ -428,8 +472,8 @@ class Validation:
         #self.plotDisc([y_Train_mass_Sg, y_Val_mass_Sg, y_Train_mass_Bg, y_Val_mass_Bg], colors, labels, [self.trainSg["Weight"], valSg["Weight"], self.trainBg["Weight"], valBg["Weight"]], np.linspace(0, 1500, 150), "mass", 'Norm Events', 'predicted mass')
         #self.plotDisc([y_Train_mass_Sg, y_Val_mass_Sg, y_Train_mass_Bg, y_Val_mass_Bg], colors, labels, [self.trainSg["Weight"], valSg["Weight"], self.trainBg["Weight"], valBg["Weight"]], np.linspace(0, 1500, 150), "mass_log", 'Norm Events', 'predicted mass', doLog=True)
 
-        self.plotDisc([y_Train_Sg_disc1, y_Val_Sg_disc1, y_Train_Bg_disc1, y_Val_Bg_disc1], colors, labels, [self.trainSg["Weight"], valSg["Weight"], self.trainBg["Weight"], valBg["Weight"]], np.linspace(0, 1, nBins), "Disc1", 'Norm Events', 'Disc. 1')
-        self.plotDisc([y_Train_Sg_disc2, y_Val_Sg_disc2, y_Train_Bg_disc2, y_Val_Bg_disc2], colors, labels, [self.trainSg["Weight"], valSg["Weight"], self.trainBg["Weight"], valBg["Weight"]], np.linspace(0, 1, nBins), "Disc2", 'Norm Events', 'Disc. 2')
+        self.plotDisc([y_Train_Sg_disc1, y_Val_Sg_disc1, y_Train_Bg_disc1, y_Val_Bg_disc1], colors, labels, [self.trainSg["Weight"], valSg["Weight"], self.trainBg["Weight"], valBg["Weight"]], "Disc1", 'Norm Events', 'Disc. 1')
+        self.plotDisc([y_Train_Sg_disc2, y_Val_Sg_disc2, y_Train_Bg_disc2, y_Val_Bg_disc2], colors, labels, [self.trainSg["Weight"], valSg["Weight"], self.trainBg["Weight"], valBg["Weight"]], "Disc2", 'Norm Events', 'Disc. 2')
 
         #self.plotDisc([y_Train_mass_Sg[self.trainSg["mask_m550"]], y_Train_mass_Sg[self.trainSg["mask_m850"]], y_Train_mass_Sg[self.trainSg["mask_m1200"]], y_Train_mass_Bg], colors, ["mass 550", "mass 850", "mass 1200", "ttbar"], [self.trainSg["Weight"][self.trainSg["mask_m550"]], self.trainSg["Weight"][self.trainSg["mask_m850"]], self.trainSg["Weight"][self.trainSg["mask_m1200"]], self.trainBg["Weight"]], np.linspace(0, 1500, 150), "mass_split", 'Norm Events', 'predicted mass')
         #self.plotDisc([y_Train_mass_Sg[self.trainSg["mask_m550"]], y_Train_mass_Sg[self.trainSg["mask_m850"]], y_Train_mass_Sg[self.trainSg["mask_m1200"]], y_Train_mass_Bg], colors, ["mass 550", "mass 850", "mass 1200", "ttbar"], [self.trainSg["Weight"][self.trainSg["mask_m550"]], self.trainSg["Weight"][self.trainSg["mask_m850"]], self.trainSg["Weight"][self.trainSg["mask_m1200"]], self.trainBg["Weight"]], np.linspace(0, 1500, 150), "mass_split_log", 'Norm Events', 'predicted mass', doLog=True)
@@ -460,25 +504,30 @@ class Validation:
             # For a given signal fraction, figure out the cut on disc 1 and disc 2 that maximizes the significance
             c1, c2, significance, sigfrac = self.findDiscCut4SigFrac(bc, sc)
             if c1 != -1.0 and c2 != -1.0:
-                closure = self.simpleClosureABCD(bc["A"][c1][c2],bc["B"][c1][c2],bc["C"][c1][c2],bc["D"][c1][c2])
-                print("c1: %s, c2: %s, significance: %.3f, Sig. Frac: %.3f, Closure: %.3f"%(c1, c2, significance, sigfrac, closure))
+                closure, closureUnc = self.simpleClosureABCD(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2], bc["A2"][c1][c2], bc["B2"][c1][c2], bc["C2"][c1][c2], bc["D2"][c1][c2])
+                self.metric["ABCDclosurePull"] = abs(1.0 - closure) / closureUnc
+
+                self.config["Disc1"] = c1
+                self.config["Disc2"] = c2
+                self.config["Significance"] = significance
+                self.config["SignalFrac"] = sigfrac
 
                 self.config["outputDirSpec"] = self.config["outputDir"] + "/c1_%s_c2_%s_closure_%.2f_significance_%.2f"%(c1, c2, closure, significance)
                 os.makedirs(self.config["outputDirSpec"])
 
                 # Plot each discriminant for sig and background while making cut on other disc
-                self.plotDiscWithCut(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "1", "2", bins=np.linspace(0, 1, nBins), mass=mass)
-                self.plotDiscWithCut(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "2", "1", bins=np.linspace(0, 1, nBins), mass=mass)
+                self.plotDiscWithCut(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "1", "2", mass=mass, bins=nBins)
+                self.plotDiscWithCut(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "2", "1", mass=mass, bins=nBins)
 
-                self.plotDiscWithCutCompare(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], "1", "2", "BG", bins=np.linspace(0, 1, nBins))
-                self.plotDiscWithCutCompare(float(c2), y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "1", "2", "SG", bins=np.linspace(0, 1, nBins), mass=mass)
+                self.plotDiscWithCutCompare(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], "1", "2", "BG", bins=10)
+                self.plotDiscWithCutCompare(float(c2), y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "1", "2", "SG", mass=mass, bins=10)
 
-                self.plotDiscWithCutCompare(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], "2", "1", "BG", bins=np.linspace(0, 1, nBins))
-                self.plotDiscWithCutCompare(float(c1), y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "2", "1", "SG", bins=np.linspace(0, 1, nBins), mass=mass)
+                self.plotDiscWithCutCompare(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], "2", "1", "BG", bins=10)
+                self.plotDiscWithCutCompare(float(c1), y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "2", "1", "SG", mass=mass, bins=10)
 
                 # Plot 2D of the discriminants
-                self.plotDisc1vsDisc2(y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], self.trainSg["Weight"][:,0], float(c1), float(c2), significance, "BG", nBins=nBins)
-                self.plotDisc1vsDisc2(y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], float(c1), float(c2), significance, "SG", nBins=nBins, mass=mass)
+                self.plotDisc1vsDisc2(y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], self.trainSg["Weight"][:,0], float(c1), float(c2), significance, "BG")
+                self.plotDisc1vsDisc2(y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], float(c1), float(c2), significance, "SG", mass=mass)
 
         # Plot validation roc curve
         fpr_Val_disc1, tpr_Val_disc1, thresholds_Val_disc1 = roc_curve(valData["labels"][:,0], y_Val_disc1, sample_weight=valData["Weight"][:,0])
@@ -493,10 +542,10 @@ class Validation:
         auc_OTrain = roc_auc_score(trainOData["labels"][:,0], y_OTrain)
         
         # Define metrics for the training
-        self.metric["OverTrain"] = abs(auc_Val_disc1 - auc_Train_disc1)
-        self.metric["OverTrain_new"] = abs(auc_Val_disc2 - auc_Train_disc2)
-        self.metric["Performance"] = abs(1 - auc_Train_disc1)
-        self.metric["Performance_new"] = abs(1 - auc_Train_disc2)
+        self.metric["OverTrain_Disc1"] = abs(auc_Val_disc1 - auc_Train_disc1)
+        self.metric["OverTrain_Disc2"] = abs(auc_Val_disc2 - auc_Train_disc2)
+        self.metric["Performance_Disc1"] = abs(1 - auc_Train_disc1)
+        self.metric["Performance_Disc2"] = abs(1 - auc_Train_disc2)
 
         # Plot some ROC curves
         self.plotROC("_Disc1", None, None, fpr_Val_disc1, tpr_Val_disc1, fpr_Train_disc1, tpr_Train_disc1, auc_Val_disc1, auc_Train_disc1)
