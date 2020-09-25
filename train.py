@@ -97,7 +97,8 @@ class Train:
 
     def make_model_reg(self, config, trainData, trainDataTT):
         model, optimizer = model_reg(config, trainData, trainDataTT)
-        model.compile(loss=[self.make_loss_MSE(c=1.0)], optimizer=optimizer)
+        model.compile(loss=K.losses.MeanSquaredError(), optimizer=optimizer)
+        #model.compile(loss=[self.make_loss_MSE(c=1.0)], optimizer=optimizer)
         #model.compile(loss=[self.make_loss_MAPE(c=1.0)], optimizer=optimizer)
         return model
 
@@ -108,7 +109,8 @@ class Train:
         callbacks = []
         if config["verbose"] == 1: 
             #callbacks = [log_model, tbCallBack, earlyStop]
-            callbacks = [log_model, tbCallBack]
+            #callbacks = [log_model, tbCallBack]
+            callbacks = [tbCallBack]
         return callbacks
 
     def gpu_allow_mem_grow(self):
@@ -124,10 +126,10 @@ class Train:
         #https://github.com/leimao/Frozen_Graph_TensorFlow/tree/master/TensorFlow_v2
 
         # Save model as hdf5 format
-        K.models.save_model(model, config["outputDir"]+"/keras_model.h5")
+        #K.models.save_model(model, config["outputDir"]+"/keras_model.h5")
 
         # Save model to SavedModel format
-        tf.saved_model.save(model, config["outputDir"]+"/keras_model")
+        #tf.saved_model.save(model, config["outputDir"]+"/keras_model")
 
         # Convert Keras model to ConcreteFunction
         full_model = tf.function(lambda x: model(x))
@@ -170,16 +172,16 @@ class Train:
         if config["Mask"]: nJets = config["Mask_nJet"]
         jVecs = list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
         jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets)) 
-        config["allVars"] = jVecs + lepton + eventShapeVars + MET + numJets + extra
-        #config["allVars"] = jVecs + lepton + eventShapeVars
+        #config["allVars"] = jVecs + lepton + eventShapeVars + MET + numJets + extra
+        config["allVars"] = jVecs + lepton + eventShapeVars + ["HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"]
         return config
         
-    def train(self, config = {"gr_lambda": 0.0, "cor_lambda": 100.0, "nNodes":300, "nNodesD":40, "nNodesM":300,
+    def train(self, config = {"gr_lambda": 1.0, "cor_lambda": 100.0, "nNodes":300, "nNodesD":40, "nNodesM":500,
                               "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3,
-                              "batch_size":32768, "epochs":150, "lr":0.001}, doFullVal=False):
+                              "batch_size":2**16, "epochs":50, "lr":0.001}, doFullVal=False):
+
         # Define ouputDir based on input config
         config = self.makeOutputDir(config)
-
         config["minNJetBin"] = 7
         config["maxNJetBin"] = 11
         config["verbose"] = 1
@@ -196,17 +198,23 @@ class Train:
         TTJets_2017 = ["2017_TTJets_Incl", "2017_TTJets_SingleLeptFromT", "2017_TTJets_SingleLeptFromTbar", "2017_TTJets_DiLept", 
                        "2017_TTJets_HT-600to800", "2017_TTJets_HT-800to1200", "2017_TTJets_HT-1200to2500", "2017_TTJets_HT-2500toInf"]
         TT_2016 = ["2016_TT"]
-        TT_2017 = ["2017_TTToSemiLeptonic","2017_TTTo2L2Nu","2017_TTToHadronic"]
+        #TT_2017 = ["2017_TTToSemiLeptonic","2017_TTTo2L2Nu","2017_TTToHadronic"]
+        TT_2017 = ["2017_TTToSemiLeptonic"]
+        #TT_2018 = ["2018pre_TTToSemiLeptonic","2018pre_TTTo2L2Nu","2018pre_TTToHadronic"]
+        TT_2018 = ["2018pre_TTToSemiLeptonic"]
         config["minStopMass"] = 300
         config["maxStopMass"] = 1400
-        Signal_2017 = list("2017*RPV*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
         Signal_2016 = list("2016*RPV*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
+        Signal_2017 = list("2017*RPV*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
+        Signal_2018 = list("2018*RPV*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
 
-        config["ttbarMC"] = ("TT 2016", TT_2016)
-        config["massModels"] = Signal_2016
+        config["ttbarMC"] = ("TT", TT_2016+TT_2017+TT_2018)
+        config["massModels"] = Signal_2016+Signal_2017+Signal_2018
+        #config["ttbarMC"] = ("TT 2016", TT_2016)
+        #config["massModels"] = Signal_2016
         config["otherttbarMC"] = ("TT 2017", TT_2017)
         config["othermassModels"] = Signal_2017
-        config["ttbarMCShift"] = ("TT 2016", TT_2016)
+        config["ttbarMCShift"] = ("TT", TT_2016)
         #config["ttbarMC"] = ("TT+TTJets_2017+2016", TT_2017+TTJets_2017+TT_2016+TTJets_2016)
         #config["massModels"] = Signal_2016+Signal_2017
         #config["otherttbarMC"] = ("TT_2016", TT_2016)
@@ -215,13 +223,14 @@ class Train:
         #config["dataSet"] = "MVA_Training_Files_FullRun2_V2_test/"
         config["doBgWeight"] = True
         config["doSgWeight"] = True
-        config["class_weight"] = None
+        config["class_weight"] = None #{0: {0: 2.0, 1: 1.0}, 1: {0: 2.0, 1: 1.0}, 2: {0: 1.0, 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0}}
         config["sample_weight"] = None
         config["metrics"]=['accuracy']
-        config["year"] = '2016'
-        config["lumi"] = 35900
+        #config["year"] = '2016'
+        config["year"] = 'Run2'
+        #config["lumi"] = 35900
         #config["lumi"] = 41500
-        #config["lumi"] = 35900.0 + 41500.0
+        config["lumi"] = 137200
         print("Using "+config["dataSet"]+" data set")
         print("Training variables:")
         print(len(config["allVars"]), config["allVars"])
@@ -260,8 +269,10 @@ class Train:
         #                       callbacks=callbacks, sample_weight=config["sample_weight"])
         result_log = model.fit(trainData["data"], [trainData["labels"], trainData["labels"], trainData["domain"], maskTrain], 
                                batch_size=config["batch_size"], epochs=config["epochs"], callbacks=callbacks,
-                               validation_data=(testData["data"], [testData["labels"], testData["labels"], testData["domain"], maskTest]))
-        #result_log = model.fit(trainData["data"], trainData["masses"], epochs=config["epochs"], validation_data=(testData["data"], testData["masses"]), callbacks=callbacks)
+                               validation_data=(testData["data"], [testData["labels"], testData["labels"], testData["domain"], maskTest], testData["sample_weight"]), 
+                               sample_weight=trainData["sample_weight"])
+        #result_log = model.fit(trainData["data"], trainData["masses"], epochs=config["epochs"], sample_weight=trainData["sample_weight"],
+        #                       validation_data=(testData["data"], testData["masses"], testData["sample_weight"]), callbacks=callbacks)
 
         # Model Visualization
         print("----------------Printed model layout------------------")
@@ -285,7 +296,7 @@ class Train:
 if __name__ == '__main__':
     usage = "usage: %prog [options]"
     parser = argparse.ArgumentParser(usage)
-    parser.add_argument("--fullVal", dest="fullVal", help="Do full validation", action="store_true", default=True) 
+    parser.add_argument("--fullVal", dest="fullVal", help="Do full validation", action="store_true", default=False) 
     parser.add_argument("--json",    dest="json",    help="JSON config file", default="NULL") 
     args = parser.parse_args()
 

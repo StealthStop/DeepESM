@@ -60,7 +60,7 @@ def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgW
                 data[key] = data[key][mask]
         data["mean"] = np.mean(data["data"], 0)
         data["std"] = np.std(data["data"], 0)
-        data["scale"] = 1.0 / data["std"]  
+        data["scale"] = 1.0 / data["std"]
     scale(trainData)
     scale(dataSig)
     scale(dataBg)
@@ -138,7 +138,9 @@ class DataGetter:
             npyInputAnswers[:,0] = 1
         else:
             npyInputAnswers[:,1] = 1
-        
+        unique, counts = np.unique(npyInputAnswers, return_counts=True)
+        #print(dict(zip(unique, counts)))
+
         #setup and get domains
         domainColumnNames = ["NGoodJets_pt30"]
         inputDomains = self.data[domainColumnNames]
@@ -158,9 +160,26 @@ class DataGetter:
         #setup and get masses
         massNames = ["mass"]
         npyMasses = self.data[massNames].values
-        npyMasses[npyMasses == 173.0] = 0
+        npyMasses[npyMasses == 173.0] = 0.0
+
+        #sample weight for signal masses
         unique, counts = np.unique(npyMasses, return_counts=True)
-        print(dict(zip(unique, counts)))
-        
-        return {"data":npyInputData, "labels":npyInputAnswers, "domain":npyInputDomain, "Weight":npyInputSampleWgts, "nJet":npyNJet, "masses":npyMasses}
+        #print(dict(zip(unique, counts)))
+        d = dict(zip(unique, counts))
+        m = max(value for key, value in d.items())
+        d = {key: round(float(m)/float(value),3) for key, value in d.items()}
+
+        factor = 1.0
+        for key in d.keys():
+            if key in [300.0, 350.0, 400.0]:
+                d[key] = 1.0
+            elif key in [0.0, 1.0, 173.0]:
+                d[key] = 1.25
+            else:
+                d[key] = round(factor*d[key], 3)
+
+        npySW = np.copy(npyMasses)
+        for key, value in d.items(): npySW[npySW == key] = factor*value
+
+        return {"data":npyInputData, "labels":npyInputAnswers, "domain":npyInputDomain, "Weight":npyInputSampleWgts, "nJet":npyNJet, "masses":npyMasses, "sample_weight":npySW}
 
