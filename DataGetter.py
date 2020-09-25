@@ -53,7 +53,7 @@ def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgW
             mask = (1 - data["domain"][:,i]).astype(bool)
             data["mask_nJet_%02d" % (config["minNJetBin"]+i)] = ~np.array(mask)
             mask = (data["domain"][:,i]).astype(bool)
-            data["mask_stuff_%02d" % (config["minNJetBin"]+i)] = ~np.array(mask)            
+            data["mask_stuff_%02d" % (config["minNJetBin"]+i)] = ~np.array(mask)
         if config["Mask"]:
             mask = data["mask_stuff_%02d" % (config["Mask_nJet"])]
             for key in data:
