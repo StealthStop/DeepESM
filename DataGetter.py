@@ -138,7 +138,7 @@ class DataGetter:
             npyInputAnswers[:,0] = 1
         else:
             npyInputAnswers[:,1] = 1
-        unique, counts = np.unique(npyInputAnswers, return_counts=True)
+        #unique, counts = np.unique(npyInputAnswers, return_counts=True)
         #print(dict(zip(unique, counts)))
 
         #setup and get domains
