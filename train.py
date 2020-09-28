@@ -161,24 +161,29 @@ class Train:
         return config
 
     def defineVars(self,config):
-        jVec1 = ["Jet_pt_", "Jet_eta_", "Jet_m_", "Jet_dcsv_"]
+        jVec1 = ["Jet_pt_", "Jet_eta_", "Jet_m_", "Jet_dcsv_", "Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_", "Jet_multiplicity_" ]
         jVec2 = ["Jet_phi_"]
+        jVec1AK8 = ["JetsAK8Cands_pt_", "JetsAK8Cands_eta_", "JetsAK8Cands_m_", "JetsAK8Cands_SDM_", "JetsAK8Cands_Pruned_", "JetsAK8Cands_T21_"]
+        jVec2AK8 = ["JetsAK8Cands_phi_"]
         lepton = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1", "GoodLeptons_m_1"]
         MET = ["lvMET_cm_pt", "lvMET_cm_eta", "lvMET_cm_phi", "lvMET_cm_m"]
         eventShapeVars = ["fwm2_top6", "fwm3_top6", "fwm4_top6", "fwm5_top6", "jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
         numJets = ["NGoodJets_pt30"]
         extra = ["deepESM_val", "HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"]
         nJets = 11
-        if config["Mask"]: nJets = config["Mask_nJet"]
-        jVecs = list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
+        nJetsAK8 = 3
+        #if config["Mask"]: nJets = config["Mask_nJet"]
+        jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
         jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets)) 
+        jVecsAK8 =  list(y+str(x+1) for y in jVec1AK8 for x in range(nJetsAK8))
+        jVecsAK8 += list(y+str(x+1) for y in jVec2AK8 for x in range(1,nJetsAK8))
         #config["allVars"] = jVecs + lepton + eventShapeVars + MET + numJets + extra
-        config["allVars"] = jVecs + lepton + eventShapeVars + ["HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"]
+        config["allVars"] = jVecs + lepton + eventShapeVars + ["HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"] + jVecsAK8
         return config
         
     def train(self, config = {"gr_lambda": 1.0, "cor_lambda": 100.0, "nNodes":300, "nNodesD":40, "nNodesM":500,
                               "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3,
-                              "batch_size":2**16, "epochs":50, "lr":0.001}, doFullVal=False):
+                              "batch_size":2**16, "epochs":20, "lr":0.001}, doFullVal=False):
 
         # Define ouputDir based on input config
         config = self.makeOutputDir(config)
@@ -204,9 +209,9 @@ class Train:
         TT_2018 = ["2018pre_TTToSemiLeptonic"]
         config["minStopMass"] = 300
         config["maxStopMass"] = 1400
-        Signal_2016 = list("2016*RPV*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
-        Signal_2017 = list("2017*RPV*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
-        Signal_2018 = list("2018*RPV*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
+        Signal_2016 = list("2016*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
+        Signal_2017 = list("2017*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
+        Signal_2018 = list("2018*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
 
         config["ttbarMC"] = ("TT", TT_2016+TT_2017+TT_2018)
         config["massModels"] = Signal_2016+Signal_2017+Signal_2018
@@ -219,8 +224,7 @@ class Train:
         #config["massModels"] = Signal_2016+Signal_2017
         #config["otherttbarMC"] = ("TT_2016", TT_2016)
         #config["othermassModels"] = Signal_2016
-        config["dataSet"] = "MVA_Training_Files_FullRun2_V2/"
-        #config["dataSet"] = "MVA_Training_Files_FullRun2_V2_test/"
+        config["dataSet"] = "MVA_Training_Files_FullRun2_V3/"
         config["doBgWeight"] = True
         config["doSgWeight"] = True
         config["class_weight"] = None #{0: {0: 2.0, 1: 1.0}, 1: {0: 2.0, 1: 1.0}, 2: {0: 1.0, 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0}}
