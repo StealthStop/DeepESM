@@ -474,14 +474,16 @@ class Validation:
         nBins = 20
         nBinsReg = 50
         colors = ["red", "green", "blue", "magenta", "orange", "black"]; labels = ["Sg Train", "Sg Val", "Bg Train", "Bg Val"]
-        self.plotDisc([y_Train_mass_Sg, y_Val_mass_Sg, y_Train_mass_Bg, y_Val_mass_Bg], colors, labels, [self.trainSg["Weight"], valSg["Weight"], self.trainBg["Weight"], valBg["Weight"]], np.linspace(0, 2000, nBinsReg), "mass", 'Norm Events', 'predicted mass')
-        self.plotDisc([y_Train_mass_Sg, y_Val_mass_Sg, y_Train_mass_Bg, y_Val_mass_Bg], colors, labels, [self.trainSg["Weight"], valSg["Weight"], self.trainBg["Weight"], valBg["Weight"]], np.linspace(0, 2000, nBinsReg), "mass_log", 'Norm Events', 'predicted mass', doLog=True)
+
+        self.plotDisc([y_Train_mass_Sg, y_Val_mass_Sg, y_Train_mass_Bg, y_Val_mass_Bg], colors, labels, [self.trainSg["Weight"], valSg["Weight"], self.trainBg["Weight"], valBg["Weight"]], "mass", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
+        self.plotDisc([y_Train_mass_Sg, y_Val_mass_Sg, y_Train_mass_Bg, y_Val_mass_Bg], colors, labels, [self.trainSg["Weight"], valSg["Weight"], self.trainBg["Weight"], valBg["Weight"]], "mass_log", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg, doLog=True)
 
 
-        self.plotDisc([y_Train_mass_Sg[self.trainSg["mask_m400"]], y_Val_mass_Sg[valSg["mask_m400"]]], colors, labels, [self.trainSg["Weight"][self.trainSg["mask_m400"]], valSg["Weight"][valSg["mask_m400"]]], np.linspace(0, 2000, nBinsReg), "mass_400", 'Norm Events', 'predicted mass')
-        self.plotDisc([y_Train_mass_Sg[self.trainSg["mask_m550"]], y_Val_mass_Sg[valSg["mask_m550"]]], colors, labels, [self.trainSg["Weight"][self.trainSg["mask_m550"]], valSg["Weight"][valSg["mask_m550"]]], np.linspace(0, 2000, nBinsReg), "mass_550", 'Norm Events', 'predicted mass')
-        self.plotDisc([y_Train_mass_Sg[self.trainSg["mask_m850"]], y_Val_mass_Sg[valSg["mask_m850"]]], colors, labels, [self.trainSg["Weight"][self.trainSg["mask_m850"]], valSg["Weight"][valSg["mask_m850"]]], np.linspace(0, 2000, nBinsReg), "mass_850", 'Norm Events', 'predicted mass')
-        self.plotDisc([y_Train_mass_Sg[self.trainSg["mask_m1200"]], y_Val_mass_Sg[valSg["mask_m1200"]]], colors, labels, [self.trainSg["Weight"][self.trainSg["mask_m1200"]], valSg["Weight"][valSg["mask_m1200"]]], np.linspace(0, 2000, nBinsReg), "mass_1200", 'Norm Events', 'predicted mass')
+        self.plotDisc([y_Train_mass_Sg[self.trainSg["mask_m300"]], y_Val_mass_Sg[valSg["mask_m300"]]], colors, labels, [self.trainSg["Weight"][self.trainSg["mask_m300"]], valSg["Weight"][valSg["mask_m300"]]], "mass_300", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
+        self.plotDisc([y_Train_mass_Sg[self.trainSg["mask_m400"]], y_Val_mass_Sg[valSg["mask_m400"]]], colors, labels, [self.trainSg["Weight"][self.trainSg["mask_m400"]], valSg["Weight"][valSg["mask_m400"]]], "mass_400", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
+        self.plotDisc([y_Train_mass_Sg[self.trainSg["mask_m550"]], y_Val_mass_Sg[valSg["mask_m550"]]], colors, labels, [self.trainSg["Weight"][self.trainSg["mask_m550"]], valSg["Weight"][valSg["mask_m550"]]], "mass_550", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
+        self.plotDisc([y_Train_mass_Sg[self.trainSg["mask_m850"]], y_Val_mass_Sg[valSg["mask_m850"]]], colors, labels, [self.trainSg["Weight"][self.trainSg["mask_m850"]], valSg["Weight"][valSg["mask_m850"]]], "mass_850", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
+        self.plotDisc([y_Train_mass_Sg[self.trainSg["mask_m1200"]], y_Val_mass_Sg[valSg["mask_m1200"]]], colors, labels, [self.trainSg["Weight"][self.trainSg["mask_m1200"]], valSg["Weight"][valSg["mask_m1200"]]], "mass_1200", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
 
         self.plotDisc([y_Train_Sg_disc1, y_Val_Sg_disc1, y_Train_Bg_disc1, y_Val_Bg_disc1], colors, labels, [self.trainSg["Weight"], valSg["Weight"], self.trainBg["Weight"], valBg["Weight"]], "Disc1", 'Norm Events', 'Disc. 1')
         self.plotDisc([y_Train_Sg_disc2, y_Val_Sg_disc2, y_Train_Bg_disc2, y_Val_Bg_disc2], colors, labels, [self.trainSg["Weight"], valSg["Weight"], self.trainBg["Weight"], valBg["Weight"]], "Disc2", 'Norm Events', 'Disc. 2')
@@ -491,13 +493,13 @@ class Validation:
                       colors, ["mass 300", "mass 400", "mass 550", "mass 850", "mass 1200", "ttbar"], 
                       [self.trainSg["Weight"][self.trainSg["mask_m300"]], self.trainSg["Weight"][self.trainSg["mask_m400"]], self.trainSg["Weight"][self.trainSg["mask_m550"]], 
                        self.trainSg["Weight"][self.trainSg["mask_m850"]], self.trainSg["Weight"][self.trainSg["mask_m1200"]], self.trainBg["Weight"]], 
-                      np.linspace(0, 2000, nBinsReg), "mass_split", 'Norm Events', 'predicted mass')
+                      "mass_split", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
         self.plotDisc([y_Train_mass_Sg[self.trainSg["mask_m300"]], y_Train_mass_Sg[self.trainSg["mask_m400"]], y_Train_mass_Sg[self.trainSg["mask_m550"]], 
                        y_Train_mass_Sg[self.trainSg["mask_m850"]], y_Train_mass_Sg[self.trainSg["mask_m1200"]], y_Train_mass_Bg], 
                       colors, ["mass 300", "mass 400", "mass 550", "mass 850", "mass 1200", "ttbar"], 
                       [self.trainSg["Weight"][self.trainSg["mask_m300"]], self.trainSg["Weight"][self.trainSg["mask_m400"]], self.trainSg["Weight"][self.trainSg["mask_m550"]], 
                        self.trainSg["Weight"][self.trainSg["mask_m850"]], self.trainSg["Weight"][self.trainSg["mask_m1200"]], self.trainBg["Weight"]], 
-                      np.linspace(0, 2000, nBinsReg), "mass_split_log", 'Norm Events', 'predicted mass', doLog=True)
+                      "mass_split_log", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg, doLog=True)
 
         self.plotD1VsD2SigVsBkgd(y_Train_Bg_disc1, y_Train_Bg_disc2, y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], mass)
 
@@ -506,7 +508,7 @@ class Validation:
         for rank in ["first", "second", "third"]: self.plotAccVsEpoch('%s_output_loss'%(rank), 'val_%s_output_loss'%(rank), '%s output loss'%(rank), '%s_output_loss_train_val'%(rank))        
         for rank in ["first", "second", "third", "fourth"]: self.plotAccVsEpoch('%s_output_loss'%(rank), 'val_%s_output_loss'%(rank), '%s output loss'%(rank), '%s_output_loss_train_val'%(rank))        
         self.plotAccVsEpoch('correlation_layer_loss', 'val_correlation_layer_loss', 'correlation_layer output loss', 'correlation_layer_loss_train_val')
-
+        
         # Plot disc per njet
         self.plotDiscPerNjet("_Disc1", {"Bg": [self.trainBg, y_Train_Bg_disc1, self.trainBg["Weight"]], "Sg": [self.trainSg, y_Train_Sg_disc1, self.trainSg["Weight"]]}, nBins=nBins)
         self.plotDiscPerNjet("_Disc2", {"Bg": [self.trainBg, y_Train_Bg_disc2, self.trainBg["Weight"]], "Sg": [self.trainSg, y_Train_Sg_disc2, self.trainSg["Weight"]]}, nBins=nBins)
@@ -527,29 +529,29 @@ class Validation:
             if c1 != -1.0 and c2 != -1.0:
                 closure, closureUnc = self.simpleClosureABCD(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2], bc["A2"][c1][c2], bc["B2"][c1][c2], bc["C2"][c1][c2], bc["D2"][c1][c2])
                 self.metric["ABCDclosurePull"] = abs(1.0 - closure) / closureUnc
-
+        
                 self.config["Disc1"] = c1
                 self.config["Disc2"] = c2
                 self.config["Significance"] = significance
                 self.config["SignalFrac"] = sigfrac
-
+        
                 self.config["outputDirSpec"] = self.config["outputDir"] + "/c1_%s_c2_%s_closure_%.2f_significance_%.2f"%(c1, c2, closure, significance)
                 os.makedirs(self.config["outputDirSpec"])
-
+        
                 # Plot each discriminant for sig and background while making cut on other disc
                 self.plotDiscWithCut(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "1", "2", mass=mass, bins=nBins)
                 self.plotDiscWithCut(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "2", "1", mass=mass, bins=nBins)
-
+        
                 self.plotDiscWithCutCompare(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], "1", "2", "BG", bins=10)
                 self.plotDiscWithCutCompare(float(c2), y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "1", "2", "SG", mass=mass, bins=10)
-
+        
                 self.plotDiscWithCutCompare(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], "2", "1", "BG", bins=10)
                 self.plotDiscWithCutCompare(float(c1), y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "2", "1", "SG", mass=mass, bins=10)
-
+        
                 # Plot 2D of the discriminants
                 self.plotDisc1vsDisc2(y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], self.trainSg["Weight"][:,0], float(c1), float(c2), significance, "BG")
                 self.plotDisc1vsDisc2(y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], float(c1), float(c2), significance, "SG", mass=mass)
-
+        
         # Plot validation roc curve
         fpr_Val_disc1, tpr_Val_disc1, thresholds_Val_disc1 = roc_curve(valData["labels"][:,0], y_Val_disc1, sample_weight=valData["Weight"][:,0])
         fpr_Val_disc2, tpr_Val_disc2, thresholds_Val_disc2 = roc_curve(valData["labels"][:,0], y_Val_disc2, sample_weight=valData["Weight"][:,0])
@@ -567,7 +569,7 @@ class Validation:
         self.metric["OverTrain_Disc2"] = abs(auc_Val_disc2 - auc_Train_disc2)
         self.metric["Performance_Disc1"] = abs(1 - auc_Train_disc1)
         self.metric["Performance_Disc2"] = abs(1 - auc_Train_disc2)
-
+        
         # Plot some ROC curves
         self.plotROC("_Disc1", None, None, fpr_Val_disc1, tpr_Val_disc1, fpr_Train_disc1, tpr_Train_disc1, auc_Val_disc1, auc_Train_disc1)
         self.plotROC("_Disc2", None, None, fpr_Val_disc2, tpr_Val_disc2, fpr_Train_disc2, tpr_Train_disc2, auc_Val_disc2, auc_Train_disc2)
