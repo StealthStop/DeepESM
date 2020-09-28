@@ -176,9 +176,9 @@ class Train:
         config["allVars"] = jVecs + lepton + eventShapeVars + ["HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"]
         return config
         
-    def train(self, config = {"gr_lambda": 1.0, "cor_lambda": 100.0, "nNodes":300, "nNodesD":40, "nNodesM":500,
+    def train(self, config = {"gr_lambda": 0.0, "cor_lambda": 100.0, "nNodes":300, "nNodesD":40, "nNodesM":300,
                               "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3,
-                              "batch_size":2**16, "epochs":50, "lr":0.001}, doFullVal=False):
+                              "batch_size":2**15, "epochs":50, "lr":0.001}, doFullVal=False):
 
         # Define ouputDir based on input config
         config = self.makeOutputDir(config)
@@ -198,15 +198,15 @@ class Train:
         TTJets_2017 = ["2017_TTJets_Incl", "2017_TTJets_SingleLeptFromT", "2017_TTJets_SingleLeptFromTbar", "2017_TTJets_DiLept", 
                        "2017_TTJets_HT-600to800", "2017_TTJets_HT-800to1200", "2017_TTJets_HT-1200to2500", "2017_TTJets_HT-2500toInf"]
         TT_2016 = ["2016_TT"]
-        #TT_2017 = ["2017_TTToSemiLeptonic","2017_TTTo2L2Nu","2017_TTToHadronic"]
-        TT_2017 = ["2017_TTToSemiLeptonic"]
-        #TT_2018 = ["2018pre_TTToSemiLeptonic","2018pre_TTTo2L2Nu","2018pre_TTToHadronic"]
-        TT_2018 = ["2018pre_TTToSemiLeptonic"]
-        config["minStopMass"] = 300
+        TT_2017 = ["2017_TTToSemiLeptonic","2017_TTTo2L2Nu","2017_TTToHadronic"]
+        #TT_2017 = ["2017_TTToSemiLeptonic"]
+        TT_2018 = ["2018pre_TTToSemiLeptonic","2018pre_TTTo2L2Nu","2018pre_TTToHadronic"]
+        #TT_2018 = ["2018pre_TTToSemiLeptonic"]
+        config["minStopMass"] = 550
         config["maxStopMass"] = 1400
-        Signal_2016 = list("2016*RPV*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
-        Signal_2017 = list("2017*RPV*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
-        Signal_2018 = list("2018*RPV*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
+        Signal_2016 = list("2016*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
+        Signal_2017 = list("2017*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
+        Signal_2018 = list("2018*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
 
         config["ttbarMC"] = ("TT", TT_2016+TT_2017+TT_2018)
         config["massModels"] = Signal_2016+Signal_2017+Signal_2018
