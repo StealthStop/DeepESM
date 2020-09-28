@@ -183,7 +183,7 @@ class Train:
         
     def train(self, config = {"gr_lambda": 1.0, "cor_lambda": 100.0, "nNodes":300, "nNodesD":40, "nNodesM":500,
                               "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3,
-                              "batch_size":2**16, "epochs":20, "lr":0.001}, doFullVal=False):
+                              "batch_size":2**15, "epochs":20, "lr":0.001}, doFullVal=False):
 
         # Define ouputDir based on input config
         config = self.makeOutputDir(config)
