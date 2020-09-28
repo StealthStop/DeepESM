@@ -138,11 +138,11 @@ class DataGetter:
             npyInputAnswers[:,0] = 1
         else:
             npyInputAnswers[:,1] = 1
-        #unique, counts = np.unique(npyInputAnswers, return_counts=True)
-        #print(dict(zip(unique, counts)))
+        unique, counts = np.unique(npyInputAnswers, return_counts=True)
+        print(dict(zip(unique, counts)))
 
         #setup and get domains
-        domainColumnNames = ["NGoodJets_pt30"]
+        domainColumnNames = ["NGoodJets_pt30_double"]
         inputDomains = self.data[domainColumnNames]
         tempInputDomains = inputDomains.astype(int)
         tempInputDomains[tempInputDomains > maxNJetBin] = maxNJetBin 
@@ -164,7 +164,7 @@ class DataGetter:
 
         #sample weight for signal masses
         unique, counts = np.unique(npyMasses, return_counts=True)
-        #print(dict(zip(unique, counts)))
+        print(dict(zip(unique, counts)))
         d = dict(zip(unique, counts))
         m = max(value for key, value in d.items())
         d = {key: round(float(m)/float(value),3) for key, value in d.items()}
@@ -174,9 +174,10 @@ class DataGetter:
             if key in [300.0, 350.0, 400.0]:
                 d[key] = 1.0
             elif key in [0.0, 1.0, 173.0]:
-                d[key] = 1.25
+                d[key] = 3.6
             else:
                 d[key] = round(factor*d[key], 3)
+        print(d)
 
         npySW = np.copy(npyMasses)
         for key, value in d.items(): npySW[npySW == key] = factor*value
