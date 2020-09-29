@@ -168,22 +168,22 @@ class Train:
         lepton = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1", "GoodLeptons_m_1"]
         MET = ["lvMET_cm_pt", "lvMET_cm_eta", "lvMET_cm_phi", "lvMET_cm_m"]
         eventShapeVars = ["fwm2_top6", "fwm3_top6", "fwm4_top6", "fwm5_top6", "jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
-        numJets = ["NGoodJets_pt30"]
-        extra = ["deepESM_val", "HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"]
+        numJets = ["NGoodJets_pt30_double"]
+        extra = ["deepESM_val", "HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass", "deepESM_valReg"]
         nJets = 11
-        nJetsAK8 = 3
-        #if config["Mask"]: nJets = config["Mask_nJet"]
+        nJetsAK8 = 4
         jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
         jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets)) 
         jVecsAK8 =  list(y+str(x+1) for y in jVec1AK8 for x in range(nJetsAK8))
         jVecsAK8 += list(y+str(x+1) for y in jVec2AK8 for x in range(1,nJetsAK8))
         #config["allVars"] = jVecs + lepton + eventShapeVars + MET + numJets + extra
-        config["allVars"] = jVecs + lepton + eventShapeVars + ["HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"] + jVecsAK8
+        #config["allVars"] = jVecs + lepton + eventShapeVars + ["HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"] + jVecsAK8
+        config["allVars"] = jVecs + lepton + eventShapeVars + MET + numJets + extra + jVecsAK8
         return config
         
-    def train(self, config = {"gr_lambda": 0.0, "cor_lambda": 100.0, "nNodes":300, "nNodesD":40, "nNodesM":300,
+    def train(self, config = {"gr_lambda": 1.0, "cor_lambda": 500.0, "nNodes":300, "nNodesD":40, "nNodesM":500,
                               "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3,
-                              "batch_size":2**15, "epochs":1, "lr":0.001}, doQuickVal=False):
+                              "batch_size":2**15, "epochs":50, "lr":0.001}, doQuickVal=False):
 
         # Define ouputDir based on input config
         config = self.makeOutputDir(config)
@@ -203,10 +203,10 @@ class Train:
         TTJets_2017 = ["2017_TTJets_Incl", "2017_TTJets_SingleLeptFromT", "2017_TTJets_SingleLeptFromTbar", "2017_TTJets_DiLept", 
                        "2017_TTJets_HT-600to800", "2017_TTJets_HT-800to1200", "2017_TTJets_HT-1200to2500", "2017_TTJets_HT-2500toInf"]
         TT_2016 = ["2016_TT"]
-        TT_2017 = ["2017_TTToSemiLeptonic","2017_TTTo2L2Nu","2017_TTToHadronic"]
-        #TT_2017 = ["2017_TTToSemiLeptonic"]
-        TT_2018 = ["2018pre_TTToSemiLeptonic","2018pre_TTTo2L2Nu","2018pre_TTToHadronic"]
-        #TT_2018 = ["2018pre_TTToSemiLeptonic"]
+        #TT_2017 = ["2017_TTToSemiLeptonic","2017_TTTo2L2Nu","2017_TTToHadronic"]
+        TT_2017 = ["2017_TTToSemiLeptonic"]
+        #TT_2018 = ["2018pre_TTToSemiLeptonic","2018pre_TTTo2L2Nu","2018pre_TTToHadronic"]
+        TT_2018 = ["2018pre_TTToSemiLeptonic"]
         config["minStopMass"] = 300
         config["maxStopMass"] = 1400
         Signal_2016 = list("2016*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
