@@ -181,9 +181,9 @@ class Train:
         config["allVars"] = jVecs + lepton + eventShapeVars + ["HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"] + jVecsAK8
         return config
         
-    def train(self, config = {"gr_lambda": 1.0, "cor_lambda": 100.0, "nNodes":300, "nNodesD":40, "nNodesM":500,
+    def train(self, config = {"gr_lambda": 0.0, "cor_lambda": 100.0, "nNodes":300, "nNodesD":40, "nNodesM":300,
                               "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3,
-                              "batch_size":2**15, "epochs":20, "lr":0.001}, doFullVal=False):
+                              "batch_size":2**15, "epochs":1, "lr":0.001}, doQuickVal=False):
 
         # Define ouputDir based on input config
         config = self.makeOutputDir(config)
@@ -203,10 +203,10 @@ class Train:
         TTJets_2017 = ["2017_TTJets_Incl", "2017_TTJets_SingleLeptFromT", "2017_TTJets_SingleLeptFromTbar", "2017_TTJets_DiLept", 
                        "2017_TTJets_HT-600to800", "2017_TTJets_HT-800to1200", "2017_TTJets_HT-1200to2500", "2017_TTJets_HT-2500toInf"]
         TT_2016 = ["2016_TT"]
-        #TT_2017 = ["2017_TTToSemiLeptonic","2017_TTTo2L2Nu","2017_TTToHadronic"]
-        TT_2017 = ["2017_TTToSemiLeptonic"]
-        #TT_2018 = ["2018pre_TTToSemiLeptonic","2018pre_TTTo2L2Nu","2018pre_TTToHadronic"]
-        TT_2018 = ["2018pre_TTToSemiLeptonic"]
+        TT_2017 = ["2017_TTToSemiLeptonic","2017_TTTo2L2Nu","2017_TTToHadronic"]
+        #TT_2017 = ["2017_TTToSemiLeptonic"]
+        TT_2018 = ["2018pre_TTToSemiLeptonic","2018pre_TTTo2L2Nu","2018pre_TTToHadronic"]
+        #TT_2018 = ["2018pre_TTToSemiLeptonic"]
         config["minStopMass"] = 300
         config["maxStopMass"] = 1400
         Signal_2016 = list("2016*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
@@ -289,7 +289,7 @@ class Train:
         #Plot results
         print("----------------Validation of training------------------")
         val = Validation(model, config, sgTrainSet, trainData, trainSg, trainBg, result_log)
-        metric = val.makePlots(doFullVal)
+        metric = val.makePlots(doQuickVal)
         del val
         
         #Clean up training
@@ -300,7 +300,7 @@ class Train:
 if __name__ == '__main__':
     usage = "usage: %prog [options]"
     parser = argparse.ArgumentParser(usage)
-    parser.add_argument("--fullVal", dest="fullVal", help="Do full validation", action="store_true", default=False) 
+    parser.add_argument("--quickVal", dest="quickVal", help="Do quick validation", action="store_true", default=False) 
     parser.add_argument("--json",    dest="json",    help="JSON config file", default="NULL") 
     args = parser.parse_args()
 
@@ -311,11 +311,11 @@ if __name__ == '__main__':
             config = json.load(f)
         print(config)
 
-        metric = t.train(config, args.fullVal)
+        metric = t.train(config, args.quickVal)
 
         with open(str(args.json), 'w') as f:
           json.dump(metric, f)
     else:
-        t.train(doFullVal=args.fullVal)
+        t.train(doQuickVal=args.quickVal)
         print("----------------Ran with default config------------------")
 

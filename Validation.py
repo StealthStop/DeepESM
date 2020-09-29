@@ -448,7 +448,7 @@ class Validation:
         fig.savefig(self.config["outputDir"]+"/SigContamination_vs_BkgdRejection_m%s.png"%(mass), dpi=fig.dpi)        
         plt.close(fig)
 
-    def makePlots(self, doFullVal=False, mass="400"):
+    def makePlots(self, doQuickVal=False, mass="400"):
         sgValSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+mass+"*Val.root") for mass in self.config["massModels"]) , [])
         bgValSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+ttbar+"*Val.root") for ttbar in self.config["ttbarMC"][1]), [])
         sgOTrainSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+mass+"*Val.root") for mass in self.config["othermassModels"]) , [])
@@ -511,7 +511,7 @@ class Validation:
         self.plotDiscPerNjet("_Disc1", {"Bg": [self.trainBg, y_Train_Bg_disc1, self.trainBg["Weight"]], "Sg": [self.trainSg, y_Train_Sg_disc1, self.trainSg["Weight"]]}, nBins=nBins)
         self.plotDiscPerNjet("_Disc2", {"Bg": [self.trainBg, y_Train_Bg_disc2, self.trainBg["Weight"]], "Sg": [self.trainSg, y_Train_Sg_disc2, self.trainSg["Weight"]]}, nBins=nBins)
         
-        if doFullVal:
+        if not doQuickVal:
             # Make arrays for possible values to cut on for both discriminant
             # starting at a minimum of 0.5 for each
             c1s = np.arange(0.20, 0.95, 0.05); c2s = np.arange(0.20, 0.95, 0.05)
