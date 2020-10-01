@@ -15,8 +15,8 @@ def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgW
     dgSig = DataGetter.DefinedVariables(config["allVars"], signal = True,  background = False)
     dgBg = DataGetter.DefinedVariables(config["allVars"],  signal = False, background = True)
 
-    dataSig = dgSig.importData(samplesToRun = tuple(signalDataSet), treename = "myMiniTree", maxNJetBin=config["maxNJetBin"])
-    dataBg = dgBg.importData(samplesToRun = tuple(backgroundDataSet), treename = "myMiniTree", maxNJetBin=config["maxNJetBin"])
+    dataSig, totalSig = dgSig.importData(samplesToRun = tuple(signalDataSet), treename = "myMiniTree", maxNJetBin=config["maxNJetBin"], njetMask=config["Mask_nJet"])
+    dataBg, _ = dgBg.importData(samplesToRun = tuple(backgroundDataSet), treename = "myMiniTree", maxNJetBin=config["maxNJetBin"], njetMask=config["Mask_nJet"], totalSig=totalSig)
 
     # Change the weight to 1 if needed
     if config["doSgWeight"]: dataSig["Weight"] = config["lumi"]*dataSig["Weight"]
@@ -118,7 +118,7 @@ class DataGetter:
                 continue
         return dsets
     
-    def importData(self, samplesToRun, treename = "myMiniTree", maxNJetBin = 11):
+    def importData(self, samplesToRun, treename = "myMiniTree", maxNJetBin = 11, njetMask=7, totalSig=0):
         #variables to train
         variables = self.getList()
         self.getColumnHeaders(samplesToRun, treename)
@@ -139,7 +139,6 @@ class DataGetter:
         else:
             npyInputAnswers[:,1] = 1
         unique, counts = np.unique(npyInputAnswers, return_counts=True)
-        print(dict(zip(unique, counts)))
 
         #setup and get domains
         domainColumnNames = ["NGoodJets_pt30_double"]
@@ -159,22 +158,28 @@ class DataGetter:
 
         #setup and get masses
         massNames = ["mass"]
+
+        # Use this npyMasses for excluding 7 jet events
+        # Changes weights
+        npyMassesFilter = self.data[(self.data["NGoodJets_pt30_double"]!=njetMask)][massNames].values
+        npyMassesFilter[npyMassesFilter == 173.0] = 0.0
+
         npyMasses = self.data[massNames].values
         npyMasses[npyMasses == 173.0] = 0.0
 
         #sample weight for signal masses
-        unique, counts = np.unique(npyMasses, return_counts=True)
-        print(dict(zip(unique, counts)))
+        unique, counts = np.unique(npyMassesFilter, return_counts=True)
         d = dict(zip(unique, counts))
         m = max(value for key, value in d.items())
         d = {key: round(float(m)/float(value),3) for key, value in d.items()}
+        print(d)
 
         factor = 1.0
         for key in d.keys():
             if key in [300.0, 350.0, 400.0]:
                 d[key] = 1.0
             elif key in [0.0, 1.0, 173.0]:
-                d[key] = 3.6
+                d[key] = round(float(totalSig)/float(sum(counts)), 3)
             else:
                 d[key] = round(factor*d[key], 3)
         print(d)
@@ -182,5 +187,5 @@ class DataGetter:
         npySW = np.copy(npyMasses)
         for key, value in d.items(): npySW[npySW == key] = factor*value
 
-        return {"data":npyInputData, "labels":npyInputAnswers, "domain":npyInputDomain, "Weight":npyInputSampleWgts, "nJet":npyNJet, "masses":npyMasses, "sample_weight":npySW}
+        return {"data":npyInputData, "labels":npyInputAnswers, "domain":npyInputDomain, "Weight":npyInputSampleWgts, "nJet":npyNJet, "masses":npyMasses, "sample_weight":npySW}, sum(counts)
 
