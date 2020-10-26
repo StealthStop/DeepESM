@@ -76,10 +76,10 @@ class Train:
             normedweight = tf.ones_like(val_1)
 
             #Mask all signal events
-            mask = tf.reshape(y_mask[:,  1:2], [-1])
-            val_1 = tf.boolean_mask(val_1, mask)
-            val_2 = tf.boolean_mask(val_2, mask)
-            normedweight = tf.boolean_mask(normedweight, mask)
+            #mask = tf.reshape(y_mask[:,  1:2], [-1])
+            #val_1 = tf.boolean_mask(val_1, mask)
+            #val_2 = tf.boolean_mask(val_2, mask)
+            #normedweight = tf.boolean_mask(normedweight, mask)
             return c * cor.distance_corr(val_1, val_2, normedweight, 1)
         return discoLoss
 
@@ -161,36 +161,41 @@ class Train:
         return config
 
     def defineVars(self,config):
-        jVec1 = ["Jet_pt_", "Jet_eta_", "Jet_m_", "Jet_dcsv_", "Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_", "Jet_multiplicity_" ]
+        #jVec1 = ["Jet_pt_", "Jet_eta_", "Jet_m_", "Jet_dcsv_", "Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_", "Jet_multiplicity_" ]
+        jVec1 = ["Jet_pt_", "Jet_eta_", "Jet_m_", "Jet_dcsv_"]
         jVec2 = ["Jet_phi_"]
-        jVec1AK8 = ["JetsAK8Cands_pt_", "JetsAK8Cands_eta_", "JetsAK8Cands_m_", "JetsAK8Cands_SDM_", "JetsAK8Cands_Pruned_", "JetsAK8Cands_T21_"]
-        jVec2AK8 = ["JetsAK8Cands_phi_"]
-        lepton = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1", "GoodLeptons_m_1"]
-        MET = ["lvMET_cm_pt", "lvMET_cm_eta", "lvMET_cm_phi", "lvMET_cm_m"]
+        #jVec1AK8 = ["JetsAK8Cands_pt_", "JetsAK8Cands_eta_", "JetsAK8Cands_m_", "JetsAK8Cands_SDM_", "JetsAK8Cands_Pruned_", "JetsAK8Cands_T21_"]
+        #jVec2AK8 = ["JetsAK8Cands_phi_"]
+        #lepton = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1", "GoodLeptons_m_1"]
+        lepton = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1"]
+
+        #MET = ["lvMET_cm_pt", "lvMET_cm_eta", "lvMET_cm_phi", "lvMET_cm_m"]
         eventShapeVars = ["fwm2_top6", "fwm3_top6", "fwm4_top6", "fwm5_top6", "jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
         numJets = ["NGoodJets_pt30_double"]
-        extra = ["deepESM_val", "HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass", "deepESM_valReg"]
+        #extra = ["deepESM_val", "HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass", "deepESM_valReg"]
+        extra = ["deepESM_val", "HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"]
         nJets = 11
         nJetsAK8 = 4
         jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
         jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets)) 
-        jVecsAK8 =  list(y+str(x+1) for y in jVec1AK8 for x in range(nJetsAK8))
-        jVecsAK8 += list(y+str(x+1) for y in jVec2AK8 for x in range(1,nJetsAK8))
+        #jVecsAK8 =  list(y+str(x+1) for y in jVec1AK8 for x in range(nJetsAK8))
+        #jVecsAK8 += list(y+str(x+1) for y in jVec2AK8 for x in range(1,nJetsAK8))
         #config["allVars"] = jVecs + lepton + eventShapeVars + MET + numJets + extra
         #config["allVars"] = jVecs + lepton + eventShapeVars + ["HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"] + jVecsAK8
-        config["allVars"] = jVecs + lepton + eventShapeVars + MET + numJets + extra + jVecsAK8
+        #config["allVars"] = jVecs + lepton + eventShapeVars + MET + numJets + extra# + jVecsAK8
+        config["allVars"] = jVecs + lepton + eventShapeVars + numJets + extra# + jVecsAK8
         return config
         
-    def train(self, config = {"gr_lambda": 1.0, "cor_lambda": 500.0, "nNodes":300, "nNodesD":40, "nNodesM":500,
+    def train(self, config = {"gr_lambda": 0.0, "cor_lambda": 100.0, "nNodes":300, "nNodesD":40, "nNodesM":500,
                               "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3,
-                              "batch_size":2**15, "epochs":50, "lr":0.001}, doQuickVal=False):
-
+                              "batch_size":15001, "epochs":10, "lr":0.001}, doQuickVal=False, minStopMass=300, maxStopMass=1400, model="*", valMass=500):
+    
         # Define ouputDir based on input config
         config = self.makeOutputDir(config)
         config["minNJetBin"] = 7
         config["maxNJetBin"] = 11
         config["verbose"] = 1
-        config["Mask"] = True
+        config["Mask"] = True 
         config["Mask_nJet"] = 7
 
         # Define vars for training
@@ -207,11 +212,11 @@ class Train:
         TT_2017 = ["2017_TTToSemiLeptonic"]
         #TT_2018 = ["2018pre_TTToSemiLeptonic","2018pre_TTTo2L2Nu","2018pre_TTToHadronic"]
         TT_2018 = ["2018pre_TTToSemiLeptonic"]
-        config["minStopMass"] = 300
-        config["maxStopMass"] = 1400
-        Signal_2016 = list("2016*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
-        Signal_2017 = list("2017*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
-        Signal_2018 = list("2018*mStop*"+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
+        config["minStopMass"] = int(minStopMass)
+        config["maxStopMass"] = int(maxStopMass)
+        Signal_2016 = list("2016%smStop*"%(model)+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
+        Signal_2017 = list("2017%smStop*"%(model)+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
+        Signal_2018 = list("2018%smStop*"%(model)+str(m) for m in range(config["minStopMass"],config["maxStopMass"]+50,50))
 
         config["ttbarMC"] = ("TT", TT_2016+TT_2017+TT_2018)
         config["massModels"] = Signal_2016+Signal_2017+Signal_2018
@@ -257,6 +262,7 @@ class Train:
 
         # Make model
         print("----------------Preparing training model------------------")
+        # Kelvin says no
         self.gpu_allow_mem_grow()
         #model = self.make_model(config, trainData, trainDataTT)
         model = self.make_doubleDisco_model(config, trainData, trainDataTT)
@@ -280,16 +286,16 @@ class Train:
 
         # Model Visualization
         print("----------------Printed model layout------------------")
-        self.plot_model(model, config)
+        #self.plot_model(model, config)
         
         # Save trainig model as a protocol buffers file
         print("----------------Saving model------------------")
-        self.save_model_pb(model, config)
+        #self.save_model_pb(model, config)
         
         #Plot results
         print("----------------Validation of training------------------")
         val = Validation(model, config, sgTrainSet, trainData, trainSg, trainBg, result_log)
-        metric = val.makePlots(doQuickVal)
+        metric = val.makePlots(doQuickVal, valMass)
         del val
         
         #Clean up training
@@ -302,7 +308,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(usage)
     parser.add_argument("--quickVal", dest="quickVal", help="Do quick validation", action="store_true", default=False) 
     parser.add_argument("--json",    dest="json",    help="JSON config file", default="NULL") 
+    parser.add_argument("--minMass", dest="minMass", help="Minimum stop mass to train on", default=300)
+    parser.add_argument("--maxMass", dest="maxMass", help="Maximum stop mass to train on", default=1400) 
+    parser.add_argument("--valMass", dest="valMass", help="Stop mass to validate on", default=500) 
+    parser.add_argument("--model",   dest="model",   help="Signal model to train on", default="*") 
+
     args = parser.parse_args()
+
+    model = "*"
+    if args.model != "*": model = "*%s*"%(args.model)
 
     t = Train()
     if args.json != "NULL": 
@@ -316,6 +330,6 @@ if __name__ == '__main__':
         with open(str(args.json), 'w') as f:
           json.dump(metric, f)
     else:
-        t.train(doQuickVal=args.quickVal)
+        t.train(doQuickVal=args.quickVal, minStopMass=args.minMass, maxStopMass=args.maxMass, model=model, valMass=args.valMass)
         print("----------------Ran with default config------------------")
 
