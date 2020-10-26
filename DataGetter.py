@@ -15,8 +15,7 @@ def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgW
     dgSig = DataGetter.DefinedVariables(config["allVars"], signal = True,  background = False)
     dgBg = DataGetter.DefinedVariables(config["allVars"],  signal = False, background = True)
 
-    dataSig, totalSig = dgSig.importData(samplesToRun = tuple(signalDataSet), treename = "myMiniTree", maxNJetBin=config["maxNJetBin"], njetMask=config["Mask_nJet"])
-    dataBg, _ = dgBg.importData(samplesToRun = tuple(backgroundDataSet), treename = "myMiniTree", maxNJetBin=config["maxNJetBin"], njetMask=config["Mask_nJet"], totalSig=totalSig)
+    dataBg, dataSig = dgSig.importData(bgSamplesToRun = tuple(backgroundDataSet), sgSamplesToRun = tuple(signalDataSet), treename = "myMiniTree", maxNJetBin=config["maxNJetBin"], njetsMask=config["Mask_nJet"])
 
     # Change the weight to 1 if needed
     if config["doSgWeight"]: dataSig["Weight"] = config["lumi"]*dataSig["Weight"]
@@ -117,75 +116,108 @@ class DataGetter:
                 print("Warning: \"%s\" has issues" % filename, e)
                 continue
         return dsets
-    
-    def importData(self, samplesToRun, treename = "myMiniTree", maxNJetBin = 11, njetMask=7, totalSig=0):
-        #variables to train
-        variables = self.getList()
-        self.getColumnHeaders(samplesToRun, treename)
-        self.checkVariables(variables)
-        
-        #load data files and get data
-        dsets = self.getDataSets(samplesToRun, treename)
-        self.data = pd.concat(dsets)
-        self.data = self.data.dropna()
+
+    def importDataWorker(self, variables, maxNJetBin, df, index, njetsMask = -1):
+        # Common column names to signal and background
+        wgtColumnNames = ["totalEventWeight"]; massNames = ["mass"]; domainColumnNames = ["NGoodJets_pt30_double"]; njetsNames = ["NGoodJets_pt30_double"]
+
+        npyNjetsFilter = df[(df["NGoodJets_pt30_double"]!=njetsMask)][massNames].values
+        unique, counts = np.unique(npyNjetsFilter, return_counts=True)
+        masses = dict(zip(unique, counts)).keys()
+
+        #setup and get weights
+        npyInputSampleWgts = df[wgtColumnNames].values
+
+        # Use this npyMasses for excluding 7 jet events
+        # Changes weights
+        npyMassesFilter = df[(df["NGoodJets_pt30_double"]!=njetsMask)][massNames].values
+        npyMassesFilter[npyMassesFilter == 173.0] = 0.0
+
+        dnjets = {}
+        for mass in masses:
+            npyNjetsFilter = df[(df["NGoodJets_pt30_double"]!=njetsMask)&(df["mass"]==mass)][njetsNames].values
+            unique, counts = np.unique(npyNjetsFilter, return_counts=True)
+            NjetsDict = dict(zip(unique, counts))
+            for Njets, c in NjetsDict.items():
+                dnjets[mass+Njets] = c
+
+        npyMasses = df[massNames].values
+        npyNjets  = df[njetsNames].values
+        npyMasses[npyMasses == 173.0] = 0.0
+
+        npyMassNjets = npyMasses+npyNjets
 
         #setup and get training data
-        npyInputData = self.data[variables].astype(float).values
+        npyInputData = df[variables].astype(float).values
 
         #setup and get labels
         npyInputAnswers = np.zeros((npyInputData.shape[0], 2))
-        if self.signal:
-            npyInputAnswers[:,0] = 1
-        else:
-            npyInputAnswers[:,1] = 1
-        unique, counts = np.unique(npyInputAnswers, return_counts=True)
+        npyInputAnswers[:,index] = 1
 
         #setup and get domains
-        domainColumnNames = ["NGoodJets_pt30_double"]
-        inputDomains = self.data[domainColumnNames]
+        inputDomains = df[domainColumnNames]
         tempInputDomains = inputDomains.astype(int)
         tempInputDomains[tempInputDomains > maxNJetBin] = maxNJetBin 
         minNJetBin = tempInputDomains.min().values[0]
         numDomains = maxNJetBin + 1 - minNJetBin
         npyNJet = tempInputDomains.astype(float).values
         tempInputDomains = tempInputDomains - tempInputDomains.min()
+   
+        #sample weight for background masses
         npyInputDomain = np.zeros((npyInputData.shape[0], numDomains))
         npyInputDomain[np.arange(npyInputDomain.shape[0]), tempInputDomains.values.flatten()] = 1
-
-        #setup and get weights
-        wgtColumnNames = ["totalEventWeight"]
-        npyInputSampleWgts = self.data[wgtColumnNames].values
-
-        #setup and get masses
-        massNames = ["mass"]
-
-        # Use this npyMasses for excluding 7 jet events
-        # Changes weights
-        npyMassesFilter = self.data[(self.data["NGoodJets_pt30_double"]!=njetMask)][massNames].values
-        npyMassesFilter[npyMassesFilter == 173.0] = 0.0
-
-        npyMasses = self.data[massNames].values
-        npyMasses[npyMasses == 173.0] = 0.0
+        unique, counts = np.unique(npyMassesFilter, return_counts=True)
 
         #sample weight for signal masses
-        unique, counts = np.unique(npyMassesFilter, return_counts=True)
         d = dict(zip(unique, counts))
-        m = max(value for key, value in d.items())
-        d = {key: round(float(m)/float(value),3) for key, value in d.items()}
-        print(d)
+        m = -1.0; counts = 0.0
+        for massNjets, c in dnjets.items():
+            if c > m: m = c
+        for massNjets, c in dnjets.items():
+            counts += m
+            dnjets[massNjets] = round(float(m)/float(c),3)
 
+        return npyInputData, npyInputAnswers, npyInputDomain, npyInputSampleWgts, npyNJet, npyMasses, npyMassNjets, counts, dnjets
+
+    def importData(self, bgSamplesToRun, sgSamplesToRun, treename = "myMiniTree", maxNJetBin = 11, njetsMask=-1):
+
+        #variables to train
+        variables = self.getList()
+        self.getColumnHeaders(bgSamplesToRun, treename)
+        self.checkVariables(variables)
+        
+        # Do somethings for the background
+        #load BG data files and get data
+        # I guess use
+        bgdsets = self.getDataSets(bgSamplesToRun, treename)
+        dataBG = pd.concat(bgdsets)
+        dataBG = dataBG.dropna()
+
+        npyInputDataBG, npyInputAnswersBG, npyInputDomainBG, npyInputSampleWgtsBG, npyNJetBG, npyMassesBG, npyMassNjetsBG, countsBG, dBG = self.importDataWorker(variables, maxNJetBin, dataBG, 1, njetsMask=njetsMask)
+
+        #########################################################################################
+
+        # Now do same sort of things for signal
+        #load SG data files and get data
+        sgdsets = self.getDataSets(sgSamplesToRun, treename)
+        dataSG = pd.concat(sgdsets)
+        dataSG = dataSG.dropna()
+
+        npyInputDataSG, npyInputAnswersSG, npyInputDomainSG, npyInputSampleWgtsSG, npyNJetSG, npyMassesSG, npyMassNjetsSG, countsSG, dSG = self.importDataWorker(variables, maxNJetBin, dataSG, 0, njetsMask=njetsMask)
+
+        # Do some final changes to the weights for background and signal
         factor = 1.0
-        for key in d.keys():
-            if key in [300.0, 350.0, 400.0]:
-                d[key] = 1.0
-            elif key in [0.0, 1.0, 173.0]:
-                d[key] = round(float(totalSig)/float(sum(counts)), 3)
+        for massNjets, w in dSG.items():
+            if massNjets-450.0 < 0.0:
+                dSG[massNjets] = 1.0
             else:
-                d[key] = round(factor*d[key], 3)
-        print(d)
+                dSG[massNjets] = round(factor*dSG[massNjets], 3)
+       
+        for massNjets, w in dBG.items():
+            dBG[massNjets] = round(w*float(countsSG)/float(countsBG), 3)
 
-        npySW = np.copy(npyMasses)
-        for key, value in d.items(): npySW[npySW == key] = factor*value
+        npySWBG = np.copy(npyMassNjetsBG); npySWSG = np.copy(npyMassNjetsSG)
+        for key, value in dBG.items(): npySWBG[npySWBG == key] = factor*value
+        for key, value in dSG.items(): npySWSG[npySWSG == key] = factor*value
 
-        return {"data":npyInputData, "labels":npyInputAnswers, "domain":npyInputDomain, "Weight":npyInputSampleWgts, "nJet":npyNJet, "masses":npyMasses, "sample_weight":npySW}, sum(counts)
-
+        return {"data":npyInputDataBG, "labels":npyInputAnswersBG, "domain":npyInputDomainBG, "Weight":npyInputSampleWgtsBG, "nJet":npyNJetBG, "masses":npyMassesBG, "massNjets":npyMassNjetsBG, "sample_weight":npySWBG}, {"data":npyInputDataSG, "labels":npyInputAnswersSG, "domain":npyInputDomainSG, "Weight":npyInputSampleWgtsSG, "nJet":npyNJetSG, "masses":npyMassesSG, "massNjets":npyMassNjetsSG, "sample_weight":npySWSG}

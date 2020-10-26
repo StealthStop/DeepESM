@@ -101,9 +101,9 @@ class Validation:
 
     # Member function to plot the discriminant variable while making a selection on another discriminant
     # The result for signal and background are shown together
-    def plotDiscWithCut(self, c, b1, b2, bw, s1, s2, sw, tag1, tag2, mass, arange=(0,1), bins=100):
-        bnew = np.zeros(len(b1)); bwnew = np.zeros(len(b1)); bw2new = np.zeros(len(b1))
-        snew = np.zeros(len(s1)); swnew = np.zeros(len(s1)); sw2new = np.zeros(len(s1))
+    def plotDiscWithCut(self, c, b1, b2, bw, s1, s2, sw, tag1, tag2, mass, Njets=-1, bins=100, arange=(0,1)):
+        bnew = np.zeros(len(b1)); bwnew = np.ones(len(b1)); bw2new = np.ones(len(b1))
+        snew = np.zeros(len(s1)); swnew = np.ones(len(s1)); sw2new = np.ones(len(s1))
         blong = len(b1); slong = len(s1)
         total = blong if blong > slong else slong 
         j = 0; k = 0
@@ -124,6 +124,20 @@ class Validation:
         bw2newBinned, binEdges = np.histogram(bnew, bins=bins, range=arange, weights=bw2new)
         sw2newBinned, binEdges = np.histogram(snew, bins=bins, range=arange, weights=sw2new)
 
+        print(bwnewBinned, swnewBinned, bw2newBinned, sw2newBinned)
+
+        if len(bw2newBinned) == 0: bw2newBinned = np.zeros(bins) 
+        if len(bwnewBinned) == 0:  bwnewBinned  = np.zeros(bins)
+        if len(sw2newBinned) == 0: sw2newBinned = np.zeros(bins)
+        if len(swnewBinned) == 0:  swnewBinned  = np.zeros(bins)
+
+        print(bwnewBinned, swnewBinned, bw2newBinned, sw2newBinned)
+
+        if not np.any(bw2newBinned): bw2newBinned += 10e-2
+        if not np.any(bwnewBinned):  bwnewBinned += 10e-2
+        if not np.any(sw2newBinned): sw2newBinned += 10e-2
+        if not np.any(swnewBinned):  swnewBinned += 10e-2
+
         fig = plt.figure()
 
         ax = hep.histplot(h=bwnewBinned, bins=binEdges, w2=bw2newBinned, density=True, histtype="step", label="Background", alpha=0.9, lw=2)
@@ -138,14 +152,16 @@ class Validation:
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(handles[-2:], labels[-2:], loc=2, frameon=False)
  
-        fig.savefig(self.config["outputDirSpec"]+"/Disc%s_BvsS_m%s.png"%(tag1,mass))
+        if Njets == -1: fig.savefig(self.config["outputDirSpec"]+"/Disc%s_BvsS_m%s.png"%(tag1,mass))
+        else:           fig.savefig(self.config["outputDirSpec"]+"/Disc%s_BvsS_m%s_Njets%d.png"%(tag1,mass,Njets))
+
         plt.close(fig)
 
     # Member function to plot the discriminant variable while making a selection on another discriminant
     # Compare the discriminant shape on either "side" of the selection on the other disc.
-    def plotDiscWithCutCompare(self, c, d1, d2, dw, tag1, tag2, tag3, mass = "", arange=(0,1), bins=100):
-        dgt = np.zeros(len(d1)); dwgt = np.zeros(len(d1)); dw2gt = np.zeros(len(d1))
-        dlt = np.zeros(len(d1)); dwlt = np.zeros(len(d1)); dw2lt = np.zeros(len(d1))
+    def plotDiscWithCutCompare(self, c, d1, d2, dw, tag1, tag2, tag3, mass = "", Njets=-1, bins=100, arange=(0,1)):
+        dgt = np.zeros(len(d1)); dwgt = np.ones(len(d1)); dw2gt = np.ones(len(d1))
+        dlt = np.zeros(len(d1)); dwlt = np.ones(len(d1)); dw2lt = np.ones(len(d1))
         j = 0
         for i in range(0, len(d2)):
         
@@ -160,6 +176,16 @@ class Validation:
         dw2gtBinned, binEdges = np.histogram(dgt, bins=bins, range=arange, weights=dw2gt)
         dwltBinned,  binEdges = np.histogram(dlt, bins=bins, range=arange, weights=dwlt)
         dw2ltBinned, binEdges = np.histogram(dlt, bins=bins, range=arange, weights=dw2lt)
+    
+        if len(dw2gtBinned): dw2gtBinned = np.zeros(bins)
+        if len(dwgtBinned):  dwgtBinned  = np.zeros(bins)
+        if len(dw2ltBinned): dw2ltBinned = np.zeros(bins)
+        if len(dwltBinned):  dwltBinned  = np.zeros(bins)
+
+        if not np.any(dw2gtBinned): dw2gtBinned += 10e-2
+        if not np.any(dwgtBinned):  dwgtBinned += 10e-2
+        if not np.any(dw2ltBinned): dw2ltBinned += 10e-2
+        if not np.any(dwltBinned):  dwltBinned += 10e-2
 
         fig = plt.figure()
 
@@ -173,7 +199,9 @@ class Validation:
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(handles[-2:], labels[-2:], loc=2, frameon=False)
 
-        fig.savefig(self.config["outputDirSpec"]+"/%s%s_Disc%s_Compare_Shapes.png"%(tag3, mass, tag1))
+        if Njets == -1: fig.savefig(self.config["outputDirSpec"]+"/%s%s_Disc%s_Compare_Shapes.png"%(tag3, mass, tag1))
+        else:           fig.savefig(self.config["outputDirSpec"]+"/%s%s_Njets%d_Disc%s_Compare_Shapes.png"%(tag3, mass, Njets, tag1))
+
         plt.close(fig)
 
     # Plot loss of training vs test
@@ -239,7 +267,7 @@ class Validation:
         plt.close(fig)
 
     # Plot disc1 vs disc2 for both background and signal
-    def plotD1VsD2SigVsBkgd(self, b1, b2, s1, s2, mass):
+    def plotD1VsD2SigVsBkgd(self, b1, b2, s1, s2, mass, Njets=-1):
         fig = plt.figure()
         ax1 = fig.add_subplot(111)
         hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax1)
@@ -250,7 +278,8 @@ class Validation:
         ax1.set_xlabel("Disc. 1")
         ax1.set_ylabel("Disc. 2")
         plt.legend(loc='best');
-        fig.savefig(self.config["outputDir"]+"/2D_SigVsBkgd_Disc1VsDisc2_m%s.png"%(mass), dpi=fig.dpi)        
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/2D_SigVsBkgd_Disc1VsDisc2_m%s.png"%(mass), dpi=fig.dpi)        
+        else:           fig.savefig(self.config["outputDir"]+"/2D_SigVsBkgd_Disc1VsDisc2_m%s_Njets%d.png"%(mass,Njets), dpi=fig.dpi)  
         plt.close(fig)
 
     def plotPandR(self, pval, rval, ptrain, rtrain, valLab, trainLab):
@@ -268,9 +297,11 @@ class Validation:
         plt.close(fig)
 
     # Just plot the 2D for either background or signal
-    def plotDisc1vsDisc2(self, disc1, disc2, bw, sw, c1, c2, significance, tag, nBins=100, mass = ""):
+    def plotDisc1vsDisc2(self, disc1, disc2, bw, sw, c1, c2, significance, tag, mass = "", Njets = -1, nBins = 100):
         fig = plt.figure() 
-        corr = cor.pearson_corr(disc1, disc2)
+        corr = -999.0
+        try: corr = cor.pearson_corr(disc1, disc2)
+        except: print("Correlation coefficient could not be calculated!")
         plt.hist2d(disc1, disc2, bins=[nBins, nBins], range=[[0, 1], [0, 1]], cmap=plt.cm.jet, weights=bw, cmin = sw.min())
         plt.colorbar()
         ax = plt.gca()
@@ -280,7 +311,9 @@ class Validation:
         plt.text(0.05, 0.90, r"$\bf{CC}$ = %.3f"%(corr), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
         plt.text(0.05, 0.95, r"$\bf{Significance}$ = %.3f"%(significance), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
         hep.cms.label(data=True, paper=False, year=self.config["year"])
-        fig.savefig(self.config["outputDirSpec"]+"/2D_%s%s_Disc1VsDisc2.png"%(tag,mass), dpi=fig.dpi)
+
+        if Njets == -1: fig.savefig(self.config["outputDirSpec"]+"/2D_%s%s_Disc1VsDisc2.png"%(tag,mass), dpi=fig.dpi)
+        else:           fig.savefig(self.config["outputDirSpec"]+"/2D_%s%s_Njets%d_Disc1VsDisc2.png"%(tag,mass,Njets), dpi=fig.dpi)
 
     def cutAndCount(self, c1s, c2s, b1, b2, bw, s1, s2, sw, cdiff = 0.2):
         # First get the total counts in region "D" for all possible c1, c2
@@ -449,6 +482,9 @@ class Validation:
         plt.close(fig)
 
     def makePlots(self, doQuickVal=False, mass="400"):
+        NJetsRange = range(self.config["minNJetBin"], self.config["maxNJetBin"]+1)
+        massMask = self.trainSg["mask_m%s"%(mass)]
+
         sgValSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+mass+"*Val.root") for mass in self.config["massModels"]) , [])
         bgValSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+ttbar+"*Val.root") for ttbar in self.config["ttbarMC"][1]), [])
         sgOTrainSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+mass+"*Val.root") for mass in self.config["othermassModels"]) , [])
@@ -499,7 +535,6 @@ class Validation:
         #               self.trainSg["Weight"][self.trainSg["mask_m850"]], self.trainSg["Weight"][self.trainSg["mask_m1200"]], self.trainBg["Weight"]], 
         #              "mass_split_log", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg, doLog=True)
 
-        self.plotD1VsD2SigVsBkgd(y_Train_Bg_disc1, y_Train_Bg_disc2, y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], mass)
 
         # Plot Acc vs Epoch
         self.plotAccVsEpoch('loss', 'val_loss', 'model loss', 'loss_train_val')
@@ -512,12 +547,13 @@ class Validation:
         self.plotDiscPerNjet("_Disc2", {"Bg": [self.trainBg, y_Train_Bg_disc2, self.trainBg["Weight"]], "Sg": [self.trainSg, y_Train_Sg_disc2, self.trainSg["Weight"]]}, nBins=nBins)
         
         if not doQuickVal:
+            self.plotD1VsD2SigVsBkgd(y_Train_Bg_disc1, y_Train_Bg_disc2, y_Train_Sg_disc1[massMask], y_Train_Sg_disc2[massMask], mass)
             # Make arrays for possible values to cut on for both discriminant
             # starting at a minimum of 0.5 for each
-            c1s = np.arange(0.20, 0.95, 0.05); c2s = np.arange(0.20, 0.95, 0.05)
+            c1s = np.arange(0.70, 0.95, 0.05); c2s = np.arange(0.70, 0.95, 0.05)
         
             # Get number of background and signal counts for each A, B, C, D region for every possible combination of cuts on disc 1 and disc 2
-            bc, sc = self.cutAndCount(c1s, c2s, y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]])
+            bc, sc = self.cutAndCount(c1s, c2s, y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], y_Train_Sg_disc1[massMask], y_Train_Sg_disc2[massMask], self.trainSg["Weight"][:,0][massMask])
         
             # Plot signal contamination versus background rejection
             self.plotBkgdRejVsSigCont(bc, sc, mass)
@@ -537,18 +573,44 @@ class Validation:
                 os.makedirs(self.config["outputDirSpec"])
         
                 # Plot each discriminant for sig and background while making cut on other disc
-                self.plotDiscWithCut(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "1", "2", mass=mass, bins=nBins)
-                self.plotDiscWithCut(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "2", "1", mass=mass, bins=nBins)
+                self.plotDiscWithCut(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], y_Train_Sg_disc1[massMask], y_Train_Sg_disc2[massMask], self.trainSg["Weight"][:,0][massMask], "1", "2", mass=mass, Njets=-1, bins=nBins)
+                self.plotDiscWithCut(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], y_Train_Sg_disc2[massMask], y_Train_Sg_disc1[massMask], self.trainSg["Weight"][:,0][massMask], "2", "1", mass=mass, Njets=-1, bins=nBins)
         
-                self.plotDiscWithCutCompare(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], "1", "2", "BG", bins=10)
-                self.plotDiscWithCutCompare(float(c2), y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "1", "2", "SG", mass=mass, bins=10)
+                self.plotDiscWithCutCompare(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], "1", "2", "BG", mass="", Njets=-1, bins=10)
+                self.plotDiscWithCutCompare(float(c2), y_Train_Sg_disc1[massMask], y_Train_Sg_disc2[massMask], self.trainSg["Weight"][:,0][massMask], "1", "2", "SG", mass=mass, Njets=-1, bins=10)
         
                 self.plotDiscWithCutCompare(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], "2", "1", "BG", bins=10)
-                self.plotDiscWithCutCompare(float(c1), y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], "2", "1", "SG", mass=mass, bins=10)
+                self.plotDiscWithCutCompare(float(c1), y_Train_Sg_disc2[massMask], y_Train_Sg_disc1[massMask], self.trainSg["Weight"][:,0][massMask], "2", "1", "SG", mass=mass, Njets=-1, bins=10)
         
                 # Plot 2D of the discriminants
                 self.plotDisc1vsDisc2(y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], self.trainSg["Weight"][:,0], float(c1), float(c2), significance, "BG")
-                self.plotDisc1vsDisc2(y_Train_Sg_disc1[self.trainSg["mask_m%s"%(mass)]], y_Train_Sg_disc2[self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], self.trainSg["Weight"][:,0][self.trainSg["mask_m%s"%(mass)]], float(c1), float(c2), significance, "SG", mass=mass)
+                self.plotDisc1vsDisc2(y_Train_Sg_disc1[massMask], y_Train_Sg_disc2[massMask], self.trainSg["Weight"][:,0][massMask], self.trainSg["Weight"][:,0][massMask], float(c1), float(c2), significance, "SG", mass=mass)
+
+            for NJets in NJetsRange:
+            
+                njetsStr = "mask_nJet_%s"%(("%s"%(NJets)).zfill(2))
+                bkgNjetsMask = self.trainBg[njetsStr]; sigNjetsMask = self.trainSg[njetsStr]
+                bkgFullMask  = bkgNjetsMask;           sigFullMask  = massMask & sigNjetsMask
+
+                # Avoid completely masked Njets bins that makes below plotting
+                # highly unsafe
+                if not any(bkgNjetsMask) or not any(sigNjetsMask): continue
+
+                self.plotD1VsD2SigVsBkgd(y_Train_Bg_disc1[bkgFullMask], y_Train_Bg_disc2[bkgFullMask], y_Train_Sg_disc1[sigFullMask], y_Train_Sg_disc2[sigFullMask], mass, NJets)
+
+                # Plot each discriminant for sig and background while making cut on other disc
+                self.plotDiscWithCut(float(c2), y_Train_Bg_disc1[bkgFullMask], y_Train_Bg_disc2[bkgFullMask], self.trainBg["Weight"][:,0][bkgFullMask], y_Train_Sg_disc1[sigFullMask], y_Train_Sg_disc2[sigFullMask], self.trainSg["Weight"][:,0][sigFullMask], "1", "2", mass=mass, Njets=NJets, bins=nBins)
+                self.plotDiscWithCut(float(c1), y_Train_Bg_disc2[bkgFullMask], y_Train_Bg_disc1[bkgFullMask], self.trainBg["Weight"][:,0][bkgFullMask], y_Train_Sg_disc2[sigFullMask], y_Train_Sg_disc1[sigFullMask], self.trainSg["Weight"][:,0][sigFullMask], "2", "1", mass=mass, Njets=NJets, bins=nBins)
+            
+                self.plotDiscWithCutCompare(float(c2), y_Train_Bg_disc1[bkgFullMask], y_Train_Bg_disc2[bkgFullMask], self.trainBg["Weight"][:,0][bkgFullMask], "1", "2", "BG", mass="", Njets=-1, bins=10)
+                self.plotDiscWithCutCompare(float(c2), y_Train_Sg_disc1[sigFullMask], y_Train_Sg_disc2[sigFullMask], self.trainSg["Weight"][:,0][sigFullMask], "1", "2", "SG", bins=nBins, mass=mass, Njets=NJets)
+            
+                self.plotDiscWithCutCompare(float(c1), y_Train_Bg_disc2[bkgFullMask], y_Train_Bg_disc1[bkgFullMask], self.trainBg["Weight"][:,0][bkgFullMask], "2", "1", "BG", mass="", Njets=-1, bins=10)
+                self.plotDiscWithCutCompare(float(c1), y_Train_Sg_disc2[sigFullMask], y_Train_Sg_disc1[sigFullMask], self.trainSg["Weight"][:,0][sigFullMask], "2", "1", "SG", bins=nBins, mass=mass, Njets=NJets)
+            
+                # Plot 2D of the discriminants
+                self.plotDisc1vsDisc2(y_Train_Bg_disc1[bkgFullMask], y_Train_Bg_disc2[bkgFullMask], self.trainBg["Weight"][:,0][bkgFullMask], self.trainSg["Weight"][:,0][sigFullMask], float(c1), float(c2), significance, "BG", mass="",   Njets=NJets)
+                self.plotDisc1vsDisc2(y_Train_Sg_disc1[sigFullMask], y_Train_Sg_disc2[sigFullMask], self.trainSg["Weight"][:,0][sigFullMask], self.trainSg["Weight"][:,0][sigFullMask], float(c1), float(c2), significance, "SG", mass=mass, Njets=NJets)
         
         # Plot validation roc curve
         fpr_Val_disc1, tpr_Val_disc1, thresholds_Val_disc1 = roc_curve(valData["labels"][:,0], y_Val_disc1, sample_weight=valData["Weight"][:,0])
