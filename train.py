@@ -75,7 +75,7 @@ class Train:
             val_2 = tf.reshape(y_pred[:, 2:3], [-1])
             normedweight = tf.ones_like(val_1)
 
-            #Mask all signal events
+            ##Mask all signal events
             #mask = tf.reshape(y_mask[:,  1:2], [-1])
             #val_1 = tf.boolean_mask(val_1, mask)
             #val_2 = tf.boolean_mask(val_2, mask)
@@ -186,7 +186,7 @@ class Train:
         config["allVars"] = jVecs + lepton + eventShapeVars + numJets + extra# + jVecsAK8
         return config
         
-    def train(self, config = {"gr_lambda": 0.0, "cor_lambda": 100.0, "nNodes":300, "nNodesD":40, "nNodesM":500,
+    def train(self, config = {"gr_lambda": 1.0, "cor_lambda": 100.0, "nNodes":300, "nNodesD":40, "nNodesM":500,
                               "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3,
                               "batch_size":15001, "epochs":10, "lr":0.001}, doQuickVal=False, minStopMass=300, maxStopMass=1400, model="*", valMass=500):
     
@@ -264,8 +264,8 @@ class Train:
         print("----------------Preparing training model------------------")
         # Kelvin says no
         self.gpu_allow_mem_grow()
-        #model = self.make_model(config, trainData, trainDataTT)
-        model = self.make_doubleDisco_model(config, trainData, trainDataTT)
+        model = self.make_model(config, trainData, trainDataTT)
+        #model = self.make_doubleDisco_model(config, trainData, trainDataTT)
         #model = self.make_model_reg(config, trainData, trainDataTT)
         callbacks = self.get_callbacks(config)
         maskTrain = np.concatenate((trainData["labels"],trainData["labels"]), axis=1)
@@ -273,20 +273,20 @@ class Train:
         
         # Training model
         print("----------------Training model------------------")
-        #result_log = model.fit(trainData["data"], [trainData["labels"], trainData["labels"], trainData["domain"], maskTrain, trainData["masses"]], 
-        #                       batch_size=config["batch_size"], epochs=config["epochs"], class_weight=config["class_weight"], 
-        #                       validation_data=(testData["data"], [testData["labels"], testData["labels"], testData["domain"], maskTest, testData["masses"]]), 
-        #                       callbacks=callbacks, sample_weight=config["sample_weight"])
-        result_log = model.fit(trainData["data"], [trainData["labels"], trainData["labels"], trainData["domain"], maskTrain], 
+        result_log = model.fit(trainData["data"], [trainData["labels"], trainData["labels"], trainData["domain"], maskTrain, trainData["masses"]], 
                                batch_size=config["batch_size"], epochs=config["epochs"], callbacks=callbacks,
-                               validation_data=(testData["data"], [testData["labels"], testData["labels"], testData["domain"], maskTest], testData["sample_weight"]), 
-                               sample_weight=trainData["sample_weight"])
+                               validation_data=(testData["data"], [testData["labels"], testData["labels"], testData["domain"], maskTest, testData["masses"]], testData["sample_weight"]), 
+                               sample_weight=config["sample_weight"])
+        #result_log = model.fit(trainData["data"], [trainData["labels"], trainData["labels"], trainData["domain"], maskTrain], 
+        #                       batch_size=config["batch_size"], epochs=config["epochs"], callbacks=callbacks,
+        #                       validation_data=(testData["data"], [testData["labels"], testData["labels"], testData["domain"], maskTest], testData["sample_weight"]), 
+        #                       sample_weight=trainData["sample_weight"])
         #result_log = model.fit(trainData["data"], trainData["masses"], epochs=config["epochs"], sample_weight=trainData["sample_weight"],
         #                       validation_data=(testData["data"], testData["masses"], testData["sample_weight"]), callbacks=callbacks)
 
         # Model Visualization
         print("----------------Printed model layout------------------")
-        #self.plot_model(model, config)
+        self.plot_model(model, config)
         
         # Save trainig model as a protocol buffers file
         print("----------------Saving model------------------")
