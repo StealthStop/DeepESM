@@ -293,7 +293,7 @@ class Train:
 
         # Model Visualization
         print("----------------Printed model layout------------------")
-        #self.plot_model(model, config)
+        self.plot_model(model, config)
         
         # Save trainig model as a protocol buffers file
         print("----------------Saving model------------------")

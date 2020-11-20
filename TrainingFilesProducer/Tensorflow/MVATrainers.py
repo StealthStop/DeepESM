@@ -4,8 +4,11 @@ from DataGetter import DataGetter
 from math import sqrt, exp
 from time import sleep
 from glob import glob
+import os
 
 dataPath = "/cms/data/cmadrid/EventShapeTrainingData_V2"
+
+USER = os.getenv("USER")
 
 def mainSKL(options):
 
@@ -248,7 +251,9 @@ def mainTF(options):
   mlp = CreateModel(options, denseNetwork, convLayers, rnnNodes, rnnLayers, dm.inputDataQueue, MiniBatchSize, mins, 1.0/ptps)
 
   #summary writer
-  summary_writer = tf.summary.FileWriter("/storage/local/data1/gpuscratch/jhiltbra" + "log_graph", graph=tf.get_default_graph())
+  summary_path = "/storage/local/data1/gpuscratch/%s"%(USER)
+  os.makedirs(summary_path)
+  summary_writer = tf.summary.FileWriter(summary_path + "/log_graph", graph=tf.get_default_graph())
 
   print "TRAINING NETWORK"
 
