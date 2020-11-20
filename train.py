@@ -14,10 +14,13 @@ from Correlation import Correlation as cor
 import json
 import argparse
 from Models import main_model, doubleDisco_model, model_reg
+import os
 
 class Train:
-    #def __init__(self):
-    #    print("Constructor")
+    def __init__(self, USER):
+        self.user = USER
+        self.logdir = "/storage/local/data1/gpuscratch/%s"%(self.user)
+        os.makedirs(self.logdir)
         
     # Makes a fully connected DNN 
     def DNN_model(self, n_var, n_first_layer, n_hidden_layers, n_last_layer, drop_out):
@@ -103,7 +106,7 @@ class Train:
         return model
 
     def get_callbacks(self, config):
-        tbCallBack = K.callbacks.TensorBoard(log_dir="/storage/local/data1/gpuscratch/jhiltbra"+"/log_graph", histogram_freq=0, write_graph=True, write_images=True)
+        tbCallBack = K.callbacks.TensorBoard(log_dir=self.logdir+"/log_graph", histogram_freq=0, write_graph=True, write_images=True)
         log_model = K.callbacks.ModelCheckpoint(config["outputDir"]+"/BestNN.hdf5", monitor='val_loss', verbose=config["verbose"], save_best_only=True)
         earlyStop = K.callbacks.EarlyStopping(monitor="val_loss", min_delta=0, patience=5, verbose=0, mode="auto", baseline=None)
         callbacks = []
@@ -323,10 +326,12 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    USER = os.getenv("USER")
+
     model = "*"
     if args.model != "*": model = "*%s*"%(args.model)
 
-    t = Train()
+    t = Train(USER)
     if args.json != "NULL": 
         config = None
         with open(str(args.json), "r") as f:
