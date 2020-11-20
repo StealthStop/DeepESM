@@ -170,7 +170,7 @@ class DataGetter:
 
         #sample weight for signal masses
         d = dict(zip(unique, counts))
-        m = -1.0; counts = 0.0
+        m = -999; counts = 0.0
         for massNjets, c in dnjets.items():
             if c > m: m = c
         for massNjets, c in dnjets.items():
@@ -208,7 +208,7 @@ class DataGetter:
         # Do some final changes to the weights for background and signal
         factor = 1.0
         for massNjets, w in dSG.items():
-            if massNjets-450.0 < 0.0:
+            if massNjets-150.0 < 0.0:
                 dSG[massNjets] = 1.0
             else:
                 dSG[massNjets] = round(factor*dSG[massNjets], 3)

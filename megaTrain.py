@@ -17,7 +17,7 @@ def parallel_train(config):
      #############################################
      with open("temp.json",'w') as f:
           json.dump(config, f)
-     command = "run \"./train.py --json temp.json\""
+     command = "run \"python train.py --json temp.json --minMass 550 --valMass 550 --year 2016_2017_2018\""
      print( command )
      os.system(command)
 
@@ -51,14 +51,10 @@ if __name__ == '__main__':
      index = 0
      totals = {}
      result = {}
-     for cor_lambda in [0.0, 10.0]:
-     #for cor_lambda in [0.0, 10.0, 50.0, 200.0, 500.0, 1000.0, 2000.0]:
-          index += 1.0
-          config = {"gr_lambda": 0.0, "cor_lambda": float(cor_lambda), "nNodes":100, "nNodesD":1, "nNodesM":100,
-                    "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3,
-                    #"batch_size":16384, "epochs":60, "lr":0.001}
-                    "batch_size":16384, "epochs":2, "lr":0.001}
-          configList.append(config)
+     for epochs in range(1,14):
+         index += 1.0
+         config = {"disc1_lambda":1.0, "disc2_lambda":1.0, "reg_lambda": 1.0, "gr_lambda": 1.0, "cor_lambda": 45.0, "nNodes":300, "nNodesD":40, "nNodesM":500, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":16384, "epochs": int(epochs), "lr":0.001}
+         configList.append(config)
 
      #for epoch in [40, 50, 65, 70, 80]:
      #     index += 1.0
@@ -79,10 +75,10 @@ if __name__ == '__main__':
      #                                             "nHLayersD":nHLayersD, "drop_out":float(drop_out)/10.0, "batch_size":2048, "epochs":epochs, "lr":0.001, "verbose":0, "Mask":False, "Mask_nJet":7}
      #                                   configList.append(config)
 
-     timePerTraining = 10.0 #min
+     timePerTraining = 25.0 #min
      totalTime = timePerTraining*index #min
      print( red("Total number of trainings: " + str(index)) )
-     print( red("Estimated time: " +str(totalTime)+ " minuets or " + str(totalTime/60.0) + " hours or " + str(totalTime/60.0/24.0) + " days") )
+     print( red("Estimated time: " +str(totalTime)+ " minutes or " + str(totalTime/60.0) + " hours or " + str(totalTime/60.0/24.0) + " days") )
                        
      #Parallel training
      #pool = Pool(processes=1)

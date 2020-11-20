@@ -248,7 +248,7 @@ def mainTF(options):
   mlp = CreateModel(options, denseNetwork, convLayers, rnnNodes, rnnLayers, dm.inputDataQueue, MiniBatchSize, mins, 1.0/ptps)
 
   #summary writer
-  summary_writer = tf.summary.FileWriter(options.runOp.directory + "log_graph", graph=tf.get_default_graph())
+  summary_writer = tf.summary.FileWriter("/storage/local/data1/gpuscratch/jhiltbra" + "log_graph", graph=tf.get_default_graph())
 
   print "TRAINING NETWORK"
 
