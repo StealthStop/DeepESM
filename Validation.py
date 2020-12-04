@@ -18,7 +18,7 @@ from Correlation import Correlation as cor
 
 class Validation:
 
-    def __init__(self, model, config, sgTrainSet, trainData, trainSg, trainBg, result_log):
+    def __init__(self, model, config, sgTrainSet, trainData, trainSg, trainBg, result_log=None):
         self.model = model
         self.config = config
         self.sgTrainSet = sgTrainSet
@@ -102,22 +102,12 @@ class Validation:
     # Member function to plot the discriminant variable while making a selection on another discriminant
     # The result for signal and background are shown together
     def plotDiscWithCut(self, c, b1, b2, bw, s1, s2, sw, tag1, tag2, mass, Njets=-1, bins=100, arange=(0,1)):
-        bnew = np.zeros(len(b1)); bwnew = np.ones(len(b1)); bw2new = np.ones(len(b1))
-        snew = np.zeros(len(s1)); swnew = np.ones(len(s1)); sw2new = np.ones(len(s1))
-        blong = len(b1); slong = len(s1)
-        total = blong if blong > slong else slong 
-        j = 0; k = 0
-        for i in range(0, total):
+        maskBGT = np.ma.masked_where(b2>c, b2).mask
+        maskSGT = np.ma.masked_where(s2>c, s2).mask
 
-            if i < blong:        
-                if b2[i] > c:
-                    bnew[j] = b1[i]; bwnew[j] = bw[i]; bw2new[j] = bw[i]**2.0
-                    j += 1
-
-            if i < slong:
-                if s2[i] > c:
-                    snew[k] = s1[i]; swnew[k] = sw[i]; sw2new[k] = sw[i]**2.0
-                    k += 1
+        bnew = b1[maskBGT]; snew = s1[maskSGT]
+        bwnew = bw[maskBGT]; swnew = sw[maskSGT]
+        bw2new = np.square(bwnew); sw2new = np.square(swnew)
 
         bwnewBinned, binEdges  = np.histogram(bnew, bins=bins, range=arange, weights=bwnew)
         swnewBinned, binEdges  = np.histogram(snew, bins=bins, range=arange, weights=swnew)
@@ -156,15 +146,12 @@ class Validation:
     # Member function to plot the discriminant variable while making a selection on another discriminant
     # Compare the discriminant shape on either "side" of the selection on the other disc.
     def plotDiscWithCutCompare(self, c, d1, d2, dw, tag1, tag2, tag3, mass = "", Njets=-1, bins=100, arange=(0,1)):
-        dgt = np.zeros(len(d1)); dwgt = np.zeros(len(d1)); dw2gt = np.zeros(len(d1))
-        dlt = np.zeros(len(d1)); dwlt = np.zeros(len(d1)); dw2lt = np.zeros(len(d1))
-        for i in range(0, len(d2)):
-        
-            if d2[i] > c:
-                dgt[i] = d1[i]; dwgt[i] = dw[i]; dw2gt[i] = dw[i]**2.0
-            else:
-                dlt[i] = d1[i]; dwlt[i] = dw[i]; dw2lt[i] = dw[i]**2.0
-    
+        maskGT = np.ma.masked_where(d2>c, d2).mask; maskLT = ~maskGT
+
+        dgt = d1[maskGT]; dlt = d1[maskLT]
+        dwgt = dw[maskGT]; dwlt = dw[maskLT]
+        dw2gt = np.square(dwgt); dw2lt = np.square(dwlt)
+
         dwgtBinned,  binEdges = np.histogram(dgt, bins=bins, range=arange, weights=dwgt)
         dw2gtBinned, binEdges = np.histogram(dgt, bins=bins, range=arange, weights=dw2gt)
         dwltBinned,  binEdges = np.histogram(dlt, bins=bins, range=arange, weights=dwlt)
@@ -210,18 +197,17 @@ class Validation:
         fig.savefig(self.config["outputDir"]+"/%s.png"%(name), dpi=fig.dpi)
         plt.close(fig)
 
-    def plotAccVsEpochAll(self, h1, h2, h3, h4, h5, n1, n2, n3, n4, n5, val, title, name):
+    def plotAccVsEpochAll(self, h2, h3, h4, h5, n2, n3, n4, n5, val, title, name):
         fig = plt.figure()
         hep.cms.label(data=True, paper=False, year=self.config["year"])
-        plt.plot(self.result_log.history["%s%s_output_loss"%(val,h1)])
-        plt.plot(self.result_log.history["%s%s_output_loss"%(val,h2)])
+        plt.plot(self.result_log.history["%s%s_loss"%(val,h2)])
         plt.plot(self.result_log.history["%s%s_output_loss"%(val,h3)])
         plt.plot(self.result_log.history["%s%s_output_loss"%(val,h4)])
         plt.plot(self.result_log.history["%s%s_loss"%(val,h5)])
         plt.title(title, pad=45.0)
         plt.ylabel('loss')
         plt.xlabel('epoch')
-        plt.legend([n1, n2, n3, n4, n5], loc='best')
+        plt.legend([n2, n3, n4, n5], loc='best')
         fig.savefig(self.config["outputDir"]+"/%s.png"%(name), dpi=fig.dpi)
         plt.close(fig)
 
@@ -327,92 +313,131 @@ class Validation:
         # First get the total counts in region "D" for all possible c1, c2
         bcounts = {"A" : {}, "B" : {}, "C" : {}, "D" : {}, "A2" : {}, "B2" : {}, "C2" : {}, "D2" : {}}  
         scounts = {"A" : {}, "B" : {}, "C" : {}, "D" : {}, "A2" : {}, "B2" : {}, "C2" : {}, "D2" : {}}  
-        blong = len(b1); slong = len(s1)
-        total = blong if blong > slong else slong 
-        for i in range(0, total):
-            for c1 in c1s:
-                c1k = "%.2f"%c1
-                if c1k not in bcounts["A"]:
-                    bcounts["A"][c1k] = {}; bcounts["A2"][c1k] = {}
-                    bcounts["B"][c1k] = {}; bcounts["B2"][c1k] = {}
-                    bcounts["C"][c1k] = {}; bcounts["C2"][c1k] = {}
-                    bcounts["D"][c1k] = {}; bcounts["D2"][c1k] = {}
-                if c1k not in scounts["A"]:
-                    scounts["A"][c1k] = {}; scounts["A2"][c1k] = {} 
-                    scounts["B"][c1k] = {}; scounts["B2"][c1k] = {} 
-                    scounts["C"][c1k] = {}; scounts["C2"][c1k] = {} 
-                    scounts["D"][c1k] = {}; scounts["D2"][c1k] = {} 
 
-                for c2 in c2s:
-                
-                    # Keep scan of c1,c2 close to the diagnonal
-                    # Default c1 and c2 to be within 20% of one another
-                    if abs(1.0 - c1/c2) > cdiff: continue
+        for c1 in c1s:
+            c1k = "%.2f"%c1
+            if c1k not in bcounts["A"]:
+                bcounts["A"][c1k] = {}; bcounts["A2"][c1k] = {}
+                bcounts["B"][c1k] = {}; bcounts["B2"][c1k] = {}
+                bcounts["C"][c1k] = {}; bcounts["C2"][c1k] = {}
+                bcounts["D"][c1k] = {}; bcounts["D2"][c1k] = {}
+            if c1k not in scounts["A"]:
+                scounts["A"][c1k] = {}; scounts["A2"][c1k] = {} 
+                scounts["B"][c1k] = {}; scounts["B2"][c1k] = {} 
+                scounts["C"][c1k] = {}; scounts["C2"][c1k] = {} 
+                scounts["D"][c1k] = {}; scounts["D2"][c1k] = {} 
 
-                    c2k = "%.2f"%c2
-                    if c2k not in bcounts["A"][c1k]:
-                        bcounts["A"][c1k][c2k] = 0.0; bcounts["A2"][c1k][c2k] = 0.0
-                        bcounts["B"][c1k][c2k] = 0.0; bcounts["B2"][c1k][c2k] = 0.0
-                        bcounts["C"][c1k][c2k] = 0.0; bcounts["C2"][c1k][c2k] = 0.0
-                        bcounts["D"][c1k][c2k] = 0.0; bcounts["D2"][c1k][c2k] = 0.0
-                    if c2k not in scounts["A"][c1k]:
-                        scounts["A"][c1k][c2k] = 0.0; scounts["A2"][c1k][c2k] = 0.0
-                        scounts["B"][c1k][c2k] = 0.0; scounts["B2"][c1k][c2k] = 0.0
-                        scounts["C"][c1k][c2k] = 0.0; scounts["C2"][c1k][c2k] = 0.0
-                        scounts["D"][c1k][c2k] = 0.0; scounts["D2"][c1k][c2k] = 0.0
+            for c2 in c2s:
+            
+                # Keep scan of c1,c2 close to the diagnonal
+                # Default c1 and c2 to be within 20% of one another
+                if abs(1.0 - c1/c2) > cdiff: continue
 
-                    if i < blong:
-                        if b1[i] > c1 and b2[i] > c2:
-                            bcounts["A"][c1k][c2k]  += bw[i]
-                            bcounts["A2"][c1k][c2k] += bw[i]**2.0
-                        if b1[i] > c1 and b2[i] < c2:
-                            bcounts["B"][c1k][c2k]  += bw[i]
-                            bcounts["B2"][c1k][c2k] += bw[i]**2.0
-                        if b1[i] < c1 and b2[i] > c2:
-                            bcounts["C"][c1k][c2k]  += bw[i]
-                            bcounts["C2"][c1k][c2k] += bw[i]**2.0
-                        if b1[i] < c1 and b2[i] < c2:
-                            bcounts["D"][c1k][c2k]  += bw[i]
-                            bcounts["D2"][c1k][c2k] += bw[i]**2.0
-                    if i < slong:
-                        if s1[i] > c1 and s2[i] > c2:
-                            scounts["A"][c1k][c2k]  += sw[i]
-                            scounts["A2"][c1k][c2k] += sw[i]**2.0
-                        if s1[i] > c1 and s2[i] < c2:
-                            scounts["B"][c1k][c2k]  += sw[i]
-                            scounts["B2"][c1k][c2k] += sw[i]**2.0
-                        if s1[i] < c1 and s2[i] > c2:
-                            scounts["C"][c1k][c2k]  += sw[i]
-                            scounts["C2"][c1k][c2k] += sw[i]**2.0
-                        if s1[i] < c1 and s2[i] < c2:
-                            scounts["D"][c1k][c2k]  += sw[i]
-                            scounts["D2"][c1k][c2k] += sw[i]**2.0
+                c2k = "%.2f"%c2
+                if c2k not in bcounts["A"][c1k]:
+                    bcounts["A"][c1k][c2k] = 0.0; bcounts["A2"][c1k][c2k] = 0.0
+                    bcounts["B"][c1k][c2k] = 0.0; bcounts["B2"][c1k][c2k] = 0.0
+                    bcounts["C"][c1k][c2k] = 0.0; bcounts["C2"][c1k][c2k] = 0.0
+                    bcounts["D"][c1k][c2k] = 0.0; bcounts["D2"][c1k][c2k] = 0.0
+                if c2k not in scounts["A"][c1k]:
+                    scounts["A"][c1k][c2k] = 0.0; scounts["A2"][c1k][c2k] = 0.0
+                    scounts["B"][c1k][c2k] = 0.0; scounts["B2"][c1k][c2k] = 0.0
+                    scounts["C"][c1k][c2k] = 0.0; scounts["C2"][c1k][c2k] = 0.0
+                    scounts["D"][c1k][c2k] = 0.0; scounts["D2"][c1k][c2k] = 0.0
+
+                mask1BGT = np.ma.masked_where(b1>c1, b1).mask; mask1BLT = ~mask1BGT
+                mask1SGT = np.ma.masked_where(s1>c1, s1).mask; mask1SLT = ~mask1SGT
+
+                mask2BGT = np.ma.masked_where(b2>c2, b2).mask; mask2BLT = ~mask2BGT
+                mask2SGT = np.ma.masked_where(s2>c2, s2).mask; mask2SLT = ~mask2SGT
+
+                maskBA = mask1BGT&mask2BGT; maskSA = mask1SGT&mask2SGT
+                maskBB = mask1BGT&mask2BLT; maskSB = mask1SGT&mask2SLT
+                maskBC = mask1BLT&mask2BGT; maskSC = mask1SLT&mask2SGT
+                maskBD = mask1BLT&mask2BLT; maskSD = mask1SLT&mask2SLT
+
+                bcounts["A"][c1k][c2k]  = np.sum(bw[maskBA])
+                bcounts["A2"][c1k][c2k] = np.sum(np.square(bw[maskBA]))
+
+                bcounts["B"][c1k][c2k]  = np.sum(bw[maskBB])
+                bcounts["B2"][c1k][c2k] = np.sum(np.square(bw[maskBB]))
+
+                bcounts["C"][c1k][c2k]  = np.sum(bw[maskBC])
+                bcounts["C2"][c1k][c2k] = np.sum(np.square(bw[maskBC]))
+
+                bcounts["D"][c1k][c2k]  = np.sum(bw[maskBD])
+                bcounts["D2"][c1k][c2k] = np.sum(np.square(bw[maskBD]))
+
+                scounts["A"][c1k][c2k]  = np.sum(sw[maskSA])           
+                scounts["A2"][c1k][c2k] = np.sum(np.square(sw[maskSA]))
+                                                                       
+                scounts["B"][c1k][c2k]  = np.sum(sw[maskSB])           
+                scounts["B2"][c1k][c2k] = np.sum(np.square(sw[maskSB]))
+                                                                       
+                scounts["C"][c1k][c2k]  = np.sum(sw[maskSC])           
+                scounts["C2"][c1k][c2k] = np.sum(np.square(sw[maskSC]))
+                                                                       
+                scounts["D"][c1k][c2k]  = np.sum(sw[maskSD])           
+                scounts["D2"][c1k][c2k] = np.sum(np.square(sw[maskSD]))
 
         return bcounts, scounts
 
-    def findDiscCut4SigFrac(self, bcts, scts, minNB = 5.0, minNS = 5.0):
+    def findDiscCut4SigFrac(self, bcts, scts, minFracB = 0.1, minFracS = 0.1):
         # Now calculate signal fraction and significance 
         # Pick c1 and c2 that give 30% sig fraction and maximizes significance
-        significance = 0.0; sigFrac = 0.0; finalc1 = -1.0; finalc2 = 0.0; 
+        significance = 0.0; sigFrac = 0.0; finalc1 = -1.0; finalc2 = -1.0; 
+        closureErr = 0.0; metric = 999.0
         for c1k, c2s in bcts["A"].items():
             for c2k, temp in c2s.items():
+
+                bA = bcts["A"][c1k][c2k]; bB = bcts["B"][c1k][c2k]; bC = bcts["C"][c1k][c2k]; bD = bcts["D"][c1k][c2k]
+                sA = scts["A"][c1k][c2k]; sB = scts["B"][c1k][c2k]; sC = scts["C"][c1k][c2k]; sD = scts["D"][c1k][c2k]
+
                 tempsigfrac = -1.0 
-                if bcts["A"][c1k][c2k] + scts["A"][c1k][c2k] > 0.0: tempsigfrac = scts["A"][c1k][c2k] / (scts["A"][c1k][c2k] + bcts["A"][c1k][c2k])
-                else: tempsigfrac = -1.0
+                if bA + sA > 0.0: tempsigfrac = sA / (sA + bA)
+
+                bfracA = bA / (bA + bB + bC + bD)
+                sfracA = sA / (sA + sB + sC + sD)
+
+                bfracB = bB / (bA + bB + bC + bD)
+                sfracB = sB / (sA + sB + sC + sD)
+
+                bfracC = bC / (bA + bB + bC + bD)
+                sfracC = sC / (sA + sB + sC + sD)
+
+                bfracD = bD / (bA + bB + bC + bD)
+                sfracD = sD / (sA + sB + sC + sD)
 
                 # Minimum signal fraction requirement
-                if bcts["A"][c1k][c2k] > minNB and scts["A"][c1k][c2k] > minNS:
+                if bfracA > minFracB and sfracA > minFracS and \
+                   bfracB > minFracB and sfracB > minFracS and \
+                   bfracC > minFracB and sfracC > minFracS and \
+                   bfracD > minFracB and sfracD > minFracS:
 
                     sigFrac = tempsigfrac
 
-                    tempsignificance = -1.0
-                    if bcts["A"][c1k][c2k]: tempsignificance = scts["A"][c1k][c2k] / (bcts["A"][c1k][c2k] + 0.3*bcts["A"][c1k][c2k]**2.0)**0.5
-                    else: tempsignificance = -1.0
-                    
+                    tempsignificance = 0.0; tempclosureerr = 999.0; tempmetric = 999.0
+                    if bA > 0.0: tempsignificance += (sA / (bA + (0.3*bA)**2.0)**0.5)**2.0
+                    if bB > 0.0: tempsignificance += (sB / (bB + (0.3*bB)**2.0)**0.5)**2.0
+                    if bC > 0.0: tempsignificance += (sC / (bC + (0.3*bC)**2.0)**0.5)**2.0
+                    if bD > 0.0: tempsignificance += (sD / (bD + (0.3*bD)**2.0)**0.5)**2.0
+
+                    if bD > 0.0 and bA > 0.0: tempclosureerr = abs(1.0 - (bB * bC) / (bA * bD))
+
+                    tempsignificance = tempsignificance**0.5
+
+                    tempmetric = tempclosureerr / tempsignificance
+ 
                     # Save significance if we found a better one
-                    if tempsignificance > significance:
+                    #if tempsignificance > significance:
+                    #    finalc1 = c1k; finalc2 = c2k
+                    #    significance = tempsignificance
+
+                    if tempmetric < metric:
                         finalc1 = c1k; finalc2 = c2k
+                        metric = tempmetric
                         significance = tempsignificance
+                        closureErr = tempclosureerr
                 
         return finalc1, finalc2, significance, sigFrac
 
@@ -425,6 +450,11 @@ class Validation:
 
         num = bNC * bNB; den = bND * bNA
 
+        bNApred = -1.0; bNApredUnc = 0.0
+        if bND > 0.0:
+            bNApred = num / bND
+            bNApredUnc = ((bNC * bNBerr / bND)**2.0 + (bNCerr * bNB / bND)**2.0 + (bNC * bNB * bNDerr / bND**2.0)**2.0)**0.5
+
         if den > 0.0:
             closureErr = ((bNB * bNCerr / den)**2.0 + (bNBerr * bNC / den)**2.0 + ((num * bNAerr) / (den * bNA))**2.0 + ((num * bNDerr) / (den * bND))**2.0)**0.5
             closure = num / den
@@ -432,7 +462,7 @@ class Validation:
             closureErr = -999.0
             closure = -999.0
 
-        return closure, closureErr
+        return closure, closureErr, bNApred, bNApredUnc
 
     # Calculate Eq. 2.8 from https://arxiv.org/pdf/2007.14400.pdf
     def normSignalContamination(self, bNA, bNB, bNC, bND, sNA, sNB, sNC, sND):
@@ -466,7 +496,7 @@ class Validation:
         for c1, c2s in bc["A"].items():
             for c2, temp in c2s.items():
 
-                closure, closureErr = self.simpleClosureABCD(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2], bc["A2"][c1][c2]**0.5, bc["B2"][c1][c2]**0.5, bc["C2"][c1][c2]**0.5, bc["D2"][c1][c2]**0.5) 
+                closure, closureErr, _, _ = self.simpleClosureABCD(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2], bc["A2"][c1][c2]**0.5, bc["B2"][c1][c2]**0.5, bc["C2"][c1][c2]**0.5, bc["D2"][c1][c2]**0.5) 
                 if abs(1.0 - closure) < closureLimit: continue
 
                 sigContamination = self.normSignalContamination(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2], sc["A"][c1][c2], sc["B"][c1][c2], sc["C"][c1][c2], sc["D"][c1][c2])
@@ -562,6 +592,71 @@ class Validation:
 
         plt.close(fig)
 
+    def plotNjets(self, bkgd, bkgdErr, sig, sigErr, label):
+
+        newB = [bkgd[0]]; newB += bkgd
+        newS = [sig[0]];  newS += sig 
+        errX     = [i+0.5 for i in range(0, len(bkgd))]
+
+        sign = 0.0
+        for i in range(0, len(bkgd)):
+            if bkgd[i] > 0.0: sign += (sig[i] / (bkgd[i] + (0.3*bkgd[i])**2.0)**0.5)**2.0
+        sign = sign**0.5
+
+        binEdges = [i for i in range(0, len(newB))]
+
+        fig = plt.figure()
+        ax = plt.gca()
+        ax.set_yscale("log")
+        ax.set_ylim([1,10e4])
+
+        plt.step(binEdges, newB, label="Background", where="pre", color="black", linestyle="solid")
+        plt.step(binEdges, newS, label="Signal",     where="pre", color="red",   linestyle="solid")
+        plt.errorbar(errX, bkgd, yerr=bkgdErr, xerr=None, fmt='', ecolor="black", elinewidth=2, color=None, lw=0) 
+        plt.errorbar(errX, sig,  yerr=sigErr,  xerr=None, fmt='', ecolor="red", elinewidth=2, color=None, lw=0) 
+
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+
+        plt.xlabel('Number of jets')
+        plt.ylabel('Events')
+        plt.legend(loc='best')
+        plt.text(0.05, 0.94, r"Significance = %.2f"%(sign), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
+
+        fig.savefig(self.config["outputDir"]+"/Njets_Region_%s"%(label))
+
+        plt.close(fig)
+
+        return sign
+
+    def plotNjetsClosure(self, bkgd, bkgdUnc, bkgdPred, bkgdPredUnc):
+
+        newB        = [bkgd[0]];        newB        += bkgd
+        newBPred    = [bkgdPred[0]];    newBPred    += bkgdPred
+
+        print(newB)
+        binEdges = [i for i in range(0, len(newB))]
+        errX     = [i+0.5 for i in range(0, len(bkgd))]
+
+        fig = plt.figure()
+        ax = plt.gca()
+        ax.set_yscale("log")
+
+        plt.step(binEdges, newB,     label="Background",           where="pre", color="black", linestyle="dashed")
+        plt.step(binEdges, newBPred, label="Predicted Background", where="pre", color="red",   linestyle="solid")
+        plt.errorbar(errX, bkgdPred, yerr=bkgdPredUnc, xerr=None, fmt='', ecolor="red", elinewidth=2, color=None, lw=0) 
+        plt.errorbar(errX, bkgd,     yerr=bkgdUnc,    xerr=None, fmt='', ecolor="black", elinewidth=2, color=None, lw=0) 
+
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+
+        plt.xlabel('Number of jets')
+        plt.ylabel('Events')
+        plt.legend(loc='best')
+        #plt.text(0.05, 0.94, r"Closure = %.2f"%(closure), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
+
+        fig.savefig(self.config["outputDir"]+"/Njets_Region_A_PredVsActual")
+
+        plt.close(fig)
+
     def makePlots(self, doQuickVal=False, valMass="400"):
         NJetsRange = range(self.config["minNJetBin"], self.config["maxNJetBin"]+1)
         massMask = self.trainSg["mask_m%s"%(valMass)]
@@ -578,15 +673,13 @@ class Validation:
         output_Train, output_Train_Sg, output_Train_Bg = self.getOutput(self.model, self.trainData["data"], self.trainSg["data"], self.trainBg["data"])
         output_OTrain, output_OTrain_Sg, output_OTrain_Bg = self.getOutput(self.model, trainOData["data"], trainOSg["data"], trainOBg["data"])
 
-        y_Val_disc1, y_Val_Sg_disc1, y_Val_Bg_disc1 = self.getResults(output_Val, output_Val_Sg, output_Val_Bg, 0, 0)
-        y_Val_disc2, y_Val_Sg_disc2, y_Val_Bg_disc2 = self.getResults(output_Val, output_Val_Sg, output_Val_Bg, 1, 0)
-        y_Val_mass, y_Val_mass_Sg, y_Val_mass_Bg = self.getResults(output_Val, output_Val_Sg, output_Val_Bg, 4, 0)
-        #y_Val_mass, y_Val_mass_Sg, y_Val_mass_Bg = self.getResults(output_Val, output_Val_Sg, output_Val_Bg, 0, 0)
-        y_Train_disc1, y_Train_Sg_disc1, y_Train_Bg_disc1 = self.getResults(output_Train, output_Train_Sg, output_Train_Bg, 0, 0)
-        y_Train_disc2, y_Train_Sg_disc2, y_Train_Bg_disc2 = self.getResults(output_Train, output_Train_Sg, output_Train_Bg, 1, 0)
-        y_Train_mass, y_Train_mass_Sg, y_Train_mass_Bg = self.getResults(output_Train, output_Train_Sg, output_Train_Bg, 4, 0)
-        #y_Train_mass, y_Train_mass_Sg, y_Train_mass_Bg = self.getResults(output_Train, output_Train_Sg, output_Train_Bg, 0, 0)
-        y_OTrain, y_OTrain_Sg, y_OTrain_Bg = self.getResults(output_OTrain, output_OTrain_Sg, output_OTrain_Bg, 0, 0)
+        y_Val_disc1, y_Val_Sg_disc1, y_Val_Bg_disc1 = self.getResults(output_Val, output_Val_Sg, output_Val_Bg, outputNum=0, columnNum=0)
+        y_Val_disc2, y_Val_Sg_disc2, y_Val_Bg_disc2 = self.getResults(output_Val, output_Val_Sg, output_Val_Bg, outputNum=0, columnNum=2)
+        y_Val_mass, y_Val_mass_Sg, y_Val_mass_Bg = self.getResults(output_Val, output_Val_Sg, output_Val_Bg, outputNum=3, columnNum=0)
+        y_Train_disc1, y_Train_Sg_disc1, y_Train_Bg_disc1 = self.getResults(output_Train, output_Train_Sg, output_Train_Bg, outputNum=0, columnNum=0)
+        y_Train_disc2, y_Train_Sg_disc2, y_Train_Bg_disc2 = self.getResults(output_Train, output_Train_Sg, output_Train_Bg, outputNum=0, columnNum=2)
+        y_Train_mass, y_Train_mass_Sg, y_Train_mass_Bg = self.getResults(output_Train, output_Train_Sg, output_Train_Bg, outputNum=3, columnNum=0)
+        y_OTrain, y_OTrain_Sg, y_OTrain_Bg = self.getResults(output_OTrain, output_OTrain_Sg, output_OTrain_Bg, outputNum=1, columnNum=0)
 
         nBins = 20
         nBinsReg = 50
@@ -617,15 +710,17 @@ class Validation:
         self.plotDisc(tempMass, tempColors, tempNames, tempEvents, "mass_split", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg, doLog=True)
 
         # Plot Acc vs Epoch
-        self.plotAccVsEpoch('loss', 'val_loss', 'model loss', 'loss_train_val')
-        for rank in ["first", "second", "third"]: self.plotAccVsEpoch('%s_output_loss'%(rank), 'val_%s_output_loss'%(rank), '%s output loss'%(rank), '%s_output_loss_train_val'%(rank))        
+        if self.result_log != None:
+            self.plotAccVsEpoch('loss', 'val_loss', 'model loss', 'loss_train_val')
+            for rank in ["third", "fourth"]: self.plotAccVsEpoch('%s_output_loss'%(rank), 'val_%s_output_loss'%(rank), '%s output loss'%(rank), '%s_output_loss_train_val'%(rank))        
 
-        self.plotAccVsEpochAll('first', 'second', 'third', 'fourth' , 'correlation_layer', 'Disc. 1 Loss', 'Disc. 2 Loss', 'GR Loss', 'Regression Loss', 'Correlation Loss', '', 'train output loss', 'output_loss_train')
-        self.plotAccVsEpochAll('first', 'second', 'third', 'fourth' , 'correlation_layer', 'Disc. 1 Loss', 'Disc. 2 Loss', 'GR Loss', 'Regression Loss', 'Correlation Loss', 'val_', 'validation output loss', 'output_loss_val')
+            self.plotAccVsEpochAll('disc_comb_layer', 'third', 'fourth' , 'correlation_layer', 'Combined Disc Loss', 'GR Loss', 'Regression Loss', 'Correlation Loss', '', 'train output loss', 'output_loss_train')
+            self.plotAccVsEpochAll('disc_comb_layer', 'third', 'fourth' , 'correlation_layer', 'Combined Disc Loss', 'GR Loss', 'Regression Loss', 'Correlation Loss', 'val_', 'validation output loss', 'output_loss_val')
 
-        #for rank in ["first", "second", "third", "fourth"]: self.plotAccVsEpoch('%s_output_loss'%(rank), 'val_%s_output_loss'%(rank), '%s output loss'%(rank), '%s_output_loss_train_val'%(rank))        
-        self.plotAccVsEpoch('correlation_layer_loss', 'val_correlation_layer_loss', 'correlation_layer output loss', 'correlation_layer_loss_train_val')
-        
+            #for rank in ["first", "second", "third", "fourth"]: self.plotAccVsEpoch('%s_output_loss'%(rank), 'val_%s_output_loss'%(rank), '%s output loss'%(rank), '%s_output_loss_train_val'%(rank))        
+            self.plotAccVsEpoch('correlation_layer_loss', 'val_correlation_layer_loss', 'correlation_layer output loss', 'correlation_layer_loss_train_val')
+            self.plotAccVsEpoch('disc_comb_layer_loss', 'val_correlation_layer_loss', 'correlation_layer output loss', 'correlation_layer_loss_train_val')
+       
         # Plot disc per njet
         self.plotDiscPerNjet("_Disc1", {"Bg": [self.trainBg, y_Train_Bg_disc1, self.trainBg["Weight"]], "Sg": [self.trainSg, y_Train_Sg_disc1, self.trainSg["Weight"]]}, nBins=nBins)
         self.plotDiscPerNjet("_Disc2", {"Bg": [self.trainBg, y_Train_Bg_disc2, self.trainBg["Weight"]], "Sg": [self.trainSg, y_Train_Sg_disc2, self.trainSg["Weight"]]}, nBins=nBins)
@@ -634,7 +729,8 @@ class Validation:
             self.plotD1VsD2SigVsBkgd(y_Train_Bg_disc1, y_Train_Bg_disc2, y_Train_Sg_disc1[massMask], y_Train_Sg_disc2[massMask], valMass)
             # Make arrays for possible values to cut on for both discriminant
             # starting at a minimum of 0.5 for each
-            c1s = np.arange(0.50, 0.55, 0.05); c2s = np.arange(0.50, 0.55, 0.05)
+            #c1s = np.arange(0.70, 0.75, 0.05); c2s = np.arange(0.70, 0.75, 0.05)
+            c1s = np.arange(0.30, 0.85, 0.05); c2s = np.arange(0.30, 0.85, 0.05)
         
             # Get number of background and signal counts for each A, B, C, D region for every possible combination of cuts on disc 1 and disc 2
             bc, sc = self.cutAndCount(c1s, c2s, y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], y_Train_Sg_disc1[massMask], y_Train_Sg_disc2[massMask], self.trainSg["Weight"][:,0][massMask])
@@ -645,7 +741,7 @@ class Validation:
             # For a given signal fraction, figure out the cut on disc 1 and disc 2 that maximizes the significance
             c1, c2, significance, sigfrac = self.findDiscCut4SigFrac(bc, sc)
             if c1 != -1.0 and c2 != -1.0:
-                closure, closureUnc = self.simpleClosureABCD(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2], bc["A2"][c1][c2], bc["B2"][c1][c2], bc["C2"][c1][c2], bc["D2"][c1][c2])
+                closure, closureUnc, _, _ = self.simpleClosureABCD(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2], bc["A2"][c1][c2]**0.5, bc["B2"][c1][c2]**0.5, bc["C2"][c1][c2]**0.5, bc["D2"][c1][c2]**0.5)
                 self.metric["ABCDclosurePull"] = abs(1.0 - closure) / closureUnc
         
                 self.config["Disc1"] = c1
@@ -671,11 +767,43 @@ class Validation:
                 self.plotDisc1vsDisc2(y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], self.trainSg["Weight"][:,0], float(c1), float(c2), significance, "BG")
                 self.plotDisc1vsDisc2(y_Train_Sg_disc1[massMask], y_Train_Sg_disc2[massMask], self.trainSg["Weight"][:,0][massMask], self.trainSg["Weight"][:,0][massMask], float(c1), float(c2), significance, "SG", mass=valMass)
 
+            bkgdNjets = {"A" : [], "B" : [], "C" : [], "D" : []}; sigNjets = {"A" : [], "B" : [], "C" : [], "D" : []}
+            bkgdNjetsErr = {"A" : [], "B" : [], "C" : [], "D" : []}; sigNjetsErr = {"A" : [], "B" : [], "C" : [], "D" : []}
+            bkgdNjetsAPred = {"val" : [], "err" : []}
             for NJets in NJetsRange:
             
                 njetsStr = "mask_nJet_%s"%(("%s"%(NJets)).zfill(2))
                 bkgNjetsMask = self.trainBg[njetsStr]; sigNjetsMask = self.trainSg[njetsStr]
                 bkgFullMask  = bkgNjetsMask;           sigFullMask  = massMask & sigNjetsMask
+
+                # Get number of background and signal counts for each A, B, C, D region for every possible combination of cuts on disc 1 and disc 2
+                bc, sc = self.cutAndCount(c1s, c2s, y_Train_Bg_disc1[bkgFullMask], y_Train_Bg_disc2[bkgFullMask], self.trainBg["Weight"][:,0][bkgFullMask], y_Train_Sg_disc1[sigFullMask], y_Train_Sg_disc2[sigFullMask], self.trainSg["Weight"][:,0][sigFullMask])
+                c1, c2, significance, sigfrac = self.findDiscCut4SigFrac(bc, sc)
+                if c1 == -1.0 or c2 == -1.0:
+                    bkgdNjets["A"].append(0.0); sigNjets["A"].append(0.0)
+                    bkgdNjets["B"].append(0.0); sigNjets["B"].append(0.0)
+                    bkgdNjets["C"].append(0.0); sigNjets["C"].append(0.0)
+                    bkgdNjets["D"].append(0.0); sigNjets["D"].append(0.0)
+
+                    bkgdNjetsErr["A"].append(0.0); sigNjetsErr["A"].append(0.0)
+                    bkgdNjetsErr["B"].append(0.0); sigNjetsErr["B"].append(0.0)
+                    bkgdNjetsErr["C"].append(0.0); sigNjetsErr["C"].append(0.0)
+                    bkgdNjetsErr["D"].append(0.0); sigNjetsErr["D"].append(0.0)
+
+                    bkgdNjetsAPred["val"].append(0.0); bkgdNjetsAPred["err"].append(0.0)
+                else:
+                    closure, closureUnc, Apred, ApredUnc = self.simpleClosureABCD(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2], bc["A2"][c1][c2]**0.5, bc["B2"][c1][c2]**0.5, bc["C2"][c1][c2]**0.5, bc["D2"][c1][c2]**0.5)
+                    bkgdNjets["A"].append(bc["A"][c1][c2]); sigNjets["A"].append(sc["A"][c1][c2])
+                    bkgdNjets["B"].append(bc["B"][c1][c2]); sigNjets["B"].append(sc["B"][c1][c2])
+                    bkgdNjets["C"].append(bc["C"][c1][c2]); sigNjets["C"].append(sc["C"][c1][c2])
+                    bkgdNjets["D"].append(bc["D"][c1][c2]); sigNjets["D"].append(sc["D"][c1][c2])
+
+                    bkgdNjetsErr["A"].append(bc["A2"][c1][c2]**0.5); sigNjetsErr["A"].append(sc["A2"][c1][c2]**0.5)
+                    bkgdNjetsErr["B"].append(bc["B2"][c1][c2]**0.5); sigNjetsErr["B"].append(sc["B2"][c1][c2]**0.5)
+                    bkgdNjetsErr["C"].append(bc["C2"][c1][c2]**0.5); sigNjetsErr["C"].append(sc["C2"][c1][c2]**0.5)
+                    bkgdNjetsErr["D"].append(bc["D2"][c1][c2]**0.5); sigNjetsErr["D"].append(sc["D2"][c1][c2]**0.5)
+
+                    bkgdNjetsAPred["val"].append(Apred); bkgdNjetsAPred["err"].append(ApredUnc)
 
                 # Avoid completely masked Njets bins that makes below plotting
                 # highly unsafe
@@ -696,7 +824,26 @@ class Validation:
                 # Plot 2D of the discriminants
                 self.plotDisc1vsDisc2(y_Train_Bg_disc1[bkgFullMask], y_Train_Bg_disc2[bkgFullMask], self.trainBg["Weight"][:,0][bkgFullMask], self.trainSg["Weight"][:,0][sigFullMask], float(c1), float(c2), significance, "BG", mass="",   Njets=NJets)
                 self.plotDisc1vsDisc2(y_Train_Sg_disc1[sigFullMask], y_Train_Sg_disc2[sigFullMask], self.trainSg["Weight"][:,0][sigFullMask], self.trainSg["Weight"][:,0][sigFullMask], float(c1), float(c2), significance, "SG", mass=valMass, Njets=NJets)
-        
+
+            signA = self.plotNjets(bkgdNjets["A"], bkgdNjetsErr["A"], sigNjets["A"], sigNjetsErr["A"], "A")
+            signB = self.plotNjets(bkgdNjets["B"], bkgdNjetsErr["B"], sigNjets["B"], sigNjetsErr["B"], "B")
+            signC = self.plotNjets(bkgdNjets["C"], bkgdNjetsErr["C"], sigNjets["C"], sigNjetsErr["C"], "C")
+            signD = self.plotNjets(bkgdNjets["D"], bkgdNjetsErr["D"], sigNjets["D"], sigNjetsErr["D"], "D")
+
+            self.plotNjetsClosure(bkgdNjets["A"], bkgdNjetsErr["A"], bkgdNjetsAPred["val"], bkgdNjetsAPred["err"])
+
+            self.config["Asignificance"] = signA
+            self.config["Bsignificance"] = signB
+            self.config["Csignificance"] = signC
+            self.config["Dsignificance"] = signD
+            self.config["TotalSignificance"] = (signA**2.0 + signB**2.0 + signC**2.0 + signD**2.0)**0.5
+
+            print("A SIGNIFICANCE: %3.2f"%(signA))
+            print("B SIGNIFICANCE: %3.2f"%(signB))
+            print("C SIGNIFICANCE: %3.2f"%(signC))
+            print("D SIGNIFICANCE: %3.2f"%(signD))
+            print("TOTAL SIGNIFICANCE: %3.2f"%((signA**2.0 + signB**2.0 + signC**2.0 + signD**2.0)**0.5))
+  
         # Plot validation roc curve
         fpr_Val_disc1, tpr_Val_disc1, thresholds_Val_disc1 = roc_curve(valData["labels"][:,0], y_Val_disc1, sample_weight=valData["Weight"][:,0])
         fpr_Val_disc2, tpr_Val_disc2, thresholds_Val_disc2 = roc_curve(valData["labels"][:,0], y_Val_disc2, sample_weight=valData["Weight"][:,0])
