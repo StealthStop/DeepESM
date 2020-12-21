@@ -17,12 +17,13 @@ from Models import main_model_alt, main_model_alt2, main_model, doubleDisco_mode
 import os
 
 class Train:
-    def __init__(self, USER, replay, hyperconfig, doQuickVal=False, minStopMass=300, maxStopMass=1400, model="*", valMass=500, year = "2016_2017_2018"):
+    def __init__(self, USER, replay, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, model="*", valMass=500, year = "2016_2017_2018"):
         self.user = USER
         self.logdir = "/storage/local/data1/gpuscratch/%s"%(self.user)
         self.config = {}
         self.config["minStopMass"] = int(minStopMass)
         self.config["maxStopMass"] = int(maxStopMass)
+        self.config["doReweight"] = doReweight
 
         self.doQuickVal = doQuickVal
         self.model = model
@@ -348,8 +349,8 @@ class Train:
         print("----------------Training model------------------")
         result_log = model.fit(trainData["data"], [maskTrain, trainData["domain"], maskTrain, trainData["masses"]], 
                                batch_size=self.config["batch_size"], epochs=self.config["epochs"], callbacks=callbacks,
-                               validation_data=(testData["data"], [maskTest, testData["domain"], maskTest, testData["masses"]])) #testData["sample_weight"]), 
-                               #sample_weight=self.config["sample_weight"])
+                               validation_data=(testData["data"], [maskTest, testData["domain"], maskTest, testData["masses"]], testData["sample_weight"]), 
+                               sample_weight=trainData["sample_weight"])
 
         # Model Visualization
         print("----------------Printed model layout------------------")
@@ -390,6 +391,7 @@ if __name__ == '__main__':
     usage = "usage: %prog [options]"
     parser = argparse.ArgumentParser(usage)
     parser.add_argument("--quickVal", dest="quickVal", help="Do quick validation", action="store_true", default=False) 
+    parser.add_argument("--reweight", dest="reweight", help="Do event reweighting", action="store_true", default=False) 
     parser.add_argument("--json",    dest="json",    help="JSON config file", default="NULL") 
     parser.add_argument("--minMass", dest="minMass", help="Minimum stop mass to train on", default=300)
     parser.add_argument("--maxMass", dest="maxMass", help="Maximum stop mass to train on", default=1400) 
@@ -414,7 +416,7 @@ if __name__ == '__main__':
     else:
         hyperconfig = {"atag" : "forChris", "disc_comb_lambda": 0.5, "gr_lambda": 1.0, "disc_lambda": 1.0, "bg_cor_lambda": 1000.0, "sg_cor_lambda": 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":16384, "epochs":10, "lr":0.001}
 
-    t = Train(USER, replay, hyperconfig, args.quickVal, minStopMass=args.minMass, maxStopMass=args.maxMass, model=model, valMass=args.valMass, year=args.year)
+    t = Train(USER, replay, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, model=model, valMass=args.valMass, year=args.year)
 
     if replay: t.replay()
 

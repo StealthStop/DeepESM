@@ -16,8 +16,8 @@ def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgW
     dgBg = DataGetter.DefinedVariables(config["allVars"],  signal = False, background = True)
 
     dataBg = None; dataSig = None
-    if    config["Mask"]: dataBg, dataSig = dgSig.importData(bgSamplesToRun = tuple(backgroundDataSet), sgSamplesToRun = tuple(signalDataSet), treename = "myMiniTree", maxNJetBin=config["maxNJetBin"], njetsMask=config["Mask_nJet"])
-    else:                 dataBg, dataSig = dgSig.importData(bgSamplesToRun = tuple(backgroundDataSet), sgSamplesToRun = tuple(signalDataSet), treename = "myMiniTree", maxNJetBin=config["maxNJetBin"])
+    if    config["Mask"]: dataBg, dataSig = dgSig.importData(bgSamplesToRun = tuple(backgroundDataSet), sgSamplesToRun = tuple(signalDataSet), treename = "myMiniTree", doReweight=config["doReweight"], maxNJetBin=config["maxNJetBin"], njetsMask=config["Mask_nJet"])
+    else:                 dataBg, dataSig = dgSig.importData(bgSamplesToRun = tuple(backgroundDataSet), sgSamplesToRun = tuple(signalDataSet), treename = "myMiniTree", doReweight=config["doReweight"], maxNJetBin=config["maxNJetBin"])
 
 
     # Change the weight to 1 if needed
@@ -188,7 +188,7 @@ class DataGetter:
 
         return npyInputData, npyInputAnswers, npyInputDomain, npyInputSampleWgts, npyNJet, npyMasses, npyMassNjets, cmax, dnjets
 
-    def importData(self, bgSamplesToRun, sgSamplesToRun, treename = "myMiniTree", maxNJetBin = 11, njetsMask=-1):
+    def importData(self, bgSamplesToRun, sgSamplesToRun, treename = "myMiniTree", doReweight = False, maxNJetBin = 11, njetsMask=-1):
 
         #variables to train
         variables = self.getList()
@@ -227,7 +227,11 @@ class DataGetter:
 
         npySWBG = np.copy(npyMassNjetsBG); npySWSG = np.copy(npyMassNjetsSG)
 
-        for i in range(0, len(npySWBG)): npySWBG[i][0] = dBG[npySWBG[i][0]]
-        for i in range(0, len(npySWSG)): npySWSG[i][0] = dSG[npySWSG[i][0]]
+        if doReweight:
+            for i in range(0, len(npySWBG)): npySWBG[i][0] = dBG[npySWBG[i][0]]
+            for i in range(0, len(npySWSG)): npySWSG[i][0] = dSG[npySWSG[i][0]]
+        else:
+            for i in range(0, len(npySWBG)): npySWBG[i][0] = 1.0
+            for i in range(0, len(npySWSG)): npySWSG[i][0] = 1.0
 
         return {"data":npyInputDataBG, "labels":npyInputAnswersBG, "domain":npyInputDomainBG, "Weight":npyInputSampleWgtsBG, "nJet":npyNJetBG, "masses":npyMassesBG, "massNjets":npyMassNjetsBG, "sample_weight":npySWBG}, {"data":npyInputDataSG, "labels":npyInputAnswersSG, "domain":npyInputDomainSG, "Weight":npyInputSampleWgtsSG, "nJet":npyNJetSG, "masses":npyMassesSG, "massNjets":npyMassNjetsSG, "sample_weight":npySWSG}
