@@ -15,7 +15,7 @@ def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgW
     dgSig = DataGetter.DefinedVariables(config["allVars"], signal = True,  background = False)
     dgBg = DataGetter.DefinedVariables(config["allVars"],  signal = False, background = True)
 
-    dataBg, dataSig = dgSig.importData(bgSamplesToRun = tuple(backgroundDataSet), sgSamplesToRun = tuple(signalDataSet), treename = "myMiniTree", maxNJetBin=config["maxNJetBin"], njetsMask=config["Mask_nJet"])
+    dataBg, dataSig = dgSig.importData(bgSamplesToRun = tuple(backgroundDataSet), sgSamplesToRun = tuple(signalDataSet), treename = "myMiniTree", maxNJetBin=config["maxNJetBin"], njetsMask=-1)#config["Mask_nJet"])
 
     # Change the weight to 1 if needed
     if config["doSgWeight"]: dataSig["Weight"] = config["lumi"]*dataSig["Weight"]
@@ -139,7 +139,9 @@ class DataGetter:
             unique, counts = np.unique(npyNjetsFilter, return_counts=True)
             NjetsDict = dict(zip(unique, counts))
             for Njets, c in NjetsDict.items():
-                dnjets[mass+Njets] = c
+                if mass == 173.0: dnjets[Njets] = c
+                else:             dnjets[mass+Njets] = c
+
 
         npyMasses = df[massNames].values
         npyNjets  = df[njetsNames].values
@@ -170,14 +172,18 @@ class DataGetter:
 
         #sample weight for signal masses
         d = dict(zip(unique, counts))
-        m = -999; counts = 0.0
+        mmin = -999; mmax = 10e10
+        cmin = 0.0; cmax = 0.0
         for massNjets, c in dnjets.items():
-            if c > m: m = c
+            if c > mmin: mmin = c
+            if c < mmax: mmax = c 
         for massNjets, c in dnjets.items():
-            counts += m
-            dnjets[massNjets] = round(float(m)/float(c),3)
+            cmin += mmin
+            cmax += mmax
+            #dnjets[massNjets] = round(float(mmin)/float(c),3)
+            dnjets[massNjets] = round(float(mmax)/float(c),3)
 
-        return npyInputData, npyInputAnswers, npyInputDomain, npyInputSampleWgts, npyNJet, npyMasses, npyMassNjets, counts, dnjets
+        return npyInputData, npyInputAnswers, npyInputDomain, npyInputSampleWgts, npyNJet, npyMasses, npyMassNjets, cmax, dnjets
 
     def importData(self, bgSamplesToRun, sgSamplesToRun, treename = "myMiniTree", maxNJetBin = 11, njetsMask=-1):
 
@@ -217,7 +223,8 @@ class DataGetter:
             dBG[massNjets] = round(w*float(countsSG)/float(countsBG), 3)
 
         npySWBG = np.copy(npyMassNjetsBG); npySWSG = np.copy(npyMassNjetsSG)
-        for key, value in dBG.items(): npySWBG[npySWBG == key] = factor*value
-        for key, value in dSG.items(): npySWSG[npySWSG == key] = factor*value
+
+        for i in range(0, len(npySWBG)): npySWBG[i][0] = dBG[npySWBG[i][0]]
+        for i in range(0, len(npySWSG)): npySWSG[i][0] = dSG[npySWSG[i][0]]
 
         return {"data":npyInputDataBG, "labels":npyInputAnswersBG, "domain":npyInputDomainBG, "Weight":npyInputSampleWgtsBG, "nJet":npyNJetBG, "masses":npyMassesBG, "massNjets":npyMassNjetsBG, "sample_weight":npySWBG}, {"data":npyInputDataSG, "labels":npyInputAnswersSG, "domain":npyInputDomainSG, "Weight":npyInputSampleWgtsSG, "nJet":npyNJetSG, "masses":npyMassesSG, "massNjets":npyMassNjetsSG, "sample_weight":npySWSG}
