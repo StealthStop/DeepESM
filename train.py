@@ -133,18 +133,24 @@ class Train:
             return c * K.backend.sum(corr)
         return correlationLoss
 
-    def loss_disco(self, c):
+    def loss_disco(self, c1, c2):
         def discoLoss(y_mask, y_pred):            
             val_1 = tf.reshape(y_pred[:,  :1], [-1])
             val_2 = tf.reshape(y_pred[:, 2:3], [-1])
             normedweight = tf.ones_like(val_1)
 
-            ##Mask all signal events
-            mask = tf.reshape(y_mask[:,  1:2], [-1])
-            val_1 = tf.boolean_mask(val_1, mask)
-            val_2 = tf.boolean_mask(val_2, mask)
-            normedweight = tf.boolean_mask(normedweight, mask)
-            return c * cor.distance_corr(val_1, val_2, normedweight, 1)
+            #Mask all signal events
+            mask_sg = tf.reshape(y_mask[:,  1:2], [-1])
+            val_1_bg = tf.boolean_mask(val_1, mask_sg)
+            val_2_bg = tf.boolean_mask(val_2, mask_sg)
+            normedweight_bg = tf.boolean_mask(normedweight, mask_sg)
+
+            mask_bg = tf.reshape(y_mask[:, 0:1], [-1])
+            val_1_sg = tf.boolean_mask(val_1, mask_bg)
+            val_2_sg = tf.boolean_mask(val_2, mask_bg)
+            normedweight_sg = tf.boolean_mask(normedweight, mask_bg)
+
+            return c1 * cor.distance_corr(val_1_bg, val_2_bg, normedweight_bg, 1) + c2 * cor.distance_corr(val_1_sg, val_2_sg, normedweight_sg, 1)
         return discoLoss
 
     def loss_disco_alt(self, c):
@@ -201,7 +207,7 @@ class Train:
 
     def make_model_alt2(self, trainData, trainDataTT):
         model, optimizer = main_model_alt2(self.config, trainData, trainDataTT)
-        model.compile(loss=[self.loss_crossentropy_comb(c1=self.config["disc_comb_lambda"], c2=self.config["disc_lambda"]), self.make_loss_adversary(c=self.config["gr_lambda"]), self.loss_disco(c=self.config["cor_lambda"]), 
+        model.compile(loss=[self.loss_crossentropy_comb(c1=self.config["disc_comb_lambda"], c2=self.config["disc_lambda"]), self.make_loss_adversary(c=self.config["gr_lambda"]), self.loss_disco(c1=self.config["bg_cor_lambda"], c2=self.config["sg_cor_lambda"]), 
                             self.make_loss_MSE(c=self.config["reg_lambda"])], optimizer=optimizer, metrics=self.config["metrics"])
         return model
 
@@ -274,8 +280,8 @@ class Train:
         if not replay: os.makedirs(d["outputDir"]+"/log_graph")    
 
     def defineVars(self):
-        #jVec1 = ["Jet_pt_", "Jet_eta_", "Jet_m_", "Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_", "Jet_multiplicity_" ]
-        jVec1 = ["Jet_dcsv_", "Jet_pt_", "Jet_eta_", "Jet_m_"]
+        jVec1 = ["Jet_pt_", "Jet_eta_", "Jet_m_", "Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_", "Jet_multiplicity_"]
+        #jVec1 = ["Jet_dcsv_", "Jet_pt_", "Jet_eta_", "Jet_m_"]
         #jVec1 = ["Jet_pt_", "Jet_eta_", "Jet_m_"]
         jVec2 = ["Jet_phi_"]
         #jVec1AK8 = ["JetsAK8Cands_pt_", "JetsAK8Cands_eta_", "JetsAK8Cands_m_", "JetsAK8Cands_SDM_", "JetsAK8Cands_Pruned_", "JetsAK8Cands_T21_"]
@@ -401,23 +407,23 @@ if __name__ == '__main__':
 
     replay = args.replay
 
-    hyperconfig = {"disc_comb_lambda": 0.0, "gr_lambda": 1.0, "disc_lambda": 1.0, "cor_lambda": 1000.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100,
-                   "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":16384, "epochs":40, "lr":0.001}
+    hyperconfig = {}
+    if args.json != "NULL": 
+        with open(str(args.json), "r") as f:
+            hyperconfig = json.load(f)
+    else:
+        hyperconfig = {"atag" : "forChris", "disc_comb_lambda": 0.5, "gr_lambda": 1.0, "disc_lambda": 1.0, "bg_cor_lambda": 1000.0, "sg_cor_lambda": 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":16384, "epochs":10, "lr":0.001}
 
     t = Train(USER, replay, hyperconfig, args.quickVal, minStopMass=args.minMass, maxStopMass=args.maxMass, model=model, valMass=args.valMass, year=args.year)
 
     if replay: t.replay()
 
     elif args.json != "NULL": 
-        config = None
-        with open(str(args.json), "r") as f:
-            config = json.load(f)
-        print(config)
 
-        metric = t.train(config)
+        metric = t.train()
 
         with open(str(args.json), 'w') as f:
-          json.dump(metric, f)
+            json.dump(metric, f)
     else:
         t.train()
         print("----------------Ran with default config------------------")
