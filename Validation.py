@@ -730,7 +730,7 @@ class Validation:
             # Make arrays for possible values to cut on for both discriminant
             # starting at a minimum of 0.5 for each
             #c1s = np.arange(0.70, 0.75, 0.05); c2s = np.arange(0.70, 0.75, 0.05)
-            c1s = np.arange(0.30, 0.85, 0.05); c2s = np.arange(0.30, 0.85, 0.05)
+            c1s = np.arange(0.15, 0.85, 0.05); c2s = np.arange(0.15, 0.85, 0.05)
         
             # Get number of background and signal counts for each A, B, C, D region for every possible combination of cuts on disc 1 and disc 2
             bc, sc = self.cutAndCount(c1s, c2s, y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], y_Train_Sg_disc1[massMask], y_Train_Sg_disc2[massMask], self.trainSg["Weight"][:,0][massMask])
@@ -742,7 +742,6 @@ class Validation:
             c1, c2, significance, sigfrac = self.findDiscCut4SigFrac(bc, sc)
             if c1 != -1.0 and c2 != -1.0:
                 closure, closureUnc, _, _ = self.simpleClosureABCD(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2], bc["A2"][c1][c2]**0.5, bc["B2"][c1][c2]**0.5, bc["C2"][c1][c2]**0.5, bc["D2"][c1][c2]**0.5)
-                self.metric["ABCDclosurePull"] = abs(1.0 - closure) / closureUnc
         
                 self.config["Disc1"] = c1
                 self.config["Disc2"] = c2
@@ -791,6 +790,9 @@ class Validation:
                     bkgdNjetsErr["D"].append(0.0); sigNjetsErr["D"].append(0.0)
 
                     bkgdNjetsAPred["val"].append(0.0); bkgdNjetsAPred["err"].append(0.0)
+
+                    self.metric["closePull_nJet_%s"%(NJets)] = 999.0
+
                 else:
                     closure, closureUnc, Apred, ApredUnc = self.simpleClosureABCD(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2], bc["A2"][c1][c2]**0.5, bc["B2"][c1][c2]**0.5, bc["C2"][c1][c2]**0.5, bc["D2"][c1][c2]**0.5)
                     bkgdNjets["A"].append(bc["A"][c1][c2]); sigNjets["A"].append(sc["A"][c1][c2])
@@ -804,6 +806,11 @@ class Validation:
                     bkgdNjetsErr["D"].append(bc["D2"][c1][c2]**0.5); sigNjetsErr["D"].append(sc["D2"][c1][c2]**0.5)
 
                     bkgdNjetsAPred["val"].append(Apred); bkgdNjetsAPred["err"].append(ApredUnc)
+
+                    self.metric["closePull_nJet_%s"%(NJets)] = abs(1.0 - closure) / closureUnc
+
+                self.config["c1_nJet_%s"%(("%s"%(NJets)).zfill(2))] = c1
+                self.config["c2_nJet_%s"%(("%s"%(NJets)).zfill(2))] = c2
 
                 # Avoid completely masked Njets bins that makes below plotting
                 # highly unsafe
@@ -861,7 +868,9 @@ class Validation:
         self.metric["OverTrain_Disc2"] = abs(auc_Val_disc2 - auc_Train_disc2)
         self.metric["Performance_Disc1"] = abs(1 - auc_Train_disc1)
         self.metric["Performance_Disc2"] = abs(1 - auc_Train_disc2)
-        
+        if    self.config["TotalSignificance"] > 0.0: self.metric["InvTotalSignificance"] = 1.0/self.config["TotalSignificance"]
+        else: self.metric["InvTotalSignificance"] = 999.0
+       
         # Plot some ROC curves
         self.plotROC("_Disc1", None, None, fpr_Val_disc1, tpr_Val_disc1, fpr_Train_disc1, tpr_Train_disc1, auc_Val_disc1, auc_Train_disc1)
         self.plotROC("_Disc2", None, None, fpr_Val_disc2, tpr_Val_disc2, fpr_Train_disc2, tpr_Train_disc2, auc_Val_disc2, auc_Train_disc2)
