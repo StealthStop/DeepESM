@@ -69,8 +69,7 @@ class Train:
         self.config["otherttbarMC"] = ("TT 2017", TT_2017)
         self.config["othermassModels"] = Signal_2017
         self.config["ttbarMCShift"] = ("TT", TT_2016)
-        #self.config["dataSet"] = "MVA_Training_Files_FullRun2_V3/"
-        self.config["dataSet"] = "2016_NNvariables_WithWithoutISRcheatingFilter_31.12.2020/"
+        self.config["dataSet"] = "MVA_Training_Files_FullRun2_V3/"
         self.config["doBgWeight"] = True
         self.config["doSgWeight"] = True
         self.config["class_weight"] = None
@@ -404,8 +403,7 @@ if __name__ == '__main__':
         with open(str(args.json), "r") as f:
             hyperconfig = json.load(f)
     else: 
-        ####### Better performance from Josh #######
-        hyperconfig = {"atag" : "BestPerf", "disc_comb_lambda": 0.5, "gr_lambda": 1.0, "disc_lambda": 1.0, "bg_cor_lambda": 1000.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":16384, "epochs":1, "lr":0.001} # epochs=60
+        hyperconfig = {"atag" : "BestPerf", "disc_comb_lambda": 0.5, "gr_lambda": 1.0, "disc_lambda": 1.0, "bg_cor_lambda": 1000.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":16384, "epochs":60, "lr":0.001}
 
     t = Train(USER, replay, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, model=model, valMass=args.valMass, year=args.year, tree=args.tree)
 
