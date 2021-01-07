@@ -146,3 +146,25 @@ xrdcp -r root://cmseos.fnal.gov///store/user/cmadrid/trainingTuples/MVA_Training
 python train.py
 ```
 
+### Plotting Input Variables
+
+A plotting script is provided to make pretty plots of NN inputs from the ntuple files.
+
+Arguments to the script are:
+
+```
+--approved : is Plot is approved?
+--path     : Path to ntuples files
+--tree     : TTree name to use
+--year     : which year
+--mass1    : mass 1 to show
+--mass2    : mass 2 to show
+--model1   : model 1 to show
+--model2   : model 2 to show
+```
+
+An example to run the script could be:
+
+```
+python ttVsSigNN_mini.py --year 2016 --path /path/to/ntuples/files --mass1 350 --model1 RPV --mass2 500 --model2 StealthSYY
+```
