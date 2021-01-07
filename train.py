@@ -343,11 +343,11 @@ class Train:
 
         # Model Visualization
         print("----------------Printed model layout------------------")
-        #self.plot_model(model)
+        self.plot_model(model)
         
         # Save trainig model as a protocol buffers file
         print("----------------Saving model------------------")
-        #self.save_model_pb(model)
+        self.save_model_pb(model)
         
         #Plot results
         print("----------------Validation of training------------------")
