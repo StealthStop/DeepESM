@@ -16,8 +16,14 @@ def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgW
     dgBg = DataGetter.DefinedVariables(config["allVars"],  signal = False, background = True)
 
     dataBg = None; dataSig = None
-    if    config["Mask"]: dataBg, dataSig = dgSig.importData(bgSamplesToRun = tuple(backgroundDataSet), sgSamplesToRun = tuple(signalDataSet), treename = "myMiniTree", doReweight=config["doReweight"], maxNJetBin=config["maxNJetBin"], njetsMask=config["Mask_nJet"])
-    else:                 dataBg, dataSig = dgSig.importData(bgSamplesToRun = tuple(backgroundDataSet), sgSamplesToRun = tuple(signalDataSet), treename = "myMiniTree", doReweight=config["doReweight"], maxNJetBin=config["maxNJetBin"])
+    if config["Mask"]: 
+        dataBg, dataSig = dgSig.importData(bgSamplesToRun 
+                        = tuple(backgroundDataSet), sgSamplesToRun 
+                        = tuple(signalDataSet), treename = config["tree"], doReweight=config["doReweight"], maxNJetBin=config["maxNJetBin"], njetsMask=config["Mask_nJet"])
+    else:                 
+        dataBg, dataSig = dgSig.importData(bgSamplesToRun 
+                        = tuple(backgroundDataSet), sgSamplesToRun 
+                        = tuple(signalDataSet), treename = config["tree"], doReweight=config["doReweight"], maxNJetBin=config["maxNJetBin"])
 
 
     # Change the weight to 1 if needed
