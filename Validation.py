@@ -65,7 +65,8 @@ class Validation:
             
         xerr = 0.5*(xedges[1]-xedges[0])
         plt.errorbar(bin_centersx, y, xerr=xerr, yerr=ye, fmt='o', color='xkcd:red')
-        fig.savefig(self.config["outputDir"]+"/"+name+"_discriminator.png", dpi=fig.dpi)        
+        fig.savefig(self.config["outputDir"]+"/"+name+"_discriminator.png", dpi=fig.dpi)       
+        fig.savefig(self.config["outputDir"]+"/"+name+"_discriminator.pdf", dpi=fig.dpi) 
 
     def getAUC(self, fpr, tpr):
         try:

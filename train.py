@@ -17,7 +17,7 @@ from Models import main_model_alt, main_model_alt2, main_model, doubleDisco_mode
 import os
 
 class Train:
-    def __init__(self, USER, replay, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, model="*", valMass=500, year = "2016_2017_2018"):
+    def __init__(self, USER, replay, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, model="*", valMass=500, year = "2016_2017_2018", tree = "myMiniTree"):
         self.user = USER
         self.logdir = "/storage/local/data1/gpuscratch/%s"%(self.user)
         self.config = {}
@@ -28,7 +28,8 @@ class Train:
         self.doQuickVal = doQuickVal
         self.model = model
         self.valMass = valMass
-        self.config["year"] = year 
+        self.config["year"] = year
+        self.config["tree"] = tree
 
         self.config["minNJetBin"] = 7
         self.config["maxNJetBin"] = 11
@@ -281,33 +282,20 @@ class Train:
         if not replay: os.makedirs(d["outputDir"]+"/log_graph")    
 
     def defineVars(self):
-        jVec1 = ["Jet_pt_", "Jet_eta_", "Jet_m_", "Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_", "Jet_multiplicity_"]
-        #jVec1 = ["Jet_dcsv_", "Jet_pt_", "Jet_eta_", "Jet_m_"]
-        #jVec1 = ["Jet_pt_", "Jet_eta_", "Jet_m_"]
-        jVec2 = ["Jet_phi_"]
-        #jVec1AK8 = ["JetsAK8Cands_pt_", "JetsAK8Cands_eta_", "JetsAK8Cands_m_", "JetsAK8Cands_SDM_", "JetsAK8Cands_Pruned_", "JetsAK8Cands_T21_"]
-        #jVec2AK8 = ["JetsAK8Cands_phi_"]
-        #lepton = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1"]
-        lepton = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1", "GoodLeptons_m_1"]
-
-        MET = ["lvMET_cm_pt", "lvMET_cm_eta", "lvMET_cm_phi", "lvMET_cm_m"]
-        eventShapeVars = ["fwm2_top6", "fwm3_top6", "fwm4_top6", "fwm5_top6", "jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
-        numJets = ["NGoodJets_pt30_double"]
-        #numJets = []
-
-        extra = ["deepESM_val", "HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"]
-        #extra = ["HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"]
-
-        nJets = 7 
-        nJetsAK8 = 4
-        jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
+        numJets        = ["HT_trigger_pt45", "NGoodJets_pt45_double", "NGoodBJets_pt45_double"]
+        eventShapeVars = ["fwm2_top6",       "fwm3_top6",             "fwm4_top6", "fwm5_top6", 
+                          "jmt_ev0_top6",    "jmt_ev1_top6",          "jmt_ev2_top6"]
+        jVec1          = ["Jet_dcsv_",       "Jet_pt_",               "Jet_eta_",  "Jet_m_"]
+        jVec2          = ["Jet_phi_"]
+        extra          = ["Mass_stop1_PtRank_cm_TopSeed_maskedISR", "Mass_stop2_PtRank_cm_TopSeed_maskedISR", 
+                          "Pt_stop1_PtRank_cm_TopSeed_maskedISR",   "Pt_stop2_PtRank_cm_TopSeed_maskedISR",  
+                          "Phi_stop1_PtRank_cm_TopSeed_maskedISR",  "Phi_stop2_PtRank_cm_TopSeed_maskedISR", 
+                          "Eta_stop1_PtRank_cm_TopSeed_maskedISR",  "Eta_stop2_PtRank_cm_TopSeed_maskedISR", ]
+        
+        nJets  = 6 
+        jVecs  = list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
         jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets)) 
-        #jVecsAK8 =  list(y+str(x+1) for y in jVec1AK8 for x in range(nJetsAK8))
-        #jVecsAK8 += list(y+str(x+1) for y in jVec2AK8 for x in range(1,nJetsAK8))
-        #self.config["allVars"] = jVecs + lepton + eventShapeVars + MET + numJets + extra
-        #self.config["allVars"] = jVecs + lepton + eventShapeVars + ["HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"] + jVecsAK8
-        self.config["allVars"] = jVecs + lepton + eventShapeVars + MET + numJets + extra# + jVecsAK8
-        #self.config["allVars"] = jVecs + lepton + eventShapeVars + numJets + extra# + jVecsAK8
+        self.config["allVars"] = numJets + eventShapeVars + jVecs + extra
 
     def importData(self):
         # Import data
@@ -392,13 +380,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(usage)
     parser.add_argument("--quickVal", dest="quickVal", help="Do quick validation", action="store_true", default=False) 
     parser.add_argument("--reweight", dest="reweight", help="Do event reweighting", action="store_true", default=False) 
-    parser.add_argument("--json",    dest="json",    help="JSON config file", default="NULL") 
-    parser.add_argument("--minMass", dest="minMass", help="Minimum stop mass to train on", default=300)
-    parser.add_argument("--maxMass", dest="maxMass", help="Maximum stop mass to train on", default=1400) 
-    parser.add_argument("--valMass", dest="valMass", help="Stop mass to validate on", default=500) 
-    parser.add_argument("--model",   dest="model",   help="Signal model to train on", type=str, default="*") 
-    parser.add_argument("--replay",  dest="replay",  help="Replay saved model", action="store_true", default=False) 
-    parser.add_argument("--year",    dest="year",    help="Year(s) to train on", type=str, default="2016_2017_2018") 
+    parser.add_argument("--json",     dest="json",     help="JSON config file", default="NULL") 
+    parser.add_argument("--minMass",  dest="minMass",  help="Minimum stop mass to train on", default=300)
+    parser.add_argument("--maxMass",  dest="maxMass",  help="Maximum stop mass to train on", default=1400) 
+    parser.add_argument("--valMass",  dest="valMass",  help="Stop mass to validate on", default=500) 
+    parser.add_argument("--model",    dest="model",    help="Signal model to train on", type=str, default="*") 
+    parser.add_argument("--replay",   dest="replay",   help="Replay saved model", action="store_true", default=False) 
+    parser.add_argument("--year",     dest="year",     help="Year(s) to train on", type=str, default="2016_2017_2018") 
+    parser.add_argument("--tree",     dest="tree",     help="myMiniTree to train on", default="myMiniTree")
 
     args = parser.parse_args()
 
@@ -413,10 +402,10 @@ if __name__ == '__main__':
     if args.json != "NULL": 
         with open(str(args.json), "r") as f:
             hyperconfig = json.load(f)
-    else:
-        hyperconfig = {"atag" : "forChris", "disc_comb_lambda": 0.5, "gr_lambda": 1.0, "disc_lambda": 1.0, "bg_cor_lambda": 1000.0, "sg_cor_lambda": 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":16384, "epochs":10, "lr":0.001}
+    else: 
+        hyperconfig = {"atag" : "BestPerf", "disc_comb_lambda": 0.5, "gr_lambda": 1.0, "disc_lambda": 1.0, "bg_cor_lambda": 1000.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":16384, "epochs":60, "lr":0.001}
 
-    t = Train(USER, replay, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, model=model, valMass=args.valMass, year=args.year)
+    t = Train(USER, replay, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, model=model, valMass=args.valMass, year=args.year, tree=args.tree)
 
     if replay: t.replay()
 
