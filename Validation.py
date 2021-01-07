@@ -663,15 +663,11 @@ class Validation:
 
         sgValSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+mass+"*Val.root") for mass in self.config["massModels"]) , [])
         bgValSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+ttbar+"*Val.root") for ttbar in self.config["ttbarMC"][1]), [])
-        sgOTrainSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+mass+"*Val.root") for mass in self.config["othermassModels"]) , [])
-        bgOTrainSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+ttbar+"*Val.root") for ttbar in self.config["otherttbarMC"][1]), [])
 
         valData, valSg, valBg = get_data(sgValSet, bgValSet, self.config)
-        trainOData, trainOSg, trainOBg = get_data(sgOTrainSet, bgOTrainSet, self.config)
 
         output_Val, output_Val_Sg, output_Val_Bg = self.getOutput(self.model, valData["data"], valSg["data"], valBg["data"])
         output_Train, output_Train_Sg, output_Train_Bg = self.getOutput(self.model, self.trainData["data"], self.trainSg["data"], self.trainBg["data"])
-        output_OTrain, output_OTrain_Sg, output_OTrain_Bg = self.getOutput(self.model, trainOData["data"], trainOSg["data"], trainOBg["data"])
 
         y_Val_disc1, y_Val_Sg_disc1, y_Val_Bg_disc1 = self.getResults(output_Val, output_Val_Sg, output_Val_Bg, outputNum=0, columnNum=0)
         y_Val_disc2, y_Val_Sg_disc2, y_Val_Bg_disc2 = self.getResults(output_Val, output_Val_Sg, output_Val_Bg, outputNum=0, columnNum=2)
@@ -679,7 +675,6 @@ class Validation:
         y_Train_disc1, y_Train_Sg_disc1, y_Train_Bg_disc1 = self.getResults(output_Train, output_Train_Sg, output_Train_Bg, outputNum=0, columnNum=0)
         y_Train_disc2, y_Train_Sg_disc2, y_Train_Bg_disc2 = self.getResults(output_Train, output_Train_Sg, output_Train_Bg, outputNum=0, columnNum=2)
         y_Train_mass, y_Train_mass_Sg, y_Train_mass_Bg = self.getResults(output_Train, output_Train_Sg, output_Train_Bg, outputNum=3, columnNum=0)
-        y_OTrain, y_OTrain_Sg, y_OTrain_Bg = self.getResults(output_OTrain, output_OTrain_Sg, output_OTrain_Bg, outputNum=1, columnNum=0)
 
         nBins = 20
         nBinsReg = 50
@@ -850,34 +845,32 @@ class Validation:
             print("C SIGNIFICANCE: %3.2f"%(signC))
             print("D SIGNIFICANCE: %3.2f"%(signD))
             print("TOTAL SIGNIFICANCE: %3.2f"%((signA**2.0 + signB**2.0 + signC**2.0 + signD**2.0)**0.5))
-  
+
+ 
+            if    self.config["TotalSignificance"] > 0.0: self.metric["InvTotalSignificance"] = 1.0/self.config["TotalSignificance"]
+            else: self.metric["InvTotalSignificance"] = 999.0
+ 
         # Plot validation roc curve
         fpr_Val_disc1, tpr_Val_disc1, thresholds_Val_disc1 = roc_curve(valData["labels"][:,0], y_Val_disc1, sample_weight=valData["Weight"][:,0])
         fpr_Val_disc2, tpr_Val_disc2, thresholds_Val_disc2 = roc_curve(valData["labels"][:,0], y_Val_disc2, sample_weight=valData["Weight"][:,0])
         fpr_Train_disc1, tpr_Train_disc1, thresholds_Train_disc1 = roc_curve(self.trainData["labels"][:,0], y_Train_disc1, sample_weight=self.trainData["Weight"][:,0])
         fpr_Train_disc2, tpr_Train_disc2, thresholds_Train_disc2 = roc_curve(self.trainData["labels"][:,0], y_Train_disc2, sample_weight=self.trainData["Weight"][:,0])
-        fpr_OTrain, tpr_OTrain, thresholds_OTrain = roc_curve(trainOData["labels"][:,0], y_OTrain, sample_weight=trainOData["Weight"][:,0])
         auc_Val_disc1 = roc_auc_score(valData["labels"][:,0], y_Val_disc1)
         auc_Val_disc2 = roc_auc_score(valData["labels"][:,0], y_Val_disc2)
         auc_Train_disc1 = roc_auc_score(self.trainData["labels"][:,0], y_Train_disc1)
         auc_Train_disc2 = roc_auc_score(self.trainData["labels"][:,0], y_Train_disc2)
-        auc_OTrain = roc_auc_score(trainOData["labels"][:,0], y_OTrain)
         
         # Define metrics for the training
         self.metric["OverTrain_Disc1"] = abs(auc_Val_disc1 - auc_Train_disc1)
         self.metric["OverTrain_Disc2"] = abs(auc_Val_disc2 - auc_Train_disc2)
         self.metric["Performance_Disc1"] = abs(1 - auc_Train_disc1)
         self.metric["Performance_Disc2"] = abs(1 - auc_Train_disc2)
-        if    self.config["TotalSignificance"] > 0.0: self.metric["InvTotalSignificance"] = 1.0/self.config["TotalSignificance"]
-        else: self.metric["InvTotalSignificance"] = 999.0
        
         # Plot some ROC curves
         self.plotROC("_Disc1", None, None, fpr_Val_disc1, tpr_Val_disc1, fpr_Train_disc1, tpr_Train_disc1, auc_Val_disc1, auc_Train_disc1)
         self.plotROC("_Disc2", None, None, fpr_Val_disc2, tpr_Val_disc2, fpr_Train_disc2, tpr_Train_disc2, auc_Val_disc2, auc_Train_disc2)
-        self.plotROC("_TT_TTJets", None, None, fpr_OTrain, tpr_OTrain, fpr_Train_disc1, tpr_Train_disc1, auc_OTrain, auc_Train_disc1)
         self.plotROC("_"+self.config["ttbarMC"][0]+"_nJet_disc1", y_Train_disc1, self.trainData)
         self.plotROC("_"+self.config["ttbarMC"][0]+"_nJet_disc2", y_Train_disc2, self.trainData)
-        self.plotROC("_"+self.config["otherttbarMC"][0]+"_nJet", y_OTrain, trainOData) 
         
         # Plot validation precision recall
         precision_Val_disc1, recall_Val_disc1, _ = precision_recall_curve(valData["labels"][:,0], y_Val_disc1, sample_weight=valData["Weight"][:,0])

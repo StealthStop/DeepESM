@@ -38,16 +38,16 @@ class Train:
 
         TTJets_2016 = ["2016_TTJets_Incl", "2016_TTJets_SingleLeptFromT", "2016_TTJets_SingleLeptFromTbar", "2016_TTJets_DiLept", 
                        "2016_TTJets_HT-600to800", "2016_TTJets_HT-800to1200", "2016_TTJets_HT-1200to2500", "2016_TTJets_HT-2500toInf"]
-        TTJets_2017 = ["2017_TTJets_Incl", "2017_TTJets_SingleLeptFromT", "2017_TTJets_SingleLeptFromTbar", "2017_TTJets_DiLept", 
-                       "2017_TTJets_HT-600to800", "2017_TTJets_HT-800to1200", "2017_TTJets_HT-1200to2500", "2017_TTJets_HT-2500toInf"]
+        #TTJets_2017 = ["2017_TTJets_Incl", "2017_TTJets_SingleLeptFromT", "2017_TTJets_SingleLeptFromTbar", "2017_TTJets_DiLept", 
+        #               "2017_TTJets_HT-600to800", "2017_TTJets_HT-800to1200", "2017_TTJets_HT-1200to2500", "2017_TTJets_HT-2500toInf"]
         TT_2016 = ["2016_TT"]
         #TT_2017 = ["2017_TTToSemiLeptonic","2017_TTTo2L2Nu","2017_TTToHadronic"]
-        TT_2017 = ["2017_TTToSemiLeptonic"]
+        #TT_2017 = ["2017_TTToSemiLeptonic"]
         #TT_2018 = ["2018pre_TTToSemiLeptonic","2018pre_TTTo2L2Nu","2018pre_TTToHadronic"]
-        TT_2018 = ["2018pre_TTToSemiLeptonic"]
+        #TT_2018 = ["2018pre_TTToSemiLeptonic"]
         Signal_2016 = list("2016%smStop*"%(self.model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
-        Signal_2017 = list("2017%smStop*"%(self.model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
-        Signal_2018 = list("2018%smStop*"%(self.model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
+        #Signal_2017 = list("2017%smStop*"%(self.model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
+        #Signal_2018 = list("2018%smStop*"%(self.model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
 
         TT = []; Signal = []; self.config["lumi"] = 0
         if "2016" in self.config["year"]: 
@@ -65,10 +65,10 @@ class Train:
 
         self.config["ttbarMC"] = ("TT", TT)
         self.config["massModels"] = Signal
-        self.config["otherttbarMC"] = ("TT 2017", TT_2017)
-        self.config["othermassModels"] = Signal_2017
+        #self.config["otherttbarMC"] = ("TT 2017", TT_2017)
+        #self.config["othermassModels"] = Signal_2017
         self.config["ttbarMCShift"] = ("TT", TT_2016)
-        self.config["dataSet"] = "MVA_Training_Files_FullRun2_V3/"
+        self.config["dataSet"] = "MVA_Training_Files_FullRun2_V4/"
         self.config["doBgWeight"] = True
         self.config["doSgWeight"] = True
         self.config["class_weight"] = None
@@ -281,32 +281,32 @@ class Train:
         if not replay: os.makedirs(d["outputDir"]+"/log_graph")    
 
     def defineVars(self):
-        jVec1 = ["Jet_pt_", "Jet_eta_", "Jet_m_", "Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_", "Jet_multiplicity_"]
-        #jVec1 = ["Jet_dcsv_", "Jet_pt_", "Jet_eta_", "Jet_m_"]
+        #jVec1 = ["Jet_pt_", "Jet_eta_", "Jet_m_", "Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_", "Jet_multiplicity_"]
+        jVec1 = ["Jet_pt_", "Jet_eta_", "Jet_m_", "Jet_dcsv_"]
         #jVec1 = ["Jet_pt_", "Jet_eta_", "Jet_m_"]
         jVec2 = ["Jet_phi_"]
         #jVec1AK8 = ["JetsAK8Cands_pt_", "JetsAK8Cands_eta_", "JetsAK8Cands_m_", "JetsAK8Cands_SDM_", "JetsAK8Cands_Pruned_", "JetsAK8Cands_T21_"]
         #jVec2AK8 = ["JetsAK8Cands_phi_"]
         #lepton = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1"]
-        lepton = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1", "GoodLeptons_m_1"]
+        #lepton = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1", "GoodLeptons_m_1"]
 
-        MET = ["lvMET_cm_pt", "lvMET_cm_eta", "lvMET_cm_phi", "lvMET_cm_m"]
+        #MET = ["lvMET_cm_pt", "lvMET_cm_eta", "lvMET_cm_phi", "lvMET_cm_m"]
         eventShapeVars = ["fwm2_top6", "fwm3_top6", "fwm4_top6", "fwm5_top6", "jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
-        numJets = ["NGoodJets_pt30_double"]
+        numJets = ["NGoodJets_pt45_double", "NGoodBJets_pt45_double"]
         #numJets = []
 
-        extra = ["deepESM_val", "HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"]
-        #extra = ["HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"]
+        extra = ["HT_trigger_pt45", "Mass_stop1_PtRank_cm_TopSeed", "Mass_stop2_PtRank_cm_TopSeed"]
+        #extra = ["deepESM_valReg", "HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"]
 
         nJets = 7 
-        nJetsAK8 = 4
-        jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
-        jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets)) 
+        #nJetsAK8 = 4
+        #jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
+        #jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets)) 
         #jVecsAK8 =  list(y+str(x+1) for y in jVec1AK8 for x in range(nJetsAK8))
         #jVecsAK8 += list(y+str(x+1) for y in jVec2AK8 for x in range(1,nJetsAK8))
         #self.config["allVars"] = jVecs + lepton + eventShapeVars + MET + numJets + extra
         #self.config["allVars"] = jVecs + lepton + eventShapeVars + ["HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"] + jVecsAK8
-        self.config["allVars"] = jVecs + lepton + eventShapeVars + MET + numJets + extra# + jVecsAK8
+        self.config["allVars"] =  eventShapeVars + numJets + extra + jVec1 + jVec2 #+ MET
         #self.config["allVars"] = jVecs + lepton + eventShapeVars + numJets + extra# + jVecsAK8
 
     def importData(self):
@@ -358,7 +358,7 @@ class Train:
         
         # Save trainig model as a protocol buffers file
         print("----------------Saving model------------------")
-        self.save_model_pb(model)
+        #self.save_model_pb(model)
         
         #Plot results
         print("----------------Validation of training------------------")
@@ -414,8 +414,8 @@ if __name__ == '__main__':
         with open(str(args.json), "r") as f:
             hyperconfig = json.load(f)
     else:
-        hyperconfig = {"atag" : "forChris", "disc_comb_lambda": 0.5, "gr_lambda": 1.0, "disc_lambda": 1.0, "bg_cor_lambda": 1000.0, "sg_cor_lambda": 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":16384, "epochs":10, "lr":0.001}
-
+        hyperconfig = {"atag" : "GoodClose", "disc_comb_lambda": 0.5, "gr_lambda": 1.0, "disc_lambda": 1.0, "bg_cor_lambda": 1000.0, "sg_cor_lambda" : 1000.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":16384, "epochs":60, "lr":0.001}
+    
     t = Train(USER, replay, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, model=model, valMass=args.valMass, year=args.year)
 
     if replay: t.replay()
