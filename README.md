@@ -113,7 +113,7 @@ source ~/nobackup/anaconda3/bin/activate
 conda update -n base -c defaults conda <<< $'y\n'
 conda create -n pt python=3.7 anaconda <<< $'y\n'
 conda activate pt
-conda install -n pt libgcc pandas scikit-learn tensorboard tensorflow-gpu Keras matplotlib numpy=1.16.6 dask h5py protobuf pydot pytorch torchvision cudatoolkit=10.0 <<< $'y\n'
+conda install -n pt libgcc pandas scikit-learn tensorboard=2.2.1 tensorflow-gpu Keras matplotlib numpy=1.16.6 dask h5py protobuf pydot pytorch torchvision cudatoolkit=10.0 <<< $'y\n'
 pip install uproot
 pip install coffea
 pip install mplhep
@@ -127,10 +127,10 @@ pip install -e .
 cd ~/nobackup/
 conda create -n tf python=3.7 anaconda <<< $'y\n'
 conda activate tf
-conda install -n tf libgcc pandas=1.0.5 scikit-learn tensorboard tensorflow=2.2.0 tensorflow-gpu Keras matplotlib=3.3.0 numpy=1.18.5 dask=2.20.0 h5py=2.10.0 protobuf pydot=1.3.0 pytorch torchvision=0.4.2 cudatoolkit <<< $'y\n'
-pip install uproot=3.12.0
-pip install coffea=0.6.43
-pip install mplhep=0.1.35
+conda install -n tf libgcc pandas scikit-learn tensorboard tensorflow=2.2.0 tensorflow-gpu Keras=2.4.3 matplotlib numpy=1.18.5 dask h5py protobuf pydot pytorch torchvision cudatoolkit <<< $'y\n'
+pip install uproot
+pip install coffea
+pip install mplhep==0.1.35
 pip install pypi
 pip install matplotlib==3.3.0
 ```
