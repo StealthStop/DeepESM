@@ -16,14 +16,8 @@ def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgW
     dgBg = DataGetter.DefinedVariables(config["allVars"],  signal = False, background = True)
 
     dataBg = None; dataSig = None
-    if config["Mask"]: 
-        dataBg, dataSig = dgSig.importData(bgSamplesToRun 
-                        = tuple(backgroundDataSet), sgSamplesToRun 
-                        = tuple(signalDataSet), treename = config["tree"], doReweight=config["doReweight"], maxNJetBin=config["maxNJetBin"], njetsMask=config["Mask_nJet"])
-    else:                 
-        dataBg, dataSig = dgSig.importData(bgSamplesToRun 
-                        = tuple(backgroundDataSet), sgSamplesToRun 
-                        = tuple(signalDataSet), treename = config["tree"], doReweight=config["doReweight"], maxNJetBin=config["maxNJetBin"])
+    if    config["Mask"]: dataBg, dataSig = dgSig.importData(bgSamplesToRun = tuple(backgroundDataSet), sgSamplesToRun = tuple(signalDataSet), treename = config["tree"], doReweight=config["doReweight"], maxNJetBin=config["maxNJetBin"], njetsMask=config["Mask_nJet"])
+    else:                 dataBg, dataSig = dgSig.importData(bgSamplesToRun = tuple(backgroundDataSet), sgSamplesToRun = tuple(signalDataSet), treename = config["tree"], doReweight=config["doReweight"], maxNJetBin=config["maxNJetBin"])
 
 
     # Change the weight to 1 if needed
@@ -128,7 +122,7 @@ class DataGetter:
 
     def importDataWorker(self, variables, maxNJetBin, df, index, njetsMask = -1):
         # Common column names to signal and background
-        wgtColumnNames = ["totalEventWeight"]; massNames = ["mass"]; domainColumnNames = ["NGoodJets_pt30_double"]; njetsNames = ["NGoodJets_pt30_double"]
+        wgtColumnNames = ["Weight"]; massNames = ["mass"]; domainColumnNames = ["NGoodJets_pt30_double"]; njetsNames = ["NGoodJets_pt30_double"]
 
         npyNjetsFilter = df[(df["NGoodJets_pt30_double"]!=njetsMask)][massNames].values
         unique, counts = np.unique(npyNjetsFilter, return_counts=True)
