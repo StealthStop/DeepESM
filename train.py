@@ -17,7 +17,7 @@ from Models import main_model_alt, main_model_alt2, main_model, doubleDisco_mode
 import os
 
 class Train:
-    def __init__(self, USER, replay, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, model="*", valMass=500, year = "2016_2017_2018", tree = "myMiniTree"):
+    def __init__(self, USER, replay, saveAndPrint, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, model="*", valMass=500, year = "2016_2017_2018", tree = "myMiniTree"):
         self.user = USER
         self.logdir = "/storage/local/data1/gpuscratch/%s"%(self.user)
         self.config = {}
@@ -26,6 +26,7 @@ class Train:
         self.config["doReweight"] = doReweight
 
         self.doQuickVal = doQuickVal
+        self.saveAndPrint = saveAndPrint
         self.model = model
         self.valMass = valMass
         self.config["year"] = year
@@ -41,11 +42,18 @@ class Train:
                        "2016_TTJets_HT-600to800", "2016_TTJets_HT-800to1200", "2016_TTJets_HT-1200to2500", "2016_TTJets_HT-2500toInf"]
         TTJets_2017 = ["2017_TTJets_Incl", "2017_TTJets_SingleLeptFromT", "2017_TTJets_SingleLeptFromTbar", "2017_TTJets_DiLept", 
                        "2017_TTJets_HT-600to800", "2017_TTJets_HT-800to1200", "2017_TTJets_HT-1200to2500", "2017_TTJets_HT-2500toInf"]
-        TT_2016 = ["2016_TT"]
-        #TT_2017 = ["2017_TTToSemiLeptonic","2017_TTTo2L2Nu","2017_TTToHadronic"]
-        TT_2017 = ["2017_TTToSemiLeptonic"]
-        #TT_2018 = ["2018pre_TTToSemiLeptonic","2018pre_TTTo2L2Nu","2018pre_TTToHadronic"]
-        TT_2018 = ["2018pre_TTToSemiLeptonic"]
+
+        TT_2016 = ["2016_TT"]; TT_2017 = None; TT_2018 = None
+        if "0l" in self.config["tree"]:
+            TT_2017 = ["2017_TTToHadronic"]
+            TT_2018 = ["2018pre_TTToHadronic"]
+        elif "2l" in self.config["tree"]:
+            TT_2017 = ["2017_TTTo2L2Nu"]
+            TT_2018 = ["2018pre_TTTo2L2Nu"]
+        else:
+            TT_2017 = ["2017_TTToSemiLeptonic"]
+            TT_2018 = ["2018pre_TTToSemiLeptonic"]
+
         Signal_2016 = list("2016%smStop*"%(self.model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
         Signal_2017 = list("2017%smStop*"%(self.model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
         Signal_2018 = list("2018%smStop*"%(self.model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
@@ -66,8 +74,6 @@ class Train:
 
         self.config["ttbarMC"] = ("TT", TT)
         self.config["massModels"] = Signal
-        self.config["otherttbarMC"] = ("TT 2017", TT_2017)
-        self.config["othermassModels"] = Signal_2017
         self.config["ttbarMCShift"] = ("TT", TT_2016)
         self.config["dataSet"] = "MVA_Training_Files_FullRun2_V3/"
         self.config["doBgWeight"] = True
@@ -282,20 +288,40 @@ class Train:
         if not replay: os.makedirs(d["outputDir"]+"/log_graph")    
 
     def defineVars(self):
-        numJets        = ["HT_trigger_pt45", "NGoodJets_pt45_double", "NGoodBJets_pt45_double"]
-        eventShapeVars = ["fwm2_top6",       "fwm3_top6",             "fwm4_top6", "fwm5_top6", 
-                          "jmt_ev0_top6",    "jmt_ev1_top6",          "jmt_ev2_top6"]
-        jVec1          = ["Jet_dcsv_",       "Jet_pt_",               "Jet_eta_",  "Jet_m_"]
-        jVec2          = ["Jet_phi_"]
-        extra          = ["Mass_stop1_PtRank_cm_TopSeed_maskedISR", "Mass_stop2_PtRank_cm_TopSeed_maskedISR", 
-                          "Pt_stop1_PtRank_cm_TopSeed_maskedISR",   "Pt_stop2_PtRank_cm_TopSeed_maskedISR",  
-                          "Phi_stop1_PtRank_cm_TopSeed_maskedISR",  "Phi_stop2_PtRank_cm_TopSeed_maskedISR", 
-                          "Eta_stop1_PtRank_cm_TopSeed_maskedISR",  "Eta_stop2_PtRank_cm_TopSeed_maskedISR", ]
-        
-        nJets  = 6 
-        jVecs  = list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
-        jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets)) 
-        self.config["allVars"] = numJets + eventShapeVars + jVecs + extra
+
+        if "0l" in self.config["tree"]:
+            numJets        = ["HT_trigger_pt45", "NGoodJets_pt45_double", "NGoodBJets_pt45_double"]
+            eventShapeVars = ["fwm2_top6",       "fwm3_top6",             "fwm4_top6", "fwm5_top6", 
+                              "jmt_ev0_top6",    "jmt_ev1_top6",          "jmt_ev2_top6"]
+            jVec1          = ["Jet_dcsv_",       "Jet_pt_",               "Jet_eta_",  "Jet_m_"]
+            jVec2          = ["Jet_phi_"]
+            extra          = ["Mass_stop1_PtRank_cm_TopSeed_maskedISR", "Mass_stop2_PtRank_cm_TopSeed_maskedISR", 
+                              "Pt_stop1_PtRank_cm_TopSeed_maskedISR",   "Pt_stop2_PtRank_cm_TopSeed_maskedISR",  
+                              "Phi_stop1_PtRank_cm_TopSeed_maskedISR",  "Phi_stop2_PtRank_cm_TopSeed_maskedISR", 
+                              "Eta_stop1_PtRank_cm_TopSeed_maskedISR",  "Eta_stop2_PtRank_cm_TopSeed_maskedISR", ]
+            
+            nJets  = 7 
+            jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
+            jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets)) 
+
+            self.config["allVars"] = numJets + eventShapeVars + jVecs + extra
+
+        else:
+            jVec1 = ["Jet_pt_", "Jet_eta_", "Jet_m_", "Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_", "Jet_multiplicity_", "Jet_dcsv_"]
+            jVec2 = ["Jet_phi_"]
+            lepton = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1"]
+
+            MET = ["lvMET_cm_pt", "lvMET_cm_eta", "lvMET_cm_phi"]
+            eventShapeVars = ["fwm2_top6", "fwm3_top6", "fwm4_top6", "fwm5_top6", "jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
+            numJets = ["NGoodJets_pt30_double"]
+
+            extra = ["HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"]
+
+            nJets = 7 
+            jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
+            jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets)) 
+
+            self.config["allVars"] = numJets + eventShapeVars + MET + jVecs + extra + lepton
 
     def importData(self):
         # Import data
@@ -340,14 +366,15 @@ class Train:
                                validation_data=(testData["data"], [maskTest, testData["domain"], maskTest, testData["masses"]], testData["sample_weight"]), 
                                sample_weight=trainData["sample_weight"])
 
-        # Model Visualization
-        print("----------------Printed model layout------------------")
-        self.plot_model(model)
-        
-        # Save trainig model as a protocol buffers file
-        print("----------------Saving model------------------")
-        self.save_model_pb(model)
-        
+        if self.saveAndPrint:
+            # Model Visualization
+            print("----------------Printed model layout------------------")
+            self.plot_model(model)
+            
+            # Save trainig model as a protocol buffers file
+            print("----------------Saving model------------------")
+            self.save_model_pb(model)
+       
         #Plot results
         print("----------------Validation of training------------------")
         val = Validation(model, self.config, sgTrainSet, trainData, trainSg, trainBg, result_log)
@@ -378,16 +405,17 @@ class Train:
 if __name__ == '__main__':
     usage = "usage: %prog [options]"
     parser = argparse.ArgumentParser(usage)
-    parser.add_argument("--quickVal", dest="quickVal", help="Do quick validation", action="store_true", default=False) 
-    parser.add_argument("--reweight", dest="reweight", help="Do event reweighting", action="store_true", default=False) 
-    parser.add_argument("--json",     dest="json",     help="JSON config file", default="NULL") 
-    parser.add_argument("--minMass",  dest="minMass",  help="Minimum stop mass to train on", default=300)
-    parser.add_argument("--maxMass",  dest="maxMass",  help="Maximum stop mass to train on", default=1400) 
-    parser.add_argument("--valMass",  dest="valMass",  help="Stop mass to validate on", default=500) 
-    parser.add_argument("--model",    dest="model",    help="Signal model to train on", type=str, default="*") 
-    parser.add_argument("--replay",   dest="replay",   help="Replay saved model", action="store_true", default=False) 
-    parser.add_argument("--year",     dest="year",     help="Year(s) to train on", type=str, default="2016_2017_2018") 
-    parser.add_argument("--tree",     dest="tree",     help="myMiniTree to train on", default="myMiniTree")
+    parser.add_argument("--quickVal",     dest="quickVal",     help="Do quick validation", action="store_true", default=False) 
+    parser.add_argument("--reweight",     dest="reweight",     help="Do event reweighting", action="store_true", default=False) 
+    parser.add_argument("--json",         dest="json",         help="JSON config file", default="NULL") 
+    parser.add_argument("--minMass",      dest="minMass",      help="Minimum stop mass to train on", default=300)
+    parser.add_argument("--maxMass",      dest="maxMass",      help="Maximum stop mass to train on", default=1400) 
+    parser.add_argument("--valMass",      dest="valMass",      help="Stop mass to validate on", default=500) 
+    parser.add_argument("--model",        dest="model",        help="Signal model to train on", type=str, default="*") 
+    parser.add_argument("--replay",       dest="replay",       help="Replay saved model", action="store_true", default=False) 
+    parser.add_argument("--year",         dest="year",         help="Year(s) to train on", type=str, default="2016_2017_2018") 
+    parser.add_argument("--tree",         dest="tree",         help="myMiniTree to train on", default="myMiniTree")
+    parser.add_argument("--saveAndPrint", dest="saveAndPrint", help="Save pb and print model", action="store_true", default=False)
 
     args = parser.parse_args()
 
@@ -405,7 +433,7 @@ if __name__ == '__main__':
     else: 
         hyperconfig = {"atag" : "BestPerf", "disc_comb_lambda": 0.5, "gr_lambda": 1.0, "disc_lambda": 1.0, "bg_cor_lambda": 1000.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":16384, "epochs":60, "lr":0.001}
 
-    t = Train(USER, replay, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, model=model, valMass=args.valMass, year=args.year, tree=args.tree)
+    t = Train(USER, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, model=model, valMass=args.valMass, year=args.year, tree=args.tree)
 
     if replay: t.replay()
 

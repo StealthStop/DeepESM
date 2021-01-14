@@ -127,10 +127,10 @@ pip install -e .
 cd ~/nobackup/
 conda create -n tf python=3.7 anaconda <<< $'y\n'
 conda activate tf
-conda install -n tf libgcc pandas scikit-learn tensorboard tensorflow tensorflow-gpu Keras matplotlib numpy dask h5py protobuf pydot pytorch torchvision cudatoolkit <<< $'y\n'
+conda install -n tf libgcc pandas scikit-learn tensorboard tensorflow=2.2.0 tensorflow-gpu Keras=2.4.3 matplotlib numpy=1.18.5 dask h5py protobuf pydot pytorch torchvision cudatoolkit <<< $'y\n'
 pip install uproot
 pip install coffea
-pip install mplhep
+pip install mplhep==0.1.35
 pip install pypi
 pip install matplotlib==3.3.0
 ```
