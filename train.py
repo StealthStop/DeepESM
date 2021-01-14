@@ -283,34 +283,40 @@ class Train:
         if not replay: os.makedirs(d["outputDir"]+"/log_graph")    
 
     def defineVars(self):
-        #numJets        = ["HT_trigger_pt45", "NGoodJets_pt45_double", "NGoodBJets_pt45_double"]
-        #eventShapeVars = ["fwm2_top6",       "fwm3_top6",             "fwm4_top6", "fwm5_top6", 
-        #                  "jmt_ev0_top6",    "jmt_ev1_top6",          "jmt_ev2_top6"]
-        #jVec1          = ["Jet_dcsv_",       "Jet_pt_",               "Jet_eta_",  "Jet_m_"]
-        #jVec2          = ["Jet_phi_"]
-        #extra          = ["Mass_stop1_PtRank_cm_TopSeed_maskedISR", "Mass_stop2_PtRank_cm_TopSeed_maskedISR", 
-        #                  "Pt_stop1_PtRank_cm_TopSeed_maskedISR",   "Pt_stop2_PtRank_cm_TopSeed_maskedISR",  
-        #                  "Phi_stop1_PtRank_cm_TopSeed_maskedISR",  "Phi_stop2_PtRank_cm_TopSeed_maskedISR", 
-        #                  "Eta_stop1_PtRank_cm_TopSeed_maskedISR",  "Eta_stop2_PtRank_cm_TopSeed_maskedISR", ]
-        #
-        #nJets  = 6 
-        #jVecs  = list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
 
-        jVec1 = ["Jet_pt_", "Jet_eta_", "Jet_m_", "Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_", "Jet_multiplicity_", "Jet_dcsv_"]
-        jVec2 = ["Jet_phi_"]
-        lepton = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1"]
+        if "0l" in self.tree:
+            numJets        = ["HT_trigger_pt45", "NGoodJets_pt45_double", "NGoodBJets_pt45_double"]
+            eventShapeVars = ["fwm2_top6",       "fwm3_top6",             "fwm4_top6", "fwm5_top6", 
+                              "jmt_ev0_top6",    "jmt_ev1_top6",          "jmt_ev2_top6"]
+            jVec1          = ["Jet_dcsv_",       "Jet_pt_",               "Jet_eta_",  "Jet_m_"]
+            jVec2          = ["Jet_phi_"]
+            extra          = ["Mass_stop1_PtRank_cm_TopSeed_maskedISR", "Mass_stop2_PtRank_cm_TopSeed_maskedISR", 
+                              "Pt_stop1_PtRank_cm_TopSeed_maskedISR",   "Pt_stop2_PtRank_cm_TopSeed_maskedISR",  
+                              "Phi_stop1_PtRank_cm_TopSeed_maskedISR",  "Phi_stop2_PtRank_cm_TopSeed_maskedISR", 
+                              "Eta_stop1_PtRank_cm_TopSeed_maskedISR",  "Eta_stop2_PtRank_cm_TopSeed_maskedISR", ]
+            
+            nJets  = 7 
+            jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
+            jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets)) 
 
-        MET = ["lvMET_cm_pt", "lvMET_cm_eta", "lvMET_cm_phi"]
-        eventShapeVars = ["fwm2_top6", "fwm3_top6", "fwm4_top6", "fwm5_top6", "jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
-        numJets = ["NGoodJets_pt30_double"]
+            self.config["allVars"] = numJets + eventShapeVars + jVecs + extra
 
-        extra = ["HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"]
+        else:
+            jVec1 = ["Jet_pt_", "Jet_eta_", "Jet_m_", "Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_", "Jet_multiplicity_", "Jet_dcsv_"]
+            jVec2 = ["Jet_phi_"]
+            lepton = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1"]
 
-        nJets = 7 
-        nJetsAK8 = 4
-        jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
-        jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets)) 
-        self.config["allVars"] = numJets + eventShapeVars + MET + jVecs + extra + lepton
+            MET = ["lvMET_cm_pt", "lvMET_cm_eta", "lvMET_cm_phi"]
+            eventShapeVars = ["fwm2_top6", "fwm3_top6", "fwm4_top6", "fwm5_top6", "jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
+            numJets = ["NGoodJets_pt30_double"]
+
+            extra = ["HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"]
+
+            nJets = 7 
+            jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
+            jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets)) 
+
+            self.config["allVars"] = numJets + eventShapeVars + MET + jVecs + extra + lepton
 
     def importData(self):
         # Import data
