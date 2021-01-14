@@ -42,11 +42,18 @@ class Train:
                        "2016_TTJets_HT-600to800", "2016_TTJets_HT-800to1200", "2016_TTJets_HT-1200to2500", "2016_TTJets_HT-2500toInf"]
         TTJets_2017 = ["2017_TTJets_Incl", "2017_TTJets_SingleLeptFromT", "2017_TTJets_SingleLeptFromTbar", "2017_TTJets_DiLept", 
                        "2017_TTJets_HT-600to800", "2017_TTJets_HT-800to1200", "2017_TTJets_HT-1200to2500", "2017_TTJets_HT-2500toInf"]
-        TT_2016 = ["2016_TT"]
-        #TT_2017 = ["2017_TTToSemiLeptonic","2017_TTTo2L2Nu","2017_TTToHadronic"]
-        TT_2017 = ["2017_TTToSemiLeptonic"]
-        #TT_2018 = ["2018pre_TTToSemiLeptonic","2018pre_TTTo2L2Nu","2018pre_TTToHadronic"]
-        TT_2018 = ["2018pre_TTToSemiLeptonic"]
+
+        TT_2016 = ["2016_TT"]; TT_2017 = None; TT_2018 = None
+        if "0l" in self.config["tree"]:
+            TT_2017 = ["2017_TTToHadronic"]
+            TT_2018 = ["2018pre_TTToHadronic"]
+        elif "2l" in self.config["tree"]:
+            TT_2017 = ["2017_TTTo2L2Nu"]
+            TT_2018 = ["2018pre_TTTo2L2Nu"]
+        else:
+            TT_2017 = ["2017_TTToSemiLeptonic"]
+            TT_2018 = ["2018pre_TTToSemiLeptonic"]
+
         Signal_2016 = list("2016%smStop*"%(self.model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
         Signal_2017 = list("2017%smStop*"%(self.model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
         Signal_2018 = list("2018%smStop*"%(self.model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
@@ -67,8 +74,6 @@ class Train:
 
         self.config["ttbarMC"] = ("TT", TT)
         self.config["massModels"] = Signal
-        self.config["otherttbarMC"] = ("TT 2017", TT_2017)
-        self.config["othermassModels"] = Signal_2017
         self.config["ttbarMCShift"] = ("TT", TT_2016)
         self.config["dataSet"] = "MVA_Training_Files_FullRun2_V3/"
         self.config["doBgWeight"] = True
@@ -284,7 +289,7 @@ class Train:
 
     def defineVars(self):
 
-        if "0l" in self.tree:
+        if "0l" in self.config["tree"]:
             numJets        = ["HT_trigger_pt45", "NGoodJets_pt45_double", "NGoodBJets_pt45_double"]
             eventShapeVars = ["fwm2_top6",       "fwm3_top6",             "fwm4_top6", "fwm5_top6", 
                               "jmt_ev0_top6",    "jmt_ev1_top6",          "jmt_ev2_top6"]
