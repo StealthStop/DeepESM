@@ -13,14 +13,17 @@ from Validation import Validation
 from Correlation import Correlation as cor
 import json
 import argparse
+import random
 from Models import main_model_alt, main_model_alt2, main_model, doubleDisco_model, model_reg
 import os
+import time
 
 class Train:
-    def __init__(self, USER, replay, saveAndPrint, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, model="*", valMass=500, year = "2016_2017_2018", tree = "myMiniTree"):
+    def __init__(self, USER, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, model="*", valMass=500, year = "2016_2017_2018", tree = "myMiniTree"):
         self.user = USER
         self.logdir = "/storage/local/data1/gpuscratch/%s"%(self.user)
         self.config = {}
+        self.config["seed"] = seed
         self.config["minStopMass"] = int(minStopMass)
         self.config["maxStopMass"] = int(maxStopMass)
         self.config["doReweight"] = doReweight
@@ -313,9 +316,13 @@ class Train:
 
             MET = ["lvMET_cm_pt", "lvMET_cm_eta", "lvMET_cm_phi"]
             eventShapeVars = ["fwm2_top6", "fwm3_top6", "fwm4_top6", "fwm5_top6", "jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
-            numJets = ["NGoodJets_pt30_double"]
+            numJets = ["NGoodJets_pt30_double", "NGoodBJets_pt30_double"]
 
-            extra = ["HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"]
+            #extra = ["HT_trigger_pt30", "stop1_PtRank_1l_mass", "stop2_PtRank_1l_mass"]
+            extra  = ["HT_trigger_pt30", "Mass_stop1_PtRank_cm_OldSeed", "Mass_stop2_PtRank_cm_OldSeed", 
+                      "Pt_stop1_PtRank_cm_OldSeed",   "Pt_stop2_PtRank_cm_OldSeed",  
+                      "Phi_stop1_PtRank_cm_OldSeed",  "Phi_stop2_PtRank_cm_OldSeed", 
+                      "Eta_stop1_PtRank_cm_OldSeed",  "Eta_stop2_PtRank_cm_OldSeed", ]
 
             nJets = 7 
             jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
@@ -416,8 +423,31 @@ if __name__ == '__main__':
     parser.add_argument("--year",         dest="year",         help="Year(s) to train on", type=str, default="2016_2017_2018") 
     parser.add_argument("--tree",         dest="tree",         help="myMiniTree to train on", default="myMiniTree")
     parser.add_argument("--saveAndPrint", dest="saveAndPrint", help="Save pb and print model", action="store_true", default=False)
+    parser.add_argument("--seed",         dest="seed",         help="Use specific seed", type=int, default=-1)
 
     args = parser.parse_args()
+
+    # For reproduceability, try these resetting/clearing commands
+    # Enforce 64 bit precision
+    K.backend.clear_session()
+    tf.compat.v1.reset_default_graph()
+    K.backend.set_floatx('float64')
+
+    # Get seed from time, but allow user to reseed with their own number
+    masterSeed = int(time.time())
+    if args.seed != -1:
+        masterSeed = args.seed
+
+    # Supposedly using 0 makes things predictable
+    os.environ["PYTHONHASHSEED"] = "0"
+
+    # Supposedly makes calculations on GPU deterministic
+    os.environ["TF_CUDNN_DETERMINISTIC"] = "1"
+
+    # Seed the big modules
+    np.random.seed(masterSeed)
+    tf.random.set_seed(masterSeed)
+    random.seed(masterSeed)
 
     USER = os.getenv("USER")
 
@@ -431,9 +461,9 @@ if __name__ == '__main__':
         with open(str(args.json), "r") as f:
             hyperconfig = json.load(f)
     else: 
-        hyperconfig = {"atag" : "BestPerf", "disc_comb_lambda": 0.5, "gr_lambda": 1.0, "disc_lambda": 1.0, "bg_cor_lambda": 1000.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":16384, "epochs":60, "lr":0.001}
+        hyperconfig = {"atag" : "GoldenTEST", "disc_comb_lambda": 1.0, "gr_lambda": 1.2, "disc_lambda": 0.5, "bg_cor_lambda": 1000.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.01, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":16384, "epochs":60, "lr":0.001}
 
-    t = Train(USER, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, model=model, valMass=args.valMass, year=args.year, tree=args.tree)
+    t = Train(USER, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, model=model, valMass=args.valMass, year=args.year, tree=args.tree)
 
     if replay: t.replay()
 
