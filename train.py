@@ -13,7 +13,6 @@ from Validation import Validation
 from Correlation import Correlation as cor
 import json
 import argparse
-import random
 from Models import main_model_alt, main_model_alt2, main_model, doubleDisco_model, model_reg
 import os
 import time
@@ -444,10 +443,8 @@ if __name__ == '__main__':
     # Supposedly makes calculations on GPU deterministic
     os.environ["TF_CUDNN_DETERMINISTIC"] = "1"
 
-    # Seed the big modules
-    np.random.seed(masterSeed)
+    # Seed the tensorflow here, seed numpy in datagetter
     tf.random.set_seed(masterSeed)
-    random.seed(masterSeed)
 
     USER = os.getenv("USER")
 
