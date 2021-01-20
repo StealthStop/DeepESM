@@ -2,7 +2,6 @@ import uproot
 import numpy as np
 import pandas as pd
 from glob import glob
-import time 
 
 def getSamplesToRun(names):
     s = glob(names)
@@ -39,7 +38,7 @@ def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgW
                 trainData[key] = data[key][:minLen]
 
     # Randomly shuffle the signal and background 
-    np.random.seed(int(time.time())) 
+    np.random.seed(config["seed"]) 
     perms = np.random.permutation(trainData["data"].shape[0])
     for key in trainData:
         trainData[key] = trainData[key][perms]
