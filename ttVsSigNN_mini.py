@@ -120,6 +120,15 @@ histDict = {"GoodLeptons_pt_@"      : {"fudge" : 1.3, "logY" : False, "range" : 
             "lvMET_cm_eta"          : {"fudge" : 1.3, "logY" : False, "range" : [-1],               "X" : {"title" : "#vec{E}_{T}^{miss} #eta",           "bins" : 80, "min" : -6, "max" : 6}},
             "stop@_PtRank_1l_mass"  : {"fudge" : 1.3, "logY" : False, "range" : [1,2],              "X" : {"title" : "Stop@ Mass (p_{T}-Ranked) [GeV]",   "bins" : 80, "min" : 0, "max" : 1500}},
             "HT_trigger_pt30"       : {"fudge" : 70,  "logY" : True,  "range" : [-1],               "X" : {"title" : "H_{T} [GeV]",                       "bins" : 64, "min" : 0, "max" : 5000}},
+            "Jet_cEF_@"             : {"fudge" : 1.3, "logY" : False, "range" : list(xrange(1,13)), "X" : {"title" : "Charged EM Energy Frac",            "bins" : 80, "min" : 0, "max" : 1.1}},
+            "Jet_cHF_@"             : {"fudge" : 1.3, "logY" : False, "range" : list(xrange(1,13)), "X" : {"title" : "Charged Hadron Energy Frac",        "bins" : 80, "min" : 0, "max" : 1.1}},
+            "Jet_nEF_@"             : {"fudge" : 1.3, "logY" : False, "range" : list(xrange(1,13)), "X" : {"title" : "Neutral EM Energy Frac",            "bins" : 80, "min" : 0, "max" : 1.1}},
+            "Jet_nHF_@"             : {"fudge" : 1.3, "logY" : False, "range" : list(xrange(1,13)), "X" : {"title" : "Neutral Hadron Energy Frac",        "bins" : 80, "min" : 0, "max" : 1.1}},
+            "Jet_flavb_@"           : {"fudge" : 1.3, "logY" : False, "range" : list(xrange(1,13)), "X" : {"title" : "DeepFlavor Tot b",                  "bins" : 80, "min" : 0, "max" : 1.1}},
+            "Jet_flavg_@"           : {"fudge" : 1.3, "logY" : False, "range" : list(xrange(1,13)), "X" : {"title" : "DeepFlavor Prob g",                 "bins" : 80, "min" : 0, "max" : 1.1}},
+            "Jet_flavc_@"           : {"fudge" : 1.3, "logY" : False, "range" : list(xrange(1,13)), "X" : {"title" : "DeepFlavor Prob c",                 "bins" : 80, "min" : 0, "max" : 1.1}},
+            "Jet_flavuds_@"         : {"fudge" : 1.3, "logY" : False, "range" : list(xrange(1,13)), "X" : {"title" : "DeepFlavor Prob uds",               "bins" : 80, "min" : 0, "max" : 1.1}},
+            "Jet_flavq_@"           : {"fudge" : 1.3, "logY" : False, "range" : list(xrange(1,13)), "X" : {"title" : "DeepFlavor Tot q",                  "bins" : 80, "min" : 0, "max" : 1.1}},
 }
 
 for name, opt in histDict.iteritems():
