@@ -127,10 +127,10 @@ pip install -e .
 cd ~/nobackup/
 conda create -n tf python=3.7 anaconda <<< $'y\n'
 conda activate tf
-conda install -n tf libgcc pandas scikit-learn tensorboard tensorflow tensorflow-gpu Keras matplotlib numpy dask h5py protobuf pydot pytorch torchvision cudatoolkit <<< $'y\n'
+conda install -n tf libgcc pandas scikit-learn tensorboard tensorflow=2.2.0 tensorflow-gpu Keras=2.4.3 matplotlib numpy=1.18.5 dask h5py protobuf pydot pytorch torchvision cudatoolkit <<< $'y\n'
 pip install uproot
 pip install coffea
-pip install mplhep
+pip install mplhep==0.1.35
 pip install pypi
 pip install matplotlib==3.3.0
 ```
@@ -146,3 +146,25 @@ xrdcp -r root://cmseos.fnal.gov///store/user/cmadrid/trainingTuples/MVA_Training
 python train.py
 ```
 
+### Plotting Input Variables
+
+A plotting script is provided to make pretty plots of NN inputs from the ntuple files.
+
+Arguments to the script are:
+
+```
+--approved : is Plot is approved?
+--path     : Path to ntuples files
+--tree     : TTree name to use
+--year     : which year
+--mass1    : mass 1 to show
+--mass2    : mass 2 to show
+--model1   : model 1 to show
+--model2   : model 2 to show
+```
+
+An example to run the script could be:
+
+```
+python ttVsSigNN_mini.py --year 2016 --path /path/to/ntuples/files --mass1 350 --model1 RPV --mass2 500 --model2 StealthSYY
+```

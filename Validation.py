@@ -65,7 +65,8 @@ class Validation:
             
         xerr = 0.5*(xedges[1]-xedges[0])
         plt.errorbar(bin_centersx, y, xerr=xerr, yerr=ye, fmt='o', color='xkcd:red')
-        fig.savefig(self.config["outputDir"]+"/"+name+"_discriminator.png", dpi=fig.dpi)        
+        fig.savefig(self.config["outputDir"]+"/"+name+"_discriminator.png", dpi=fig.dpi)       
+        fig.savefig(self.config["outputDir"]+"/"+name+"_discriminator.pdf", dpi=fig.dpi) 
 
     def getAUC(self, fpr, tpr):
         try:
@@ -426,7 +427,8 @@ class Validation:
 
                     tempsignificance = tempsignificance**0.5
 
-                    tempmetric = tempclosureerr / tempsignificance
+                    if tempsignificance > 0.0:
+                        tempmetric = tempclosureerr / tempsignificance
  
                     # Save significance if we found a better one
                     #if tempsignificance > significance:
@@ -724,7 +726,6 @@ class Validation:
             self.plotD1VsD2SigVsBkgd(y_Train_Bg_disc1, y_Train_Bg_disc2, y_Train_Sg_disc1[massMask], y_Train_Sg_disc2[massMask], valMass)
             # Make arrays for possible values to cut on for both discriminant
             # starting at a minimum of 0.5 for each
-            #c1s = np.arange(0.70, 0.75, 0.05); c2s = np.arange(0.70, 0.75, 0.05)
             c1s = np.arange(0.15, 0.85, 0.05); c2s = np.arange(0.15, 0.85, 0.05)
         
             # Get number of background and signal counts for each A, B, C, D region for every possible combination of cuts on disc 1 and disc 2
