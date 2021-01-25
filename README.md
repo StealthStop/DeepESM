@@ -159,7 +159,7 @@ Remember to replace `<working_directory>` with the directory where you want your
 
 To activate the `coffeaenv` environment and set the Jupyter paths, run the command (every time):
 ```bash
-cd <working_directory>/t-channel_Analysis
+cd <working_directory>/DeepESM
 source init.sh
 ```
 
@@ -171,7 +171,7 @@ This shell function was given to you by the virtual environment.
 
 To remove the virtual environment and the associated files (i.e. inverse of the setup script), you can use the run the following command:
 ```bash
-cd <working_directory>/t-channel_Analysis
+cd <working_directory>/DeepESM
 ./clean.sh
 ```
 The `clean.sh` script has the same `-n` and `-d` options as in the `setup.sh` script.
