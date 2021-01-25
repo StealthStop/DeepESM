@@ -146,6 +146,36 @@ xrdcp -r root://cmseos.fnal.gov///store/user/cmadrid/trainingTuples/MVA_Training
 python train.py
 ```
 
+### Alternative LPC setup: Python Virtual Environment
+
+To begin the initial setup, run the following commands:
+```bash
+cd <working_directory>
+git clone git@github.com:StealthStop/DeepESM.git
+cd t-channel_Analysis
+./setup.sh
+```
+Remember to replace `<working_directory>` with the directory where you want your files/folders to appear. You can change the name of the virtual environment by using the `-n` option and you can use the development version of coffea by using the `-d` option. These commands only need to be run during the initial setup. When doing your day-to-day tasks, you can skip these.
+
+To activate the `coffeaenv` environment and set the Jupyter paths, run the command (every time):
+```bash
+cd <working_directory>/t-channel_Analysis
+source init.sh
+```
+
+When you are done working and would like to ``de-activate'' the `coffeaenv` environment, run the command:
+```bash
+deactivate
+```
+This shell function was given to you by the virtual environment.
+
+To remove the virtual environment and the associated files (i.e. inverse of the setup script), you can use the run the following command:
+```bash
+cd <working_directory>/t-channel_Analysis
+./clean.sh
+```
+The `clean.sh` script has the same `-n` and `-d` options as in the `setup.sh` script.
+
 ### Plotting Input Variables
 
 A plotting script is provided to make pretty plots of NN inputs from the ntuple files.
