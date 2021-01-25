@@ -152,7 +152,7 @@ To begin the initial setup, run the following commands:
 ```bash
 cd <working_directory>
 git clone git@github.com:StealthStop/DeepESM.git
-cd t-channel_Analysis
+cd DeepESM
 ./setup.sh
 ```
 Remember to replace `<working_directory>` with the directory where you want your files/folders to appear. You can change the name of the virtual environment by using the `-n` option and you can use the development version of coffea by using the `-d` option. These commands only need to be run during the initial setup. When doing your day-to-day tasks, you can skip these.
