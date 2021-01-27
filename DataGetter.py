@@ -182,8 +182,8 @@ class DataGetter:
         for massNjets, c in dnjets.items():
             cmin += mmin
             cmax += mmax
-            #dnjets[massNjets] = round(float(mmin)/float(c),3)
-            dnjets[massNjets] = round(float(mmax)/float(c),3)
+            dnjets[massNjets] = round(float(mmin)/float(c),3)
+            #dnjets[massNjets] = round(float(mmax)/float(c),3)
 
         return npyInputData, npyInputAnswers, npyInputDomain, npyInputSampleWgts, npyNJet, npyMasses, npyMassNjets, cmax, dnjets
 
