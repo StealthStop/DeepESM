@@ -1,4 +1,4 @@
-import uproot
+import uproot4 as uproot
 import numpy as np
 import pandas as pd
 from glob import glob
@@ -38,7 +38,7 @@ def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgW
                 trainData[key] = data[key][:minLen]
 
     # Randomly shuffle the signal and background 
-    np.random.seed(config["seed"]) 
+    np.random.seed(config["seed"])
     perms = np.random.permutation(trainData["data"].shape[0])
     for key in trainData:
         trainData[key] = trainData[key][perms]
@@ -92,7 +92,7 @@ class DataGetter:
             try:
                 sample = samplesToRun[0]                
                 f = uproot.open(sample)
-                self.columnHeaders = f[treename].pandas.df().columns.tolist()
+                self.columnHeaders = f[treename].arrays(library="pd").columns.tolist()
                 f.close()
             except IndexError as e:
                 print(e)
@@ -111,8 +111,7 @@ class DataGetter:
         for filename in samplesToRun:
             try:
                 f = uproot.open(filename)
-                #dsets.append( f[treename].pandas.df(branches=variables) )
-                dsets.append( f[treename].pandas.df() )
+                dsets.append( f[treename].arrays(library="pd") )
                 f.close()
             except Exception as e:
                 print("Warning: \"%s\" has issues" % filename, e)
