@@ -17,7 +17,7 @@ def main_model(config, trainData, trainDataTT):
     layer = K.layers.BatchNormalization()(layerSplit)        
     for n in n_hidden_layers_M:
         layer = K.layers.Dense(n, activation='relu')(layer)
-    layer = K.layers.Dropout(config["drop_out"])(layer)
+    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
     fourth_output = K.layers.Dense(trainData["masses"].shape[1], activation=None, name='fourth_output')(layer)
 
     layerSplit = K.layers.concatenate([layerSplit, fourth_output], name='concat_mass_layer')
@@ -25,13 +25,13 @@ def main_model(config, trainData, trainDataTT):
     layer = K.layers.BatchNormalization()(layerSplit)
     for n in n_hidden_layers:
         layer = K.layers.Dense(n, activation='relu')(layer)
-    layer = K.layers.Dropout(config["drop_out"])(layer)
+    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
     first_output = K.layers.Dense(trainData["labels"].shape[1], activation='softmax', name='first_output')(layer)
 
     layer = K.layers.BatchNormalization()(layerSplit)        
     for n in n_hidden_layers:
         layer = K.layers.Dense(n, activation='relu')(layer)
-    layer = K.layers.Dropout(config["drop_out"])(layer)
+    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
     second_output = K.layers.Dense(trainData["labels"].shape[1], activation='softmax', name='second_output')(layer)
 
     corr = K.layers.concatenate([first_output, second_output], name='correlation_layer')
@@ -40,7 +40,7 @@ def main_model(config, trainData, trainDataTT):
     layer = K.layers.BatchNormalization()(layer)
     for n in n_hidden_layers_D:
         layer = K.layers.Dense(n, activation='relu')(layer)
-    layer = K.layers.Dropout(config["drop_out"])(layer)
+    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
     third_output = K.layers.Dense(trainData["domain"].shape[1], activation='softmax', name='third_output')(layer)
             
     model = K.models.Model(inputs=main_input, outputs=[first_output, second_output, third_output, corr, fourth_output], name='model')
@@ -63,7 +63,7 @@ def main_model_alt(config, trainData, trainDataTT):
     layer = K.layers.BatchNormalization()(layerSplit)        
     for n in n_hidden_layers_M:
         layer = K.layers.Dense(n, activation='relu')(layer)
-    layer = K.layers.Dropout(config["drop_out"])(layer)
+    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
     fourth_output = K.layers.Dense(trainData["masses"].shape[1], activation=None, name='fourth_output')(layer)
 
     layerSplit = K.layers.concatenate([layerSplit, fourth_output], name='concat_mass_layer')
@@ -71,13 +71,13 @@ def main_model_alt(config, trainData, trainDataTT):
     layer = K.layers.BatchNormalization()(layerSplit)
     for n in n_hidden_layers:
         layer = K.layers.Dense(n, activation='relu')(layer)
-    layer = K.layers.Dropout(config["drop_out"])(layer)
+    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
     first_output = K.layers.Dense(trainData["labels"].shape[1], activation='softmax', name='first_output')(layer)
 
     layer = K.layers.BatchNormalization()(layerSplit)        
     for n in n_hidden_layers:
         layer = K.layers.Dense(n, activation='relu')(layer)
-    layer = K.layers.Dropout(config["drop_out"])(layer)
+    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
     second_output = K.layers.Dense(trainData["labels"].shape[1], activation='softmax', name='second_output')(layer)
 
     corr = K.layers.concatenate([first_output, second_output], name='correlation_layer')
@@ -86,7 +86,7 @@ def main_model_alt(config, trainData, trainDataTT):
     layer = K.layers.BatchNormalization()(layer)
     for n in n_hidden_layers_D:
         layer = K.layers.Dense(n, activation='relu')(layer)
-    layer = K.layers.Dropout(config["drop_out"])(layer)
+    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
     third_output = K.layers.Dense(trainData["domain"].shape[1], activation='softmax', name='third_output')(layer)
             
     model = K.models.Model(inputs=main_input, outputs=[third_output, corr, fourth_output], name='model')
@@ -109,7 +109,7 @@ def main_model_alt2(config, trainData, trainDataTT):
     layer = K.layers.BatchNormalization()(layerSplit)        
     for n in n_hidden_layers_M:
         layer = K.layers.Dense(n, activation='relu')(layer)
-    layer = K.layers.Dropout(config["drop_out"])(layer)
+    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
     fourth_output = K.layers.Dense(trainData["masses"].shape[1], activation=None, name='fourth_output')(layer)
 
     layerSplit = K.layers.concatenate([layerSplit, fourth_output], name='concat_mass_layer')
@@ -117,24 +117,24 @@ def main_model_alt2(config, trainData, trainDataTT):
     layer = K.layers.BatchNormalization()(layerSplit)
     for n in n_hidden_layers:
         layer = K.layers.Dense(n, activation='relu')(layer)
-    layer = K.layers.Dropout(config["drop_out"])(layer)
+    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
     first_output = K.layers.Dense(trainData["labels"].shape[1], activation='softmax', name='first_output')(layer)
 
     layer = K.layers.BatchNormalization()(layerSplit)        
     for n in n_hidden_layers:
         layer = K.layers.Dense(n, activation='relu')(layer)
-    layer = K.layers.Dropout(config["drop_out"])(layer)
+    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
     second_output = K.layers.Dense(trainData["labels"].shape[1], activation='softmax', name='second_output')(layer)
 
-    corr = K.layers.concatenate([first_output, second_output], name='correlation_layer')
-        
     disc_comb = K.layers.concatenate([first_output, second_output], name='disc_comb_layer')
+
+    corr = K.layers.concatenate([first_output, second_output], name='correlation_layer')
 
     layer = GradientReversal()(corr)
     layer = K.layers.BatchNormalization()(layer)
     for n in n_hidden_layers_D:
         layer = K.layers.Dense(n, activation='relu')(layer)
-    layer = K.layers.Dropout(config["drop_out"])(layer)
+    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
     third_output = K.layers.Dense(trainData["domain"].shape[1], activation='softmax', name='third_output')(layer)
             
     model = K.models.Model(inputs=main_input, outputs=[disc_comb, third_output, corr, fourth_output], name='model')
@@ -156,13 +156,13 @@ def doubleDisco_model(config, trainData, trainDataTT):
     layer = K.layers.BatchNormalization()(layerSplit)
     for n in n_hidden_layers:
         layer = K.layers.Dense(n, activation='relu')(layer)
-    layer = K.layers.Dropout(config["drop_out"])(layer)
+    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
     first_output = K.layers.Dense(trainData["labels"].shape[1], activation='softmax', name='first_output')(layer)
 
     layer = K.layers.BatchNormalization()(layerSplit)        
     for n in n_hidden_layers:
         layer = K.layers.Dense(n, activation='relu')(layer)
-    layer = K.layers.Dropout(config["drop_out"])(layer)
+    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
     second_output = K.layers.Dense(trainData["labels"].shape[1], activation='softmax', name='second_output')(layer)
 
     corr = K.layers.concatenate([first_output, second_output], name='correlation_layer')
@@ -170,7 +170,7 @@ def doubleDisco_model(config, trainData, trainDataTT):
     layer = K.layers.BatchNormalization()(layer)
     for n in n_hidden_layers_D:
         layer = K.layers.Dense(n, activation='relu')(layer)
-    layer = K.layers.Dropout(config["drop_out"])(layer)
+    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
     third_output = K.layers.Dense(trainData["domain"].shape[1], activation='softmax', name='third_output')(layer)
             
     model = K.models.Model(inputs=main_input, outputs=[first_output, second_output, third_output, corr], name='model')
@@ -186,7 +186,7 @@ def model_reg(config, trainData, trainDataTT):
     layer = K.layers.Lambda(lambda x: (x - K.backend.constant(trainDataTT["mean"])) * K.backend.constant(trainDataTT["scale"]), name='normalizeData')(main_input)
     for n in n_hidden_layers_M:
         layer = K.layers.Dense(n, activation='relu')(layer)
-    layer = K.layers.Dropout(config["drop_out"])(layer)
+    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
     first_output = K.layers.Dense(trainData["masses"].shape[1], activation=None, name='first_output')(layer)
 
     model = K.models.Model(inputs=main_input, outputs=first_output, name='model')

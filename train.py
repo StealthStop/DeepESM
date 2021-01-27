@@ -323,11 +323,11 @@ class Train:
                       "Phi_stop1_PtRank_cm_OldSeed",  "Phi_stop2_PtRank_cm_OldSeed", 
                       "Eta_stop1_PtRank_cm_OldSeed",  "Eta_stop2_PtRank_cm_OldSeed", ]
 
-            nJets = 7 
-            jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
-            jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets)) 
+            nJets = 7
+            jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets))
+            jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets))
 
-            self.config["allVars"] = numJets + eventShapeVars + MET + jVecs + extra + lepton
+            self.config["allVars"] = jVec + lepton + MET + eventShapeVars + extra
 
     def importData(self):
         # Import data
@@ -426,12 +426,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    # For reproduceability, try these resetting/clearing commands
-    # Enforce 64 bit precision
-    K.backend.clear_session()
-    tf.compat.v1.reset_default_graph()
-    K.backend.set_floatx('float64')
-
     # Get seed from time, but allow user to reseed with their own number
     masterSeed = int(time.time())
     if args.seed != -1:
@@ -442,9 +436,16 @@ if __name__ == '__main__':
 
     # Supposedly makes calculations on GPU deterministic
     os.environ["TF_CUDNN_DETERMINISTIC"] = "1"
+    os.environ["TF_DETERMINISTIC_OPS"] = "1"
 
     # Seed the tensorflow here, seed numpy in datagetter
     tf.random.set_seed(masterSeed)
+
+    # _After_ setting seed, for reproduceability, try these resetting/clearing commands
+    # Enforce 64 bit precision
+    K.backend.clear_session()
+    tf.compat.v1.reset_default_graph()
+    K.backend.set_floatx('float64')
 
     USER = os.getenv("USER")
 
@@ -458,7 +459,7 @@ if __name__ == '__main__':
         with open(str(args.json), "r") as f:
             hyperconfig = json.load(f)
     else: 
-        hyperconfig = {"atag" : "GoldenTEST", "disc_comb_lambda": 1.0, "gr_lambda": 1.2, "disc_lambda": 0.5, "bg_cor_lambda": 1000.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.01, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":16384, "epochs":60, "lr":0.001}
+        hyperconfig = {"atag" : "GoldenTEST", "disc_comb_lambda": 0.1, "gr_lambda": 2.2, "disc_lambda": 0.5, "bg_cor_lambda": 1000.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.01, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":60, "lr":0.001}
 
     t = Train(USER, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, model=model, valMass=args.valMass, year=args.year, tree=args.tree)
 

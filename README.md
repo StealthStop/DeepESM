@@ -143,6 +143,7 @@ git clone git@github.com:StealthStop/DeepESM.git
 cd DeepESM
 mkdir MVA_Training_Files_FullRun2_V2
 xrdcp -r root://cmseos.fnal.gov///store/user/cmadrid/trainingTuples/MVA_Training_Files_FullRun2_V2/ ./MVA_Training_Files_FullRun2_V2/
+source deepenv.sh
 python train.py
 ```
 
