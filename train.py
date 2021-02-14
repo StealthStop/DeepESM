@@ -18,7 +18,7 @@ import os
 import time
 
 class Train:
-    def __init__(self, USER, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, model="*", valMass=500, year = "2016_2017_2018", tree = "myMiniTree"):
+    def __init__(self, USER, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, model="*", valMass=500, valModel="RPV_SYY_SHH", year = "2016_2017_2018", tree = "myMiniTree"):
         self.user = USER
         self.logdir = "/storage/local/data1/gpuscratch/%s"%(self.user)
         self.config = {}
@@ -30,7 +30,8 @@ class Train:
         self.doQuickVal = doQuickVal
         self.saveAndPrint = saveAndPrint
         self.model = model
-        self.valMass = valMass
+        self.config["valMass"] = valMass
+        self.config["valModel"] = valModel
         self.config["year"] = year
         self.config["tree"] = tree
 
@@ -56,9 +57,14 @@ class Train:
             TT_2017 = ["2017_TTToSemiLeptonic"]
             TT_2018 = ["2018pre_TTToSemiLeptonic"]
 
-        Signal_2016 = list("2016%smStop*"%(self.model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
-        Signal_2017 = list("2017%smStop*"%(self.model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
-        Signal_2018 = list("2018%smStop*"%(self.model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
+        Signal_2016 = []
+        Signal_2017 = []
+        Signal_2018 = []
+
+        for model in model.split("_"):
+            Signal_2016 += list("2016*%s*mStop*"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
+            Signal_2017 += list("2017*%s*mStop*"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
+            Signal_2018 += list("2018*%s*mStop*"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
 
         TT = []; Signal = []; self.config["lumi"] = 0
         if "2016" in self.config["year"]: 
@@ -327,7 +333,7 @@ class Train:
             jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets))
             jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets))
 
-            self.config["allVars"] = jVec + lepton + MET + eventShapeVars + extra
+            self.config["allVars"] = jVecs + lepton + MET + eventShapeVars + extra
 
     def importData(self):
         # Import data
@@ -385,7 +391,7 @@ class Train:
         print("----------------Validation of training------------------")
         val = Validation(model, self.config, sgTrainSet, trainData, trainSg, trainBg, result_log)
 
-        metric = val.makePlots(self.doQuickVal, self.valMass)
+        metric = val.makePlots(self.doQuickVal, self.config["valMass"], self.config["valModel"])
         del val
         
         #Clean up training
@@ -405,7 +411,7 @@ class Train:
         trainData, trainSg, trainBg = get_data(sgTrainSet, bgTrainSet, self.config)
 
         val = Validation(model, self.config, sgTrainSet, trainData, trainSg, trainBg)
-        metric = val.makePlots(doQuickVal, valMass)
+        metric = val.makePlots(doQuickVal, self.config["valMass"], self.config["valModel"])
         del val
 
 if __name__ == '__main__':
@@ -417,6 +423,7 @@ if __name__ == '__main__':
     parser.add_argument("--minMass",      dest="minMass",      help="Minimum stop mass to train on", default=300)
     parser.add_argument("--maxMass",      dest="maxMass",      help="Maximum stop mass to train on", default=1400) 
     parser.add_argument("--valMass",      dest="valMass",      help="Stop mass to validate on", default=500) 
+    parser.add_argument("--valModel",     dest="valModel",     help="Signal model(s) to validate on", default="RPV_SYY_SHH") 
     parser.add_argument("--model",        dest="model",        help="Signal model to train on", type=str, default="*") 
     parser.add_argument("--replay",       dest="replay",       help="Replay saved model", action="store_true", default=False) 
     parser.add_argument("--year",         dest="year",         help="Year(s) to train on", type=str, default="2016_2017_2018") 
@@ -431,13 +438,6 @@ if __name__ == '__main__':
     if args.seed != -1:
         masterSeed = args.seed
 
-    # Supposedly using 0 makes things predictable
-    os.environ["PYTHONHASHSEED"] = "0"
-
-    # Supposedly makes calculations on GPU deterministic
-    os.environ["TF_CUDNN_DETERMINISTIC"] = "1"
-    os.environ["TF_DETERMINISTIC_OPS"] = "1"
-
     # Seed the tensorflow here, seed numpy in datagetter
     tf.random.set_seed(masterSeed)
 
@@ -449,9 +449,6 @@ if __name__ == '__main__':
 
     USER = os.getenv("USER")
 
-    model = "*"
-    if args.model != "*": model = "*%s*"%(args.model)
-
     replay = args.replay
 
     hyperconfig = {}
@@ -459,9 +456,9 @@ if __name__ == '__main__':
         with open(str(args.json), "r") as f:
             hyperconfig = json.load(f)
     else: 
-        hyperconfig = {"atag" : "GoldenTEST", "disc_comb_lambda": 0.1, "gr_lambda": 2.2, "disc_lambda": 0.5, "bg_cor_lambda": 1000.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.01, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":60, "lr":0.001}
+        hyperconfig = {"atag" : "GoldenTEST", "disc_comb_lambda": 0.1, "gr_lambda": 2.2, "disc_lambda": 0.5, "bg_cor_lambda": 1000.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.01, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":1, "lr":0.001}
 
-    t = Train(USER, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, model=model, valMass=args.valMass, year=args.year, tree=args.tree)
+    t = Train(USER, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, model=args.model, valMass=args.valMass, valModel=args.valModel, year=args.year, tree=args.tree)
 
     if replay: t.replay()
 
