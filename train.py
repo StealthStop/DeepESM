@@ -309,9 +309,10 @@ class Train:
             #jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
             #jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets)) 
             #self.config["allVars"] = numJets + eventShapeVars + jVecs + extra
-            
+         
             jVec = jVec1 + jVec2           
 
+            # for 0lepton, find variables for a good training
             theVars = []; newVars = [] 
 
             if case == 0:
