@@ -17,7 +17,7 @@ def parallel_train(config):
     #############################################
     with open("temp.json",'w') as f:
          json.dump(config, f)
-    command = "run \"python train.py --json temp.json --minMass 550 --valMass 550 --year 2016\""
+    command = "run \"python train.py --json temp.json --minMass 550 --valMass 550 --year 2016 --tree myMiniTree_0l --seed 88\""
     print( command )
     os.system(command)
 
@@ -64,10 +64,29 @@ if __name__ == '__main__':
 #                              config = {"atag" : "megaTrain2016_20201222", "disc_comb_lambda":float(comb), "disc_lambda":float(disc), "reg_lambda": float(reg), "gr_lambda": float(gr), "bg_cor_lambda": float(bgcorr), "sg_cor_lambda": float(sgcorr), "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":16384, "epochs": int(epoch), "lr":0.001}
 #                              configList.append(config)
 
-    for i in range(0,100):
-        index += 1.0
-        config = {"atag" : "Golden%d"%(i), "disc_comb_lambda": 1.0, "disc_lambda": 0.5, "reg_lambda": 0.01, "gr_lambda": 1.2, "bg_cor_lambda": 1000.0, "sg_cor_lambda": 0.0, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":16384, "epochs": 60, "lr":0.001}
-        configList.append(config)
+    # for 0lepton, find variables for a good training
+    for case in range(0,8):
+
+        if case == 4 or case == 6:
+            index += 1.0 
+            hyperconfig = {"case" : case, "atag" : "Sig550_OldSeed", "disc_comb_lambda": 0.5, "gr_lambda": 1.0, "disc_lambda": 1.0, "bg_cor_lambda": 1000.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":60, "lr":0.001} 
+            configList.append(config)
+
+        elif case == 5 or case == 7:
+            index += 1.0
+            hyperconfig = {"case" : case, "atag" : "Sig550_TopSeed", "disc_comb_lambda": 0.5, "gr_lambda": 1.0, "disc_lambda": 1.0, "bg_cor_lambda": 1000.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":60, "lr":0.001}
+            configList.append(config)
+
+        else:
+            index += 1.0
+            hyperconfig = {"case" : case, "atag" : "Sig550", "disc_comb_lambda": 0.5, "gr_lambda": 1.0, "disc_lambda": 1.0, "bg_cor_lambda": 1000.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":60, "lr":0.001}
+            configList.append(config)
+
+
+    #for i in range(0,100): # 1lepton
+    #    index += 1.0
+    #    config = {"atag" : "Golden%d"%(i), "disc_comb_lambda": 1.0, "disc_lambda": 0.5, "reg_lambda": 0.01, "gr_lambda": 1.2, "bg_cor_lambda": 1000.0, "sg_cor_lambda": 0.0, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":16384, "epochs": 60, "lr":0.001}
+    #    configList.append(config)
 
     timePerTraining = 10.0 #min
     totalTime = timePerTraining*index #min

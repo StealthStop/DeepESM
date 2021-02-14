@@ -23,6 +23,7 @@ class Train:
         self.logdir = "/storage/local/data1/gpuscratch/%s"%(self.user)
         self.config = {}
         self.config["seed"] = seed
+        self.config["case"] = int(hyperconfig["case"])
         self.config["minStopMass"] = int(minStopMass)
         self.config["maxStopMass"] = int(maxStopMass)
         self.config["doReweight"] = doReweight
@@ -34,8 +35,8 @@ class Train:
         self.config["year"] = year
         self.config["tree"] = tree
 
-        self.config["minNJetBin"] = 7
-        self.config["maxNJetBin"] = 11
+        self.config["minNJetBin"] = 6 # 7 
+        self.config["maxNJetBin"] = 10 # 11
         self.config["verbose"] = 1
         self.config["Mask"] = False
         self.config["Mask_nJet"] = 7
@@ -77,7 +78,7 @@ class Train:
         self.config["ttbarMC"] = ("TT", TT)
         self.config["massModels"] = Signal
         self.config["ttbarMCShift"] = ("TT", TT_2016)
-        self.config["dataSet"] = "MVA_Training_Files_FullRun2_V3/"
+        self.config["dataSet"] = "2016_DisCo_inputs_13.02.2021/"
         self.config["doBgWeight"] = True
         self.config["doSgWeight"] = True
         self.config["class_weight"] = None
@@ -292,21 +293,58 @@ class Train:
     def defineVars(self):
 
         if "0l" in self.config["tree"]:
-            numJets        = ["HT_trigger_pt45", "NGoodJets_pt45_double", "NGoodBJets_pt45_double"]
-            eventShapeVars = ["fwm2_top6",       "fwm3_top6",             "fwm4_top6", "fwm5_top6", 
-                              "jmt_ev0_top6",    "jmt_ev1_top6",          "jmt_ev2_top6"]
-            jVec1          = ["Jet_dcsv_",       "Jet_pt_",               "Jet_eta_",  "Jet_m_"]
+            htVec          = ["HT_trigger_pt45"]
+            eventShapeVars = ["fwm2_top6",    "fwm3_top6",    "fwm4_top6", "fwm5_top6", 
+                              "jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
+            jVec1          = ["Jet_pt_",      "Jet_eta_",     "Jet_m_"]
             jVec2          = ["Jet_phi_"]
-            extra          = ["Mass_stop1_PtRank_cm_TopSeed_maskedISR", "Mass_stop2_PtRank_cm_TopSeed_maskedISR", 
-                              "Pt_stop1_PtRank_cm_TopSeed_maskedISR",   "Pt_stop2_PtRank_cm_TopSeed_maskedISR",  
-                              "Phi_stop1_PtRank_cm_TopSeed_maskedISR",  "Phi_stop2_PtRank_cm_TopSeed_maskedISR", 
-                              "Eta_stop1_PtRank_cm_TopSeed_maskedISR",  "Eta_stop2_PtRank_cm_TopSeed_maskedISR", ]
-            
-            nJets  = 7 
-            jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
-            jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets)) 
+            bjetVec        = ["Jet_flavb_", "Jet_flavc_", "Jet_flavuds_", "Jet_flavq_", "Jet_flavg_"]
+            stop1OldSeed   = ["Stop1_mass_cm_OldSeed", "Stop1_pt_cm_OldSeed", "Stop1_phi_cm_OldSeed", "Stop1_eta_cm_OldSeed"]
+            stop2OldSeed   = ["Stop2_mass_cm_OldSeed", "Stop2_pt_cm_OldSeed", "Stop2_phi_cm_OldSeed", "Stop2_eta_cm_OldSeed"]
+            stop1TopSeed   = ["Stop1_mass_cm_TopSeed", "Stop1_pt_cm_TopSeed", "Stop1_phi_cm_TopSeed", "Stop1_eta_cm_TopSeed"]
+            stop2TopSeed   = ["Stop2_mass_cm_TopSeed", "Stop2_pt_cm_TopSeed", "Stop2_phi_cm_TopSeed", "Stop2_eta_cm_TopSeed"]
 
-            self.config["allVars"] = numJets + eventShapeVars + jVecs + extra
+            
+            nJets = 6 
+            #jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
+            #jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets)) 
+            #self.config["allVars"] = numJets + eventShapeVars + jVecs + extra
+            
+            jVec = jVec1 + jVec2           
+
+            theVars = []; newVars = [] 
+
+            if case == 0:
+                theVars = htVec
+            elif case == 1:
+                theVars = htVec + eventShapeVars
+            elif case == 2:
+                theVars = htVec + eventShapeVars + jVec
+            elif case == 3:
+                theVars = htVec + eventShapeVars + jVec + bjetVec
+            elif case == 4:
+                theVars = htVec + eventShapeVars + jVec + bjetVec + stop1OldSeed
+            elif case == 5:
+                theVars = htVec + eventShapeVars + jVec + bjetVec + stop1TopSeed 
+            elif case == 6:
+                theVars = htVec + eventShapeVars + jVec + bjetVec + stop1OldSeed + stop2OldSeed
+            elif case == 7: 
+                theVars = htVec + eventShapeVars + jVec + bjetVec + stop1TopSeed + stop2TopSeed
+
+            for var in theVars:
+
+                if "Jet_" in var:
+
+                   start = 0
+                   if "phi" in var:
+                       start = 1
+                
+                   for nJet in range(start,nJets):
+                       newVars.append(var + str(nJet+1))
+                 
+                else: newVars.append(var)
+        
+            self.config["allVars"] = newVars
 
         else:
             jVec1 = ["Jet_pt_", "Jet_eta_", "Jet_m_", "Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_", "Jet_multiplicity_", "Jet_dcsv_"]
@@ -459,7 +497,7 @@ if __name__ == '__main__':
         with open(str(args.json), "r") as f:
             hyperconfig = json.load(f)
     else: 
-        hyperconfig = {"atag" : "GoldenTEST", "disc_comb_lambda": 0.1, "gr_lambda": 2.2, "disc_lambda": 0.5, "bg_cor_lambda": 1000.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.01, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":60, "lr":0.001}
+        hyperconfig = {"case" : 0, "atag" : "Sig550_OldSeed", "disc_comb_lambda": 0.5, "gr_lambda": 1.0, "disc_lambda": 1.0, "bg_cor_lambda": 1000.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":60, "lr":0.001} # "epochs": 60, "batch_size":16384
 
     t = Train(USER, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, model=model, valMass=args.valMass, year=args.year, tree=args.tree)
 
