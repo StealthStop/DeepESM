@@ -18,7 +18,7 @@ import os
 import time
 
 class Train:
-    def __init__(self, USER, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, model="*", valMass=500, year = "2016_2017_2018", tree = "myMiniTree"):
+    def __init__(self, USER, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, model="*", valMass=500, valModel="RPV_SYY_SHH", year = "2016_2017_2018", tree = "myMiniTree"):
         self.user = USER
         self.logdir = "/storage/local/data1/gpuscratch/%s"%(self.user)
         self.config = {}
@@ -31,7 +31,8 @@ class Train:
         self.doQuickVal = doQuickVal
         self.saveAndPrint = saveAndPrint
         self.model = model
-        self.valMass = valMass
+        self.config["valMass"] = valMass
+        self.config["valModel"] = valModel
         self.config["year"] = year
         self.config["tree"] = tree
 
@@ -57,9 +58,14 @@ class Train:
             TT_2017 = ["2017_TTToSemiLeptonic"]
             TT_2018 = ["2018pre_TTToSemiLeptonic"]
 
-        Signal_2016 = list("2016%smStop*"%(self.model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
-        Signal_2017 = list("2017%smStop*"%(self.model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
-        Signal_2018 = list("2018%smStop*"%(self.model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
+        Signal_2016 = []
+        Signal_2017 = []
+        Signal_2018 = []
+
+        for model in model.split("_"):
+            Signal_2016 += list("2016*%s*mStop*"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
+            Signal_2017 += list("2017*%s*mStop*"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
+            Signal_2018 += list("2018*%s*mStop*"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
 
         TT = []; Signal = []; self.config["lumi"] = 0
         if "2016" in self.config["year"]: 
@@ -294,8 +300,8 @@ class Train:
 
         if "0l" in self.config["tree"]:
             htVec          = ["HT_trigger_pt45"]
-            eventShapeVars = ["fwm2_top6",    "fwm3_top6",    "fwm4_top6", "fwm5_top6", 
-                              "jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
+            fwmVec         = ["fwm2_top6",    "fwm3_top6",    "fwm4_top6", "fwm5_top6"] 
+            jmtVec         = ["jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
             jVec1          = ["Jet_pt_",      "Jet_eta_",     "Jet_m_"]
             jVec2          = ["Jet_phi_"]
             bjetVec        = ["Jet_flavb_", "Jet_flavc_", "Jet_flavuds_", "Jet_flavq_", "Jet_flavg_"]
@@ -303,7 +309,12 @@ class Train:
             stop2OldSeed   = ["Stop2_mass_cm_OldSeed", "Stop2_pt_cm_OldSeed", "Stop2_phi_cm_OldSeed", "Stop2_eta_cm_OldSeed"]
             stop1TopSeed   = ["Stop1_mass_cm_TopSeed", "Stop1_pt_cm_TopSeed", "Stop1_phi_cm_TopSeed", "Stop1_eta_cm_TopSeed"]
             stop2TopSeed   = ["Stop2_mass_cm_TopSeed", "Stop2_pt_cm_TopSeed", "Stop2_phi_cm_TopSeed", "Stop2_eta_cm_TopSeed"]
-
+            drOldSeed      = ["dR_Stop1Stop2_cm_OldSeed"]
+            drTopSeed      = ["dR_Stop1Stop2_cm_TopSeed"]
+            dphiOldSeed    = ["dPhi_Stop1Stop2_cm_OldSeed"]
+            dphiTopSeed    = ["dPhi_Stop1Stop2_cm_TopSeed"]
+            mt2OldSeed     = ["MT2_cm_OldSeed"]
+            mt2TopSeed     = ["MT2_cm_TopSeed"]
             
             nJets = 6 
             #jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
@@ -315,22 +326,37 @@ class Train:
             # for 0lepton, find variables for a good training
             theVars = []; newVars = [] 
 
-            if case == 0:
+            if self.config["case"] == 0:
                 theVars = htVec
-            elif case == 1:
-                theVars = htVec + eventShapeVars
-            elif case == 2:
-                theVars = htVec + eventShapeVars + jVec
-            elif case == 3:
-                theVars = htVec + eventShapeVars + jVec + bjetVec
-            elif case == 4:
-                theVars = htVec + eventShapeVars + jVec + bjetVec + stop1OldSeed
-            elif case == 5:
-                theVars = htVec + eventShapeVars + jVec + bjetVec + stop1TopSeed 
-            elif case == 6:
-                theVars = htVec + eventShapeVars + jVec + bjetVec + stop1OldSeed + stop2OldSeed
-            elif case == 7: 
-                theVars = htVec + eventShapeVars + jVec + bjetVec + stop1TopSeed + stop2TopSeed
+            elif self.config["case"] == 1:
+                theVars = htVec + fwmVec
+            elif self.config["case"] == 2:
+                theVars = htVec + fwmVec + jmtVec
+            elif self.config["case"] == 3:
+                theVars = htVec + fwmVec + jmtVec + jVec  
+            elif self.config["case"] == 4:
+                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec
+            elif self.config["case"] == 5:
+                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1OldSeed
+            elif self.config["case"] == 6:
+                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1TopSeed 
+            elif self.config["case"] == 7:
+                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1OldSeed + stop2OldSeed
+            elif self.config["case"] == 8: 
+                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1TopSeed + stop2TopSeed
+            elif self.config["case"] == 9:
+                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1OldSeed + stop2OldSeed + drOldSeed 
+            elif self.config["case"] == 10:
+                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1TopSeed + stop2TopSeed + drTopSeed
+            elif self.config["case"] == 11:
+                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1OldSeed + stop2OldSeed + drOldSeed + dphiOldSeed
+            elif self.config["case"] == 12:
+                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1TopSeed + stop2TopSeed + drTopSeed + dphiTopSeed
+            elif self.config["case"] == 13:
+                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1OldSeed + stop2OldSeed + drOldSeed + dphiOldSeed + mt2OldSeed 
+            elif self.config["case"] == 14:
+                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1TopSeed + stop2TopSeed + drTopSeed + dphiTopSeed + mt2OTopSeed 
+
 
             for var in theVars:
 
@@ -366,7 +392,7 @@ class Train:
             jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets))
             jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets))
 
-            self.config["allVars"] = jVec + lepton + MET + eventShapeVars + extra
+            self.config["allVars"] = jVecs + lepton + MET + eventShapeVars + extra
 
     def importData(self):
         # Import data
@@ -424,7 +450,7 @@ class Train:
         print("----------------Validation of training------------------")
         val = Validation(model, self.config, sgTrainSet, trainData, trainSg, trainBg, result_log)
 
-        metric = val.makePlots(self.doQuickVal, self.valMass)
+        metric = val.makePlots(self.doQuickVal, self.config["valMass"], self.config["valModel"])
         del val
         
         #Clean up training
@@ -444,7 +470,7 @@ class Train:
         trainData, trainSg, trainBg = get_data(sgTrainSet, bgTrainSet, self.config)
 
         val = Validation(model, self.config, sgTrainSet, trainData, trainSg, trainBg)
-        metric = val.makePlots(doQuickVal, valMass)
+        metric = val.makePlots(doQuickVal, self.config["valMass"], self.config["valModel"])
         del val
 
 if __name__ == '__main__':
@@ -456,6 +482,7 @@ if __name__ == '__main__':
     parser.add_argument("--minMass",      dest="minMass",      help="Minimum stop mass to train on", default=300)
     parser.add_argument("--maxMass",      dest="maxMass",      help="Maximum stop mass to train on", default=1400) 
     parser.add_argument("--valMass",      dest="valMass",      help="Stop mass to validate on", default=500) 
+    parser.add_argument("--valModel",     dest="valModel",     help="Signal model(s) to validate on", default="RPV_SYY_SHH") 
     parser.add_argument("--model",        dest="model",        help="Signal model to train on", type=str, default="*") 
     parser.add_argument("--replay",       dest="replay",       help="Replay saved model", action="store_true", default=False) 
     parser.add_argument("--year",         dest="year",         help="Year(s) to train on", type=str, default="2016_2017_2018") 
@@ -470,13 +497,6 @@ if __name__ == '__main__':
     if args.seed != -1:
         masterSeed = args.seed
 
-    # Supposedly using 0 makes things predictable
-    os.environ["PYTHONHASHSEED"] = "0"
-
-    # Supposedly makes calculations on GPU deterministic
-    os.environ["TF_CUDNN_DETERMINISTIC"] = "1"
-    os.environ["TF_DETERMINISTIC_OPS"] = "1"
-
     # Seed the tensorflow here, seed numpy in datagetter
     tf.random.set_seed(masterSeed)
 
@@ -488,9 +508,6 @@ if __name__ == '__main__':
 
     USER = os.getenv("USER")
 
-    model = "*"
-    if args.model != "*": model = "*%s*"%(args.model)
-
     replay = args.replay
 
     hyperconfig = {}
@@ -500,7 +517,7 @@ if __name__ == '__main__':
     else: 
         hyperconfig = {"case" : 0, "atag" : "Sig550_OldSeed", "disc_comb_lambda": 0.5, "gr_lambda": 1.0, "disc_lambda": 1.0, "bg_cor_lambda": 1000.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":60, "lr":0.001} # "epochs": 60, "batch_size":16384
 
-    t = Train(USER, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, model=model, valMass=args.valMass, year=args.year, tree=args.tree)
+    t = Train(USER, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, model=args.model, valMass=args.valMass, valModel=args.valModel, year=args.year, tree=args.tree)
 
     if replay: t.replay()
 
