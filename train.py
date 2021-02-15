@@ -355,7 +355,7 @@ class Train:
             elif self.config["case"] == 13:
                 theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1OldSeed + stop2OldSeed + drOldSeed + dphiOldSeed + mt2OldSeed 
             elif self.config["case"] == 14:
-                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1TopSeed + stop2TopSeed + drTopSeed + dphiTopSeed + mt2OTopSeed 
+                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1TopSeed + stop2TopSeed + drTopSeed + dphiTopSeed + mt2TopSeed 
 
 
             for var in theVars:
