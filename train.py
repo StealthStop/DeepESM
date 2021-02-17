@@ -299,23 +299,30 @@ class Train:
     def defineVars(self):
 
         if "0l" in self.config["tree"]:
-            htVec          = ["HT_trigger_pt45"]
-            fwmVec         = ["fwm2_top6",    "fwm3_top6",    "fwm4_top6", "fwm5_top6"] 
-            jmtVec         = ["jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
-            jVec1          = ["Jet_pt_",      "Jet_eta_",     "Jet_m_"]
-            jVec2          = ["Jet_phi_"]
-            bjetVec        = ["Jet_flavb_", "Jet_flavc_", "Jet_flavuds_", "Jet_flavq_", "Jet_flavg_"]
-            stop1OldSeed   = ["Stop1_mass_cm_OldSeed", "Stop1_pt_cm_OldSeed", "Stop1_phi_cm_OldSeed", "Stop1_eta_cm_OldSeed"]
-            stop2OldSeed   = ["Stop2_mass_cm_OldSeed", "Stop2_pt_cm_OldSeed", "Stop2_phi_cm_OldSeed", "Stop2_eta_cm_OldSeed"]
-            stop1TopSeed   = ["Stop1_mass_cm_TopSeed", "Stop1_pt_cm_TopSeed", "Stop1_phi_cm_TopSeed", "Stop1_eta_cm_TopSeed"]
-            stop2TopSeed   = ["Stop2_mass_cm_TopSeed", "Stop2_pt_cm_TopSeed", "Stop2_phi_cm_TopSeed", "Stop2_eta_cm_TopSeed"]
-            drOldSeed      = ["dR_Stop1Stop2_cm_OldSeed"]
-            drTopSeed      = ["dR_Stop1Stop2_cm_TopSeed"]
-            dphiOldSeed    = ["dPhi_Stop1Stop2_cm_OldSeed"]
-            dphiTopSeed    = ["dPhi_Stop1Stop2_cm_TopSeed"]
-            mt2OldSeed     = ["MT2_cm_OldSeed"]
-            mt2TopSeed     = ["MT2_cm_TopSeed"]
-            
+            htVec           = ["HT_trigger_pt45"]
+            fwmVec          = ["fwm2_top6",    "fwm3_top6",    "fwm4_top6", "fwm5_top6"] 
+            jmtVec          = ["jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
+            jVec1           = ["Jet_pt_",      "Jet_eta_",     "Jet_m_"]
+            jVec2           = ["Jet_phi_"]
+            jFlavVec        = ["Jet_flavb_", "Jet_flavc_", "Jet_flavuds_", "Jet_flavq_", "Jet_flavg_"]
+            jqgDiscVec      = ["Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_"]
+            jpfVec          = ["Jet_nEF_", "Jet_cEF_", "Jet_nHF_", "Jet_cHF_", "Jet_multiplicity_"]
+            stop1OldSeed    = ["Stop1_mass_cm_OldSeed", "Stop1_pt_cm_OldSeed", "Stop1_phi_cm_OldSeed", "Stop1_eta_cm_OldSeed"]
+            stop2OldSeed    = ["Stop2_mass_cm_OldSeed", "Stop2_pt_cm_OldSeed", "Stop2_phi_cm_OldSeed", "Stop2_eta_cm_OldSeed"]
+            stop1TopSeed    = ["Stop1_mass_cm_TopSeed", "Stop1_pt_cm_TopSeed", "Stop1_phi_cm_TopSeed", "Stop1_eta_cm_TopSeed"]
+            stop2TopSeed    = ["Stop2_mass_cm_TopSeed", "Stop2_pt_cm_TopSeed", "Stop2_phi_cm_TopSeed", "Stop2_eta_cm_TopSeed"]
+            drOldSeed       = ["dR_Stop1Stop2_cm_OldSeed"]
+            drTopSeed       = ["dR_Stop1Stop2_cm_TopSeed"]
+            dphiOldSeed     = ["dPhi_Stop1Stop2_cm_OldSeed"]
+            dphiTopSeed     = ["dPhi_Stop1Stop2_cm_TopSeed"]
+            mt2OldSeed      = ["MT2_cm_OldSeed"]
+            mt2TopSeed      = ["MT2_cm_TopSeed"]
+            stop1SPtOldSeed = ["Stop1_scalarPt_cm_OldSeed"] 
+            stop1SPtOldSeed = ["Stop2_scalarPt_cm_OldSeed"]
+            stop1SPtTopSeed = ["Stop1_scalarPt_cm_TopSeed"]
+            stop1SPtTopSeed = ["Stop2_scalarPt_cm_TopSeed"]        
+
+
             nJets = 6 
             #jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
             #jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets)) 
@@ -323,40 +330,89 @@ class Train:
          
             jVec = jVec1 + jVec2           
 
-            # for 0lepton, find variables for a good training
             theVars = []; newVars = [] 
+            
+            # --------------------------------------
+            # adding a set of variables in a time
+            # --------------------------------------
+            #if self.config["case"] == 0:
+            #    theVars = htVec
+            #elif self.config["case"] == 1:
+            #    theVars = htVec + fwmVec
+            #elif self.config["case"] == 2:
+            #    theVars = htVec + fwmVec + jmtVec
+            #elif self.config["case"] == 3:
+            #    theVars = htVec + fwmVec + jmtVec + jVec  
+            #elif self.config["case"] == 4:
+            #    theVars = htVec + fwmVec + jmtVec + jVec + jFlavVec
+            #elif self.config["case"] == 5:
+            #    theVars = htVec + fwmVec + jmtVec + jVec + jFlavVec + stop1OldSeed
+            #elif self.config["case"] == 6:
+            #    theVars = htVec + fwmVec + jmtVec + jVec + jFlavVec + stop1TopSeed 
+            #elif self.config["case"] == 7:
+            #    theVars = htVec + fwmVec + jmtVec + jVec + jFlavVec + stop1OldSeed + stop2OldSeed
+            #elif self.config["case"] == 8: 
+            #    theVars = htVec + fwmVec + jmtVec + jVec + jFlavVec + stop1TopSeed + stop2TopSeed
+            #elif self.config["case"] == 9:
+            #    theVars = htVec + fwmVec + jmtVec + jVec + jFlavVec + stop1OldSeed + stop2OldSeed + drOldSeed 
+            #elif self.config["case"] == 10:
+            #    theVars = htVec + fwmVec + jmtVec + jVec + jFlavVec + stop1TopSeed + stop2TopSeed + drTopSeed
+            #elif self.config["case"] == 11:
+            #    theVars = htVec + fwmVec + jmtVec + jVec + jFlavVec + stop1OldSeed + stop2OldSeed + drOldSeed + dphiOldSeed
+            #elif self.config["case"] == 12:
+            #    theVars = htVec + fwmVec + jmtVec + jVec + jFlavVec + stop1TopSeed + stop2TopSeed + drTopSeed + dphiTopSeed
+            #elif self.config["case"] == 13:
+            #    theVars = htVec + fwmVec + jmtVec + jVec + jFlavVec + stop1OldSeed + stop2OldSeed + drOldSeed + dphiOldSeed + mt2OldSeed 
+            #elif self.config["case"] == 14:
+            #    theVars = htVec + fwmVec + jmtVec + jVec + jFlavVec + stop1TopSeed + stop2TopSeed + drTopSeed + dphiTopSeed + mt2TopSeed 
 
+            # ----------------------------------------------
+            # getting separate set of varibales in a time
+            # ----------------------------------------------
             if self.config["case"] == 0:
                 theVars = htVec
             elif self.config["case"] == 1:
-                theVars = htVec + fwmVec
+                theVars = fwmVec
             elif self.config["case"] == 2:
-                theVars = htVec + fwmVec + jmtVec
+                theVars = jmtVec
             elif self.config["case"] == 3:
-                theVars = htVec + fwmVec + jmtVec + jVec  
+                theVars = jVec  
             elif self.config["case"] == 4:
-                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec
+                theVars = jFlavVec
             elif self.config["case"] == 5:
-                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1OldSeed
+                theVars = jqgDiscVec
             elif self.config["case"] == 6:
-                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1TopSeed 
-            elif self.config["case"] == 7:
-                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1OldSeed + stop2OldSeed
-            elif self.config["case"] == 8: 
-                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1TopSeed + stop2TopSeed
-            elif self.config["case"] == 9:
-                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1OldSeed + stop2OldSeed + drOldSeed 
-            elif self.config["case"] == 10:
-                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1TopSeed + stop2TopSeed + drTopSeed
-            elif self.config["case"] == 11:
-                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1OldSeed + stop2OldSeed + drOldSeed + dphiOldSeed
-            elif self.config["case"] == 12:
-                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1TopSeed + stop2TopSeed + drTopSeed + dphiTopSeed
-            elif self.config["case"] == 13:
-                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1OldSeed + stop2OldSeed + drOldSeed + dphiOldSeed + mt2OldSeed 
-            elif self.config["case"] == 14:
-                theVars = htVec + fwmVec + jmtVec + jVec + bjetVec + stop1TopSeed + stop2TopSeed + drTopSeed + dphiTopSeed + mt2TopSeed 
+                theVars = jpfVec
 
+            elif self.config["case"] == 7:
+                theVars = stop1OldSeed
+            elif self.config["case"] == 8:
+                theVars = stop2OldSeed
+            elif self.config["case"] == 9:
+                theVars = drOldSeed
+            elif self.config["case"] == 10:
+                theVars = dphiOldSeed
+            elif self.config["case"] == 11:
+                theVars = mt2OldSeed
+            elif self.config["case"] == 12:
+                theVars = stop1SPtOldSeed
+            elif self.config["case"] == 13:
+                theVars = stop2SPtOldSeed
+
+            elif self.config["case"] == 14:
+                theVars = stop1TopSeed
+            elif self.config["case"] == 15:
+                theVars = stop2TopSeed
+            elif self.config["case"] == 16:
+                theVars = drTopSeed
+            elif self.config["case"] == 17:
+                theVars = dphiTopSeed
+            elif self.config["case"] == 18:
+                theVars = mt2TopSeed
+            elif self.config["case"] == 19:
+                theVars = stop1SPtTopSeed
+            elif self.config["case"] == 20:
+                theVars = stop2SPtTopSeed
 
             for var in theVars:
 
@@ -372,6 +428,7 @@ class Train:
                 else: newVars.append(var)
         
             self.config["allVars"] = newVars
+
 
         else:
             jVec1 = ["Jet_pt_", "Jet_eta_", "Jet_m_", "Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_", "Jet_multiplicity_", "Jet_dcsv_"]

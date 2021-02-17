@@ -64,23 +64,25 @@ if __name__ == '__main__':
 #                              config = {"atag" : "megaTrain2016_20201222", "disc_comb_lambda":float(comb), "disc_lambda":float(disc), "reg_lambda": float(reg), "gr_lambda": float(gr), "bg_cor_lambda": float(bgcorr), "sg_cor_lambda": float(sgcorr), "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":16384, "epochs": int(epoch), "lr":0.001}
 #                              configList.append(config)
 
-    # for 0lepton, find variables for a good training
-    for case in range(0,15):
+    # --------------------------------------
+    # adding a set of variables in a time
+    # --------------------------------------
+    #for case in range(0,15):
 
         #if case == 0:
         #    index += 1.0 
         #    hyperconfig = {"case" : case, "atag" : "Sig550_htVec", "disc_comb_lambda": 0.0, "gr_lambda": 0.0, "disc_lambda": 1.0, "bg_cor_lambda": 0.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":20, "lr":0.001} 
         #    configList.append(hyperconfig)
 
-        if case == 1:
-            index += 1.0
-            hyperconfig = {"case" : case, "atag" : "Sig550_+fwmVec", "disc_comb_lambda": 0.0, "gr_lambda": 0.0, "disc_lambda": 1.0, "bg_cor_lambda": 0.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":20, "lr":0.001}
-            configList.append(hyperconfig)
+        #if case == 1:
+        #    index += 1.0
+        #    hyperconfig = {"case" : case, "atag" : "Sig550_+fwmVec", "disc_comb_lambda": 0.0, "gr_lambda": 0.0, "disc_lambda": 1.0, "bg_cor_lambda": 0.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":20, "lr":0.001}
+        #    configList.append(hyperconfig)
 
-        elif case == 2:
-            index += 1.0
-            hyperconfig = {"case" : case, "atag" : "Sig550_+jmtVec", "disc_comb_lambda": 0.0, "gr_lambda": 0.0, "disc_lambda": 1.0, "bg_cor_lambda": 0.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":20, "lr":0.001}
-            configList.append(hyperconfig)
+        #elif case == 2:
+        #    index += 1.0
+        #    hyperconfig = {"case" : case, "atag" : "Sig550_+jmtVec", "disc_comb_lambda": 0.0, "gr_lambda": 0.0, "disc_lambda": 1.0, "bg_cor_lambda": 0.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":20, "lr":0.001}
+        #    configList.append(hyperconfig)
 
         #elif case == 3:
         #    index += 1.0
@@ -112,40 +114,45 @@ if __name__ == '__main__':
         #    hyperconfig = {"case" : case, "atag" : "Sig550_+Stop2_TopSeed", "disc_comb_lambda": 0.0, "gr_lambda": 0.0, "disc_lambda": 1.0, "bg_cor_lambda": 0.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":20, "lr":0.001}
         #    configList.append(hyperconfig)
 
-        elif case == 9:
-            index += 1.0
-            hyperconfig = {"case" : case, "atag" : "Sig550_+drOldSeed", "disc_comb_lambda": 0.0, "gr_lambda": 0.0, "disc_lambda": 1.0, "bg_cor_lambda": 0.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":20, "lr":0.001}
-            configList.append(hyperconfig)
+        #elif case == 9:
+        #    index += 1.0
+        #    hyperconfig = {"case" : case, "atag" : "Sig550_+drOldSeed", "disc_comb_lambda": 0.0, "gr_lambda": 0.0, "disc_lambda": 1.0, "bg_cor_lambda": 0.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":20, "lr":0.001}
+        #    configList.append(hyperconfig)
 
-        elif case == 10:
-            index += 1.0
-            hyperconfig = {"case" : case, "atag" : "Sig550_+drTopSeed", "disc_comb_lambda": 0.0, "gr_lambda": 0.0, "disc_lambda": 1.0, "bg_cor_lambda": 0.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":20, "lr":0.001}
-            configList.append(hyperconfig)
+        #elif case == 10:
+        #    index += 1.0
+        #    hyperconfig = {"case" : case, "atag" : "Sig550_+drTopSeed", "disc_comb_lambda": 0.0, "gr_lambda": 0.0, "disc_lambda": 1.0, "bg_cor_lambda": 0.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":20, "lr":0.001}
+        #    configList.append(hyperconfig)
 
-        elif case == 11:
-            index += 1.0
-            hyperconfig = {"case" : case, "atag" : "Sig550_+dphiOldSeed", "disc_comb_lambda": 0.0, "gr_lambda": 0.0, "disc_lambda": 1.0, "bg_cor_lambda": 0.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":20, "lr":0.001}
-            configList.append(hyperconfig)
-        
-        elif case == 12:
-            index += 1.0
-            hyperconfig = {"case" : case, "atag" : "Sig550_+dphiTopSeed", "disc_comb_lambda": 0.0, "gr_lambda": 0.0, "disc_lambda": 1.0, "bg_cor_lambda": 0.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":20, "lr":0.001}
-            configList.append(hyperconfig)
+        #elif case == 11:
+        #    index += 1.0
+        #    hyperconfig = {"case" : case, "atag" : "Sig550_+dphiOldSeed", "disc_comb_lambda": 0.0, "gr_lambda": 0.0, "disc_lambda": 1.0, "bg_cor_lambda": 0.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":20, "lr":0.001}
+        #    configList.append(hyperconfig)
+        #
+        #elif case == 12:
+        #    index += 1.0
+        #    hyperconfig = {"case" : case, "atag" : "Sig550_+dphiTopSeed", "disc_comb_lambda": 0.0, "gr_lambda": 0.0, "disc_lambda": 1.0, "bg_cor_lambda": 0.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":20, "lr":0.001}
+        #    configList.append(hyperconfig)
 
-        elif case == 13:
-            index += 1.0
-            hyperconfig = {"case" : case, "atag" : "Sig550_+mt2OldSeed", "disc_comb_lambda": 0.0, "gr_lambda": 0.0, "disc_lambda": 1.0, "bg_cor_lambda": 0.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":20, "lr":0.001}
-            configList.append(hyperconfig)
+        #elif case == 13:
+        #    index += 1.0
+        #    hyperconfig = {"case" : case, "atag" : "Sig550_+mt2OldSeed", "disc_comb_lambda": 0.0, "gr_lambda": 0.0, "disc_lambda": 1.0, "bg_cor_lambda": 0.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":20, "lr":0.001}
+        #    configList.append(hyperconfig)
 
-        elif case == 14:
-            index += 1.0
-            hyperconfig = {"case" : case, "atag" : "Sig550_+mt2TopSeed", "disc_comb_lambda": 0.0, "gr_lambda": 0.0, "disc_lambda": 1.0, "bg_cor_lambda": 0.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":20, "lr":0.001}
-            configList.append(hyperconfig)
+        #elif case == 14:
+        #    index += 1.0
+        #    hyperconfig = {"case" : case, "atag" : "Sig550_+mt2TopSeed", "disc_comb_lambda": 0.0, "gr_lambda": 0.0, "disc_lambda": 1.0, "bg_cor_lambda": 0.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":20, "lr":0.001}
+        #    configList.append(hyperconfig)
 
-    #for i in range(0,100): # 1lepton
-    #    index += 1.0
-    #    config = {"atag" : "Golden%d"%(i), "disc_comb_lambda": 1.0, "disc_lambda": 0.5, "reg_lambda": 0.01, "gr_lambda": 1.2, "bg_cor_lambda": 1000.0, "sg_cor_lambda": 0.0, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":16384, "epochs": 60, "lr":0.001}
-    #    configList.append(config)
+
+    # ----------------------------------------------
+    # getting separate set of varibales in a time
+    # ----------------------------------------------
+    for case in range(0,21):
+        index += 1.0 
+        hyperconfig = {"case" : case, "atag" : "Sig550", "disc_comb_lambda": 0.0, "gr_lambda": 0.0, "disc_lambda": 1.0, "bg_cor_lambda": 0.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":20, "lr":0.001} 
+        configList.append(hyperconfig)
+
 
     timePerTraining = 10.0 #min
     totalTime = timePerTraining*index #min
