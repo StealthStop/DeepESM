@@ -335,78 +335,87 @@ class Train:
             # -----------------------------------------------------------------------
             # adding a set of variables in a time by order based on indivual check
             # -----------------------------------------------------------------------
-            if self.config["case"] == 0:
-                theVars = drOldSeed
-            elif self.config["case"] == 1:
-                theVars = drOldSeed + jmtVec
-            elif self.config["case"] == 2:
-                theVars = drOldSeed + jmtVec + fwmVec
-            elif self.config["case"] == 3:
-                theVars = drOldSeed + jmtVec + fwmVec + jFlavVec
-            elif self.config["case"] == 4:
-                 theVars = drOldSeed + jmtVec + fwmVec + jFlavVec + jpfVec
-            elif self.config["case"] == 5:
-                theVars = drOldSeed + jmtVec + fwmVec + jFlavVec + jpfVec + jqgDiscVec
-            elif self.config["case"] == 6:
-                theVars = drOldSeed + jmtVec + fwmVec + jFlavVec + jpfVec + jqgDiscVec + mt2OldSeed 
-            elif self.config["case"] == 7:
-                theVars = drOldSeed + jmtVec + fwmVec + jFlavVec + jpfVec + jqgDiscVec + mt2OldSeed + stop1SPtOldSeed
-            elif self.config["case"] == 8:
-                theVars = drOldSeed + jmtVec + fwmVec + jFlavVec + jpfVec + jqgDiscVec + mt2OldSeed + stop1SPtOldSeed + stop2OldSeed
-            elif self.config["case"] == 9:
-                theVars = drOldSeed + jmtVec + fwmVec + jFlavVec + jpfVec + jqgDiscVec + mt2OldSeed + stop1SPtOldSeed + stop2OldSeed + stop1OldSeed 
-            elif self.config["case"] == 10:
-                theVars = drOldSeed + jmtVec + fwmVec + jFlavVec + jpfVec + jqgDiscVec + mt2OldSeed + stop1SPtOldSeed + stop2OldSeed + stop1OldSeed + htVec
-            elif self.config["case"] == 11:
-                theVars = drOldSeed + jmtVec + fwmVec + jFlavVec + jpfVec + jqgDiscVec + mt2OldSeed + stop1SPtOldSeed + stop2OldSeed + stop1OldSeed + htVec + jVec
+            #if self.config["case"] == 0:
+            #    theVars = drOldSeed
+            #elif self.config["case"] == 1:
+            #    theVars = drOldSeed + jmtVec
+            #elif self.config["case"] == 2:
+            #    theVars = drOldSeed + jmtVec + fwmVec
+            #elif self.config["case"] == 3:
+            #    theVars = drOldSeed + jmtVec + fwmVec + jFlavVec
+            #elif self.config["case"] == 4:
+            #     theVars = drOldSeed + jmtVec + fwmVec + jFlavVec + jpfVec
+            #elif self.config["case"] == 5:
+            #    theVars = drOldSeed + jmtVec + fwmVec + jFlavVec + jpfVec + jqgDiscVec
+            #elif self.config["case"] == 6:
+            #    theVars = drOldSeed + jmtVec + fwmVec + jFlavVec + jpfVec + jqgDiscVec + mt2OldSeed 
+            #elif self.config["case"] == 7:
+            #    theVars = drOldSeed + jmtVec + fwmVec + jFlavVec + jpfVec + jqgDiscVec + mt2OldSeed + stop1SPtOldSeed
+            #elif self.config["case"] == 8:
+            #    theVars = drOldSeed + jmtVec + fwmVec + jFlavVec + jpfVec + jqgDiscVec + mt2OldSeed + stop1SPtOldSeed + stop2OldSeed
+            #elif self.config["case"] == 9:
+            #    theVars = drOldSeed + jmtVec + fwmVec + jFlavVec + jpfVec + jqgDiscVec + mt2OldSeed + stop1SPtOldSeed + stop2OldSeed + stop1OldSeed 
+            #elif self.config["case"] == 10:
+            #    theVars = drOldSeed + jmtVec + fwmVec + jFlavVec + jpfVec + jqgDiscVec + mt2OldSeed + stop1SPtOldSeed + stop2OldSeed + stop1OldSeed + htVec
+            #elif self.config["case"] == 11:
+            #    theVars = drOldSeed + jmtVec + fwmVec + jFlavVec + jpfVec + jqgDiscVec + mt2OldSeed + stop1SPtOldSeed + stop2OldSeed + stop1OldSeed + htVec + jVec
 
             # ----------------------------------------------
             # getting separate set of varibales in a time
             # ----------------------------------------------
-            #if self.config["case"] == 0:
-            #    theVars = htVec
-            #elif self.config["case"] == 1:
-            #    theVars = fwmVec
-            #elif self.config["case"] == 2:
-            #    theVars = jmtVec
-            #elif self.config["case"] == 3:
-            #    theVars = jVec  
-            #elif self.config["case"] == 4:
-            #    theVars = jFlavVec
-            #elif self.config["case"] == 5:
-            #    theVars = jqgDiscVec
-            #elif self.config["case"] == 6:
-            #    theVars = jpfVec
+            if self.config["case"] == 0:
+                theVars = htVec
+            elif self.config["case"] == 1:
+                theVars = fwmVec
+            elif self.config["case"] == 2:
+                theVars = jmtVec
+            elif self.config["case"] == 3:
+                theVars = jVec  
+            elif self.config["case"] == 4:
+                theVars = jFlavVec
+            elif self.config["case"] == 5:
+                theVars = jqgDiscVec
+            elif self.config["case"] == 6:
+                theVars = jpfVec
 
-            #elif self.config["case"] == 7:
-            #    theVars = stop1OldSeed
-            #elif self.config["case"] == 8:
-            #    theVars = stop2OldSeed
-            #elif self.config["case"] == 9:
-            #    theVars = drOldSeed
-            #elif self.config["case"] == 10:
-            #    theVars = dphiOldSeed
-            #elif self.config["case"] == 11:
-            #    theVars = mt2OldSeed
-            #elif self.config["case"] == 12:
-            #    theVars = stop1SPtOldSeed
-            #elif self.config["case"] == 13:
-            #    theVars = stop2SPtOldSeed
+            elif self.config["case"] == 7:
+                theVars = stop1OldSeed
+            elif self.config["case"] == 8:
+                theVars = stop2OldSeed
+            elif self.config["case"] == 9:
+                theVars = drOldSeed
+            elif self.config["case"] == 10:
+                theVars = dphiOldSeed
+            elif self.config["case"] == 11:
+                theVars = mt2OldSeed
+            elif self.config["case"] == 12:
+                theVars = stop1SPtOldSeed
+            elif self.config["case"] == 13:
+                theVars = stop2SPtOldSeed
 
-            #elif self.config["case"] == 14:
-            #    theVars = stop1TopSeed
-            #elif self.config["case"] == 15:
-            #    theVars = stop2TopSeed
-            #elif self.config["case"] == 16:
-            #    theVars = drTopSeed
-            #elif self.config["case"] == 17:
-            #    theVars = dphiTopSeed
-            #elif self.config["case"] == 18:
-            #    theVars = mt2TopSeed
-            #elif self.config["case"] == 19:
-            #    theVars = stop1SPtTopSeed
-            #elif self.config["case"] == 20:
-            #    theVars = stop2SPtTopSeed
+            elif self.config["case"] == 14:
+                theVars = stop1TopSeed
+            elif self.config["case"] == 15:
+                theVars = stop2TopSeed
+            elif self.config["case"] == 16:
+                theVars = drTopSeed
+            elif self.config["case"] == 17:
+                theVars = dphiTopSeed
+            elif self.config["case"] == 18:
+                theVars = mt2TopSeed
+            elif self.config["case"] == 19:
+                theVars = stop1SPtTopSeed
+            elif self.config["case"] == 20:
+                theVars = stop2SPtTopSeed
+
+            elif self.config["case"] == 21:
+                theVars = dphiOldSeed
+            elif self.config["case"] == 22:
+                theVars = stop2SPtOldSeed
+            elif self.config["case"] == 23:
+               theVars = dphiTopSeed # it is not worked
+            elif self.config["case"] == 24:
+                theVars = stop2SPtTopSeed
 
             for var in theVars:
 
