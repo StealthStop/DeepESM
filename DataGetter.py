@@ -177,11 +177,13 @@ class DataGetter:
                 if mass == 173.0: dnjets[Njets] = c
                 else:             dnjets[mass+Njets] = c
 
-
         npyMasses = df[massNames].values
         npyModels = df[modelNames].values
         npyNjets  = df[njetsNames].values
         npyMasses[npyMasses == 173.0] = 0.0
+        #for i in range(0, len(npyMasses)):
+        #    if npyMasses[i][0] != 173.0: continue
+        #    npyMasses[i] = np.random.uniform(175.0, 1400.0)
 
         npyMassNjets = npyMasses+npyNjets
 

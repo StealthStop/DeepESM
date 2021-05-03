@@ -37,7 +37,7 @@ class Train:
         self.config["tree"] = tree
 
         self.config["minNJetBin"] = 6 # 7 
-        self.config["maxNJetBin"] = 10 # 11
+        self.config["maxNJetBin"] = 10 # 11 10
         self.config["verbose"] = 1
         self.config["Mask"] = False
         self.config["Mask_nJet"] = 7
@@ -84,7 +84,7 @@ class Train:
         self.config["ttbarMC"] = ("TT", TT)
         self.config["massModels"] = Signal
         self.config["ttbarMCShift"] = ("TT", TT_2016)
-        self.config["dataSet"] = "2016_DisCo_inputs_13.02.2021/"
+        self.config["dataSet"] = "2016_DisCo_inputs_28.04.2021/"
         self.config["doBgWeight"] = True
         self.config["doSgWeight"] = True
         self.config["class_weight"] = None
@@ -323,7 +323,7 @@ class Train:
             stop2SPtTopSeed = ["Stop2_scalarPt_cm_TopSeed"]        
 
 
-            nJets = 6 
+            nJets = 6 #6 
             #jVecs =  list(y+str(x+1) for y in jVec1 for x in range(nJets)) 
             #jVecs += list(y+str(x+1) for y in jVec2 for x in range(1,nJets)) 
             #self.config["allVars"] = numJets + eventShapeVars + jVecs + extra
@@ -334,6 +334,9 @@ class Train:
 
             fullJetVec      = jmtVec + fwmVec + jFlavVec + jpfVec + jqgDiscVec + jVec
             fullStopOldSeed = dphiOldSeed + drOldSeed + mt2OldSeed + stop1SPtOldSeed + stop2SPtOldSeed + stop2OldSeed + stop1OldSeed 
+            
+            JetVec      = jqgDiscVec + jVec
+            StopOldSeed = mt2OldSeed + stop2OldSeed + stop1OldSeed
 
             theVars = []; newVars = [] 
             
@@ -368,12 +371,15 @@ class Train:
             # ---------------------------------
             # adding mega vectors to each other
             # ---------------------------------
-            if self.config["case"] == 0:
-                theVars = htVec
-            elif self.config["case"] == 1:
-                theVars = htVec + fullJetVec
-            elif self.config["case"] == 2:
-                theVars = htVec + fullJetVec + fullStopOldSeed 
+            #if self.config["case"] == 0:
+            #    theVars = htVec
+            #elif self.config["case"] == 1:
+            #    theVars = htVec + fullJetVec
+            #elif self.config["case"] == 2:
+            #    theVars = htVec + fullJetVec + fullStopOldSeed 
+            
+            #if self.config["case"] == 3:
+            #    theVars = htVec + JetVec + StopOldSeed
 
             # ----------------------------------------------
             # getting separate set of varibales in a time
@@ -444,7 +450,14 @@ class Train:
             #elif self.config["case"] == 3:
             #    theVars = fullStopOldSeed 
             
-
+            
+            # --------------------------
+            # full NN model contribution
+            # --------------------------
+            if self.config["case"] == 0:
+                theVars = htVec + fullJetVec + fullStopOldSeed
+                #theVars = htVec + jVec + mt2OldSeed + stop1OldSeed + stop2OldSeed
+ 
             for var in theVars:
 
                 if "Jet_" in var:
@@ -603,7 +616,8 @@ if __name__ == '__main__':
         with open(str(args.json), "r") as f:
             hyperconfig = json.load(f)
     else: 
-        hyperconfig = {"case" : 0, "atag" : "Sig550_OldSeed", "disc_comb_lambda": 0.5, "gr_lambda": 1.0, "disc_lambda": 1.0, "bg_cor_lambda": 1000.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":60, "lr":0.001} # "epochs": 60, "batch_size":16384
+        #hyperconfig = {"case" : 0, "atag" : "Sig550_OldSeed", "disc_comb_lambda": 0.5, "gr_lambda": 1.0, "disc_lambda": 1.0, "bg_cor_lambda": 1000.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":60, "lr":0.001} # "epochs": 60, "batch_size":16384
+         hyperconfig = {"case" : 3, "atag" : "Sig55_usefulVec", "disc_comb_lambda": 0.5, "gr_lambda": 1.0, "disc_lambda": 1.0, "bg_cor_lambda": 1000.0, "sg_cor_lambda" : 0.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":5, "lr":0.001}
 
     t = Train(USER, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, model=args.model, valMass=args.valMass, valModel=args.valModel, year=args.year, tree=args.tree)
 
