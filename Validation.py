@@ -16,15 +16,16 @@ from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_prec
 import json
 from Correlation import Correlation as cor
 
+plt.rcParams['pdf.fonttype'] = 42
+
 class Validation:
 
-    def __init__(self, model, config, sgTrainSet, trainData, trainSg, trainBg, result_log=None):
+    def __init__(self, model, config, trainData, trainSg, trainBg, result_log=None):
         self.model = model
         self.config = config
-        self.sgTrainSet = sgTrainSet
-        self.trainData = trainData
-        self.trainSg = trainSg
-        self.trainBg = trainBg
+        self.Data = trainData
+        self.Sg = trainSg
+        self.Bg = trainBg
         self.result_log = result_log
         self.metric = {}
         self.doLog = False
@@ -32,12 +33,25 @@ class Validation:
     def __del__(self):
         del self.model
         del self.config
-        del self.sgTrainSet
-        del self.trainData
-        del self.trainSg
-        del self.trainBg
+        del self.Data
+        del self.Sg
+        del self.Bg
         del self.result_log
         del self.metric
+
+    def samplesLoaded(self, trainList, xvalList):
+
+        trainListClean = []
+        for train in trainList:
+            trainListClean.append(train.replace("*","").replace("-",""))
+
+        for xval in xvalList:
+            xvalClean = xval.replace("*","").replace("-","")
+
+            if xvalClean in trainListClean:
+                return True
+
+        return False
         
     def plot2DVar(self, name, binxl, binxh, numbin, xIn, yIn, nbiny):
         fig = plt.figure()
@@ -65,7 +79,6 @@ class Validation:
             
         xerr = 0.5*(xedges[1]-xedges[0])
         plt.errorbar(bin_centersx, y, xerr=xerr, yerr=ye, fmt='o', color='xkcd:red')
-        fig.savefig(self.config["outputDir"]+"/"+name+"_discriminator.png", dpi=fig.dpi)       
         fig.savefig(self.config["outputDir"]+"/"+name+"_discriminator.pdf", dpi=fig.dpi) 
 
         plt.close(fig)
@@ -99,7 +112,7 @@ class Validation:
             plt.hist(hists[i], bins=bins, range=arange, color="xkcd:"+colors[i], alpha=0.9, histtype='step', lw=2, label=labels[i]+" mean="+str(mean), density=True, log=doLog, weights=weights[i])
 
         ax.legend(loc=1, frameon=False)
-        fig.savefig(self.config["outputDir"]+"/%s.png"%(name), dpi=fig.dpi)        
+        fig.savefig(self.config["outputDir"]+"/%s.pdf"%(name), dpi=fig.dpi)        
         plt.close(fig)
 
     # Member function to plot the discriminant variable while making a selection on another discriminant
@@ -141,8 +154,8 @@ class Validation:
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(handles[-2:], labels[-2:], loc=2, frameon=False)
  
-        if Njets == -1: fig.savefig(self.config["outputDir"]+"/Disc%s_BvsS_m%s.png"%(tag1,mass))
-        else:           fig.savefig(self.config["outputDir"]+"/Disc%s_BvsS_m%s_Njets%d.png"%(tag1,mass,Njets))
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/Disc%s_BvsS_m%s.pdf"%(tag1,mass))
+        else:           fig.savefig(self.config["outputDir"]+"/Disc%s_BvsS_m%s_Njets%d.pdf"%(tag1,mass,Njets))
 
         plt.close(fig)
 
@@ -182,8 +195,8 @@ class Validation:
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(handles[-2:], labels[-2:], loc=2, frameon=False)
 
-        if Njets == -1: fig.savefig(self.config["outputDir"]+"/%s%s_Disc%s_Compare_Shapes.png"%(tag3, mass, tag1))
-        else:           fig.savefig(self.config["outputDir"]+"/%s%s_Njets%d_Disc%s_Compare_Shapes.png"%(tag3, mass, Njets, tag1))
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/%s%s_Disc%s_Compare_Shapes.pdf"%(tag3, mass, tag1))
+        else:           fig.savefig(self.config["outputDir"]+"/%s%s_Njets%d_Disc%s_Compare_Shapes.pdf"%(tag3, mass, Njets, tag1))
 
         plt.close(fig)
 
@@ -197,7 +210,7 @@ class Validation:
         plt.ylabel('loss')
         plt.xlabel('epoch')
         plt.legend(['train', 'test'], loc='best')
-        fig.savefig(self.config["outputDir"]+"/%s.png"%(name), dpi=fig.dpi)
+        fig.savefig(self.config["outputDir"]+"/%s.pdf"%(name), dpi=fig.dpi)
         plt.close(fig)
 
     def plotAccVsEpochAll(self, h2, h3, h4, h5, n2, n3, n4, n5, val, title, name):
@@ -211,7 +224,7 @@ class Validation:
         plt.ylabel('loss')
         plt.xlabel('epoch')
         plt.legend([n2, n3, n4, n5], loc='best')
-        fig.savefig(self.config["outputDir"]+"/%s.png"%(name), dpi=fig.dpi)
+        fig.savefig(self.config["outputDir"]+"/%s.pdf"%(name), dpi=fig.dpi)
         plt.close(fig)
 
     def plotDiscPerNjet(self, tag, samples, sigMask, nBins=100):
@@ -233,7 +246,7 @@ class Validation:
                     if yt.size != 0 and wt.size != 0:
                         plt.hist(yt, bins, alpha=0.9, histtype='step', lw=2, label=sample+" Train "+key, density=True, log=self.doLog, weights=wt)
             plt.legend(loc='best')
-            fig.savefig(self.config["outputDir"]+"/nJet_"+sample+tag+".png", dpi=fig.dpi)
+            fig.savefig(self.config["outputDir"]+"/nJet_"+sample+tag+".pdf", dpi=fig.dpi)
             plt.close(fig)
 
     def plotROC(self, tag="", y_Train=None, y_Val=None, trainData=None, valData=None, xVal=None, yVal=None, xTrain=None, yTrain=None, valLab=None, trainLab=None):
@@ -277,7 +290,7 @@ class Validation:
 
         newtag = tag.replace(" ", "_")
         plt.legend(loc='best')
-        fig.savefig(self.config["outputDir"]+"/roc_plot"+newtag+".png", dpi=fig.dpi)
+        fig.savefig(self.config["outputDir"]+"/roc_plot"+newtag+".pdf", dpi=fig.dpi)
         plt.close(fig)
 
     # Plot disc1 vs disc2 for both background and signal
@@ -292,8 +305,8 @@ class Validation:
         ax1.set_xlabel("Disc. 1")
         ax1.set_ylabel("Disc. 2")
         plt.legend(loc='best');
-        if Njets == -1: fig.savefig(self.config["outputDir"]+"/2D_SigVsBkgd_Disc1VsDisc2_m%s.png"%(mass), dpi=fig.dpi)        
-        else:           fig.savefig(self.config["outputDir"]+"/2D_SigVsBkgd_Disc1VsDisc2_m%s_Njets%d.png"%(mass,Njets), dpi=fig.dpi)  
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/2D_SigVsBkgd_Disc1VsDisc2_m%s.pdf"%(mass), dpi=fig.dpi)        
+        else:           fig.savefig(self.config["outputDir"]+"/2D_SigVsBkgd_Disc1VsDisc2_m%s_Njets%d.pdf"%(mass,Njets), dpi=fig.dpi)  
         plt.close(fig)
 
     def plotPandR(self, pval, rval, ptrain, rtrain, valLab, trainLab):
@@ -307,16 +320,16 @@ class Validation:
         plt.ylabel('Precision')
         plt.title('Precision and Recall curve', pad=45.0)
         plt.legend(loc='best')
-        fig.savefig(self.config["outputDir"]+"/PandR_plot.png", dpi=fig.dpi)        
+        fig.savefig(self.config["outputDir"]+"/PandR_plot.pdf", dpi=fig.dpi)        
         plt.close(fig)
 
     # Just plot the 2D for either background or signal
-    def plotDisc1vsDisc2(self, disc1, disc2, bw, sw, c1, c2, significance, tag, mass = "", Njets = -1, nBins = 100):
+    def plotDisc1vsDisc2(self, disc1, disc2, bw, c1, c2, significance, tag, mass = "", Njets = -1, nBins = 100):
         fig = plt.figure() 
         corr = 999.0
         try: corr = cor.pearson_corr(disc1, disc2)
         except: print("Correlation coefficient could not be calculated!")
-        plt.hist2d(disc1, disc2, bins=[nBins, nBins], range=[[0, 1], [0, 1]], cmap=plt.cm.jet, weights=bw, cmin = sw.min())
+        plt.hist2d(disc1, disc2, bins=[nBins, nBins], range=[[0, 1], [0, 1]], cmap=plt.cm.jet, weights=bw, cmin = bw.min())
         plt.colorbar()
         ax = plt.gca()
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="red", linewidth=2); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="red", linewidth=2)
@@ -326,8 +339,8 @@ class Validation:
         plt.text(0.05, 0.95, r"$\bf{Significance}$ = %.3f"%(significance), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
         hep.cms.label(data=True, paper=False, year=self.config["year"])
 
-        if Njets == -1: fig.savefig(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2.png"%(tag,mass), dpi=fig.dpi)
-        else:           fig.savefig(self.config["outputDir"]+"/2D_%s%s_Njets%d_Disc1VsDisc2.png"%(tag,mass,Njets), dpi=fig.dpi)
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2.pdf"%(tag,mass), dpi=fig.dpi)
+        else:           fig.savefig(self.config["outputDir"]+"/2D_%s%s_Njets%d_Disc1VsDisc2.pdf"%(tag,mass,Njets), dpi=fig.dpi)
 
         plt.close(fig)
 
@@ -335,21 +348,21 @@ class Validation:
 
     def cutAndCount(self, c1s, c2s, b1, b2, bw, s1, s2, sw, cdiff = 0.2):
         # First get the total counts in region "D" for all possible c1, c2
-        bcounts = {"A" : {}, "B" : {}, "C" : {}, "D" : {}, "A2" : {}, "B2" : {}, "C2" : {}, "D2" : {}}  
-        scounts = {"A" : {}, "B" : {}, "C" : {}, "D" : {}, "A2" : {}, "B2" : {}, "C2" : {}, "D2" : {}}  
+        bcounts = {"a" : {}, "b" : {}, "c" : {}, "d" : {}, "A" : {}, "B" : {}, "C" : {}, "D" : {}, "A2" : {}, "B2" : {}, "C2" : {}, "D2" : {}}  
+        scounts = {"a" : {}, "b" : {}, "c" : {}, "d" : {}, "A" : {}, "B" : {}, "C" : {}, "D" : {}, "A2" : {}, "B2" : {}, "C2" : {}, "D2" : {}}  
 
         for c1 in c1s:
             c1k = "%.2f"%c1
             if c1k not in bcounts["A"]:
-                bcounts["A"][c1k] = {}; bcounts["A2"][c1k] = {}
-                bcounts["B"][c1k] = {}; bcounts["B2"][c1k] = {}
-                bcounts["C"][c1k] = {}; bcounts["C2"][c1k] = {}
-                bcounts["D"][c1k] = {}; bcounts["D2"][c1k] = {}
+                bcounts["A"][c1k] = {}; bcounts["A2"][c1k] = {}; bcounts["a"][c1k] = {};
+                bcounts["B"][c1k] = {}; bcounts["B2"][c1k] = {}; bcounts["b"][c1k] = {};
+                bcounts["C"][c1k] = {}; bcounts["C2"][c1k] = {}; bcounts["c"][c1k] = {};
+                bcounts["D"][c1k] = {}; bcounts["D2"][c1k] = {}; bcounts["d"][c1k] = {};
             if c1k not in scounts["A"]:
-                scounts["A"][c1k] = {}; scounts["A2"][c1k] = {} 
-                scounts["B"][c1k] = {}; scounts["B2"][c1k] = {} 
-                scounts["C"][c1k] = {}; scounts["C2"][c1k] = {} 
-                scounts["D"][c1k] = {}; scounts["D2"][c1k] = {} 
+                scounts["A"][c1k] = {}; scounts["A2"][c1k] = {}; scounts["a"][c1k] = {};
+                scounts["B"][c1k] = {}; scounts["B2"][c1k] = {}; scounts["b"][c1k] = {};
+                scounts["C"][c1k] = {}; scounts["C2"][c1k] = {}; scounts["c"][c1k] = {};
+                scounts["D"][c1k] = {}; scounts["D2"][c1k] = {}; scounts["d"][c1k] = {};
 
             for c2 in c2s:
             
@@ -359,15 +372,15 @@ class Validation:
 
                 c2k = "%.2f"%c2
                 if c2k not in bcounts["A"][c1k]:
-                    bcounts["A"][c1k][c2k] = 0.0; bcounts["A2"][c1k][c2k] = 0.0
-                    bcounts["B"][c1k][c2k] = 0.0; bcounts["B2"][c1k][c2k] = 0.0
-                    bcounts["C"][c1k][c2k] = 0.0; bcounts["C2"][c1k][c2k] = 0.0
-                    bcounts["D"][c1k][c2k] = 0.0; bcounts["D2"][c1k][c2k] = 0.0
+                    bcounts["A"][c1k][c2k] = 0.0; bcounts["A2"][c1k][c2k] = 0.0; bcounts["a"][c1k][c2k] = 0.0
+                    bcounts["B"][c1k][c2k] = 0.0; bcounts["B2"][c1k][c2k] = 0.0; bcounts["b"][c1k][c2k] = 0.0
+                    bcounts["C"][c1k][c2k] = 0.0; bcounts["C2"][c1k][c2k] = 0.0; bcounts["c"][c1k][c2k] = 0.0
+                    bcounts["D"][c1k][c2k] = 0.0; bcounts["D2"][c1k][c2k] = 0.0; bcounts["d"][c1k][c2k] = 0.0
                 if c2k not in scounts["A"][c1k]:
-                    scounts["A"][c1k][c2k] = 0.0; scounts["A2"][c1k][c2k] = 0.0
-                    scounts["B"][c1k][c2k] = 0.0; scounts["B2"][c1k][c2k] = 0.0
-                    scounts["C"][c1k][c2k] = 0.0; scounts["C2"][c1k][c2k] = 0.0
-                    scounts["D"][c1k][c2k] = 0.0; scounts["D2"][c1k][c2k] = 0.0
+                    scounts["A"][c1k][c2k] = 0.0; scounts["A2"][c1k][c2k] = 0.0; scounts["a"][c1k][c2k] = 0.0
+                    scounts["B"][c1k][c2k] = 0.0; scounts["B2"][c1k][c2k] = 0.0; scounts["b"][c1k][c2k] = 0.0
+                    scounts["C"][c1k][c2k] = 0.0; scounts["C2"][c1k][c2k] = 0.0; scounts["c"][c1k][c2k] = 0.0
+                    scounts["D"][c1k][c2k] = 0.0; scounts["D2"][c1k][c2k] = 0.0; scounts["d"][c1k][c2k] = 0.0
 
                 mask1BGT = np.ma.masked_where(b1>c1, b1).mask; mask1BLT = ~mask1BGT
                 mask1SGT = np.ma.masked_where(s1>c1, s1).mask; mask1SLT = ~mask1SGT
@@ -380,65 +393,92 @@ class Validation:
                 maskBC = mask1BLT&mask2BGT; maskSC = mask1SLT&mask2SGT
                 maskBD = mask1BLT&mask2BLT; maskSD = mask1SLT&mask2SLT
 
-                bcounts["A"][c1k][c2k]  = np.sum(bw[maskBA])
-                bcounts["A2"][c1k][c2k] = np.sum(np.square(bw[maskBA]))
+                bA = bw[maskBA]
+                bcounts["A"][c1k][c2k]  = np.sum(bA)
+                bcounts["a"][c1k][c2k]  = np.count_nonzero(bA)
+                bcounts["A2"][c1k][c2k] = np.sum(np.square(bA))
 
-                bcounts["B"][c1k][c2k]  = np.sum(bw[maskBB])
-                bcounts["B2"][c1k][c2k] = np.sum(np.square(bw[maskBB]))
+                bB = bw[maskBB]
+                bcounts["B"][c1k][c2k]  = np.sum(bB)
+                bcounts["b"][c1k][c2k]  = np.count_nonzero(bB)
+                bcounts["B2"][c1k][c2k] = np.sum(np.square(bB))
 
-                bcounts["C"][c1k][c2k]  = np.sum(bw[maskBC])
-                bcounts["C2"][c1k][c2k] = np.sum(np.square(bw[maskBC]))
+                bC = bw[maskBC]
+                bcounts["C"][c1k][c2k]  = np.sum(bC)
+                bcounts["c"][c1k][c2k]  = np.count_nonzero(bC)
+                bcounts["C2"][c1k][c2k] = np.sum(np.square(bC))
 
-                bcounts["D"][c1k][c2k]  = np.sum(bw[maskBD])
-                bcounts["D2"][c1k][c2k] = np.sum(np.square(bw[maskBD]))
+                bD = bw[maskBD]
+                bcounts["D"][c1k][c2k]  = np.sum(bD)
+                bcounts["d"][c1k][c2k]  = np.count_nonzero(bD)
+                bcounts["D2"][c1k][c2k] = np.sum(np.square(bD))
 
-                scounts["A"][c1k][c2k]  = np.sum(sw[maskSA])           
-                scounts["A2"][c1k][c2k] = np.sum(np.square(sw[maskSA]))
+                sA = sw[maskSA]
+                scounts["A"][c1k][c2k]  = np.sum(sA)           
+                scounts["a"][c1k][c2k]  = np.count_nonzero(sA)           
+                scounts["A2"][c1k][c2k] = np.sum(np.square(sA))
                                                                        
-                scounts["B"][c1k][c2k]  = np.sum(sw[maskSB])           
-                scounts["B2"][c1k][c2k] = np.sum(np.square(sw[maskSB]))
+                sB = sw[maskSB]
+                scounts["B"][c1k][c2k]  = np.sum(sB)           
+                scounts["b"][c1k][c2k]  = np.count_nonzero(sB)           
+                scounts["B2"][c1k][c2k] = np.sum(np.square(sB))
                                                                        
-                scounts["C"][c1k][c2k]  = np.sum(sw[maskSC])           
-                scounts["C2"][c1k][c2k] = np.sum(np.square(sw[maskSC]))
+                sC = sw[maskSC]
+                scounts["C"][c1k][c2k]  = np.sum(sC)           
+                scounts["c"][c1k][c2k]  = np.count_nonzero(sC)           
+                scounts["C2"][c1k][c2k] = np.sum(np.square(sC))
                                                                        
-                scounts["D"][c1k][c2k]  = np.sum(sw[maskSD])           
-                scounts["D2"][c1k][c2k] = np.sum(np.square(sw[maskSD]))
+                sD = sw[maskSD]
+                scounts["D"][c1k][c2k]  = np.sum(sD)           
+                scounts["d"][c1k][c2k]  = np.count_nonzero(sD)           
+                scounts["D2"][c1k][c2k] = np.sum(np.square(sD))
 
         return bcounts, scounts
 
-    def findDiscCut4SigFrac(self, bcts, scts, minFracB = 0.1, minFracS = 0.1):
+    def findDiscCut4SigFrac(self, bcts, scts, minFracB = 0.05, minFracS = 0.1):
         # Now calculate signal fraction and significance 
         # Pick c1 and c2 that give 30% sig fraction and maximizes significance
-        significance = 0.0; sigFrac = 0.0; finalc1 = -1.0; finalc2 = -1.0; 
+        significance = 0.0; finalc1 = -1.0; finalc2 = -1.0; 
         closureErr = 0.0; metric = 999.0
+        sFracA = 0.0; sbFracA = 0.0
+        sFracB = 0.0; sbFracB = 0.0
+        sFracC = 0.0; sbFracC = 0.0
+        sFracD = 0.0; sbFracD = 0.0
         for c1k, c2s in bcts["A"].items():
             for c2k, temp in c2s.items():
 
                 bA = bcts["A"][c1k][c2k]; bB = bcts["B"][c1k][c2k]; bC = bcts["C"][c1k][c2k]; bD = bcts["D"][c1k][c2k]
                 sA = scts["A"][c1k][c2k]; sB = scts["B"][c1k][c2k]; sC = scts["C"][c1k][c2k]; sD = scts["D"][c1k][c2k]
 
-                tempsigfrac = -1.0 
-                if bA + sA > 0.0: tempsigfrac = sA / (sA + bA)
+                sTotal = sA + sB + sC + sD
+                bTotal = bA + bB + bC + bD
 
-                bfracA = bA / (bA + bB + bC + bD)
-                sfracA = sA / (sA + sB + sC + sD)
+                tempsfracA = -1.0; tempsbfracA = -1.0
+                tempsfracB = -1.0; tempsbfracB = -1.0
+                tempsfracC = -1.0; tempsbfracC = -1.0
+                tempsfracD = -1.0; tempsbfracD = -1.0
+                if bA + sA > 0.0: tempsbfracA = sA / (sA + bA)
+                if bB + sB > 0.0: tempsbfracB = sB / (sB + bB)
+                if bC + sC > 0.0: tempsbfracC = sC / (sC + bC)
+                if bD + sD > 0.0: tempsbfracD = sD / (sD + bD)
 
-                bfracB = bB / (bA + bB + bC + bD)
-                sfracB = sB / (sA + sB + sC + sD)
+                tempbfracA = bA / bTotal
+                tempsfracA = sA / sTotal
 
-                bfracC = bC / (bA + bB + bC + bD)
-                sfracC = sC / (sA + sB + sC + sD)
+                tempbfracB = bB / bTotal
+                tempsfracB = sB / sTotal
 
-                bfracD = bD / (bA + bB + bC + bD)
-                sfracD = sD / (sA + sB + sC + sD)
+                tempbfracC = bC / bTotal
+                tempsfracC = sC / sTotal
+
+                tempbfracD = bD / bTotal
+                tempsfracD = sD / sTotal
 
                 # Minimum signal fraction requirement
-                if bfracA > minFracB and sfracA > minFracS and \
-                   bfracB > minFracB and sfracB > minFracS and \
-                   bfracC > minFracB and sfracC > minFracS and \
-                   bfracD > minFracB and sfracD > minFracS:
-
-                    sigFrac = tempsigfrac
+                if tempbfracA > minFracB and \
+                   tempbfracB > minFracB and \
+                   tempbfracC > minFracB and \
+                   tempbfracD > minFracB:
 
                     tempsignificance = 0.0; tempclosureerr = 999.0; tempmetric = 999.0
                     if bA > 0.0: tempsignificance += (sA / (bA + (0.3*bA)**2.0)**0.5)**2.0
@@ -453,18 +493,22 @@ class Validation:
                     if tempsignificance > 0.0:
                         tempmetric = tempclosureerr / tempsignificance
  
-                    # Save significance if we found a better one
-                    #if tempsignificance > significance:
-                    #    finalc1 = c1k; finalc2 = c2k
-                    #    significance = tempsignificance
-
                     if tempmetric < metric:
+                        sFracA = tempsfracA
+                        sbFracA = tempsbfracA
+                        sFracB = tempsfracB
+                        sbFracB = tempsbfracB
+                        sFracC = tempsfracC
+                        sbFracC = tempsbfracC
+                        sFracD = tempsfracD
+                        sbFracD = tempsbfracD
+
                         finalc1 = c1k; finalc2 = c2k
                         metric = tempmetric
                         significance = tempsignificance
                         closureErr = tempclosureerr
                 
-        return finalc1, finalc2, significance, sigFrac
+        return finalc1, finalc2, significance, sFracA, sbFracA, sFracB, sbFracB, sFracC, sbFracC, sFracD, sbFracD
 
     # Define closure as how far away prediction for region D is compared to actual 
     def simpleClosureABCD(self, bNA, bNB, bNC, bND, bNAerr, bNBerr, bNCerr, bNDerr):
@@ -541,7 +585,77 @@ class Validation:
         plt.ylabel('Background Rejection')
         plt.legend(loc='best')
         plt.text(0.05, 0.94, r"$\bf{ABCD\;Closure}$ > %.1f"%(closureLimit), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
-        fig.savefig(self.config["outputDir"]+"/SigContamination_vs_BkgdRejection_m%s.png"%(mass), dpi=fig.dpi)        
+        fig.savefig(self.config["outputDir"]+"/SigContamination_vs_BkgdRejection_m%s.pdf"%(mass), dpi=fig.dpi)        
+        plt.close(fig)
+
+    # Member function to plot input variable for events in specific region 
+    def plotInputVarMassCut(self, m, dm, sm, d, s, sigMask, massMask, var, varLabel, process, mass = "", Njets=-1, bins=100, arange=(0,1)):
+    
+        iVar = self.config["allVars"].index(var)
+        maskBkgRegGT = np.ma.masked_where(dm>m, dm).mask; maskBkgRegLT = ~maskBkgRegGT
+        maskSigRegGT = np.ma.masked_where(sm>m, sm).mask; maskSigRegLT = ~maskSigRegGT
+
+        dw = d["Weight"][:,0]; sw = s["Weight"][:,0]
+        v  = d["data"][:,iVar]; vS = s["data"][:,iVar]
+        vGT = v[maskBkgRegGT]; vSGT = vS[sigMask&massMask&maskSigRegGT]
+        vLT = v[maskBkgRegLT]; vSLT = vS[sigMask&massMask&maskSigRegLT]
+
+        binxl = np.amin(v)
+        binxh = np.amax(v)
+
+        dwLT = dw[maskBkgRegLT]; dwGT = dw[maskBkgRegGT]
+        swLT = sw[sigMask&massMask&maskSigRegLT]; swGT = sw[sigMask&massMask&maskSigRegGT]
+
+        dw2LT = np.square(dwLT); dw2GT = np.square(dwGT)
+        sw2LT = np.square(swLT); sw2GT = np.square(swGT)
+
+        dwLTBinned,  binEdges = np.histogram(vLT, bins=bins, range=(binxl,binxh), weights=dwLT)
+        dwGTBinned,  binEdges = np.histogram(vGT, bins=bins, range=(binxl,binxh), weights=dwGT)
+        swLTBinned,  binEdges = np.histogram(vSLT, bins=bins, range=(binxl,binxh), weights=swLT)
+        swGTBinned,  binEdges = np.histogram(vSGT, bins=bins, range=(binxl,binxh), weights=swGT)
+
+        dw2LTBinned,  binEdges = np.histogram(vLT, bins=bins, range=(binxl,binxh), weights=dw2LT)
+        dw2GTBinned,  binEdges = np.histogram(vGT, bins=bins, range=(binxl,binxh), weights=dw2GT)
+        sw2LTBinned,  binEdges = np.histogram(vSLT, bins=bins, range=(binxl,binxh), weights=sw2LT)
+        sw2GTBinned,  binEdges = np.histogram(vSGT, bins=bins, range=(binxl,binxh), weights=sw2GT)
+
+        if len(dw2GTBinned) == 0: dw2GTBinned = np.zeros(bins)
+        if len(sw2GTBinned) == 0: sw2GTBinned = np.zeros(bins)
+        if len(dw2LTBinned) == 0: dw2LTBinned = np.zeros(bins)
+        if len(sw2LTBinned) == 0: sw2LTBinned = np.zeros(bins)
+
+        if not np.any(dw2GTBinned): dw2GTBinned += 10e-2
+        if not np.any(sw2GTBinned): sw2GTBinned += 10e-2
+        if not np.any(dw2LTBinned): dw2LTBinned += 10e-2
+        if not np.any(sw2LTBinned): sw2LTBinned += 10e-2
+
+        if len(dwGTBinned) == 0: dwGTBinned = np.zeros(bins)
+        if len(swGTBinned) == 0: swGTBinned = np.zeros(bins)
+        if len(dwLTBinned) == 0: dwLTBinned = np.zeros(bins)
+        if len(swLTBinned) == 0: swLTBinned = np.zeros(bins)
+
+        if not np.any(dwGTBinned): dwGTBinned += 10e-2
+        if not np.any(swGTBinned): swGTBinned += 10e-2
+        if not np.any(dwLTBinned): dwLTBinned += 10e-2
+        if not np.any(swLTBinned): swLTBinned += 10e-2
+
+        fig = plt.figure()
+        ax = plt.gca()
+        ax = hep.histplot(h=dwGTBinned, bins=binEdges, density=True, histtype="step", label="Background (mass > %d)"%(m), alpha=0.9, lw=2, ax=ax)
+        ax = hep.histplot(h=swGTBinned, bins=binEdges, density=True, histtype="step", label="Signal (mass > %d)"%(m), alpha=0.9, lw=2, ax=ax)
+        ax = hep.histplot(h=dwLTBinned, bins=binEdges, density=True, histtype="step", label="Background (mass < %d)"%(m), alpha=0.9, lw=2, ax=ax)
+        ax = hep.histplot(h=swLTBinned, bins=binEdges, density=True, histtype="step", label="Signal (mass < %d)"%(m), alpha=0.9, lw=2, ax=ax)
+
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        ax.set_ylabel('A.U.'); ax.set_xlabel(varLabel)
+
+        # Stupid nonsense to remove duplicate entries in legend
+        handles, labels = ax.get_legend_handles_labels()
+        ax.legend(handles[0:5], labels[0:5], loc=1, frameon=False)
+
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/%s_%s%s_MassRegCut.pdf"%(var, process, mass))
+        else:           fig.savefig(self.config["outputDir"]+"/%s_%s%s_Njets%d_MassRegCut.pdf"%(var, process, mass, Njets))
+
         plt.close(fig)
 
     # Member function to plot input variable for events in specific region 
@@ -622,8 +736,8 @@ class Validation:
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(handles[0:5], labels[0:5], loc=1, frameon=False)
 
-        if Njets == -1: fig.savefig(self.config["outputDir"]+"/%s_%s%s_Compare_Shapes.png"%(var, process, mass))
-        else:           fig.savefig(self.config["outputDir"]+"/%s_%s%s_Njets%d_Compare_Shapes.png"%(var, process, mass, Njets))
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/%s_%s%s_Compare_Shapes.pdf"%(var, process, mass))
+        else:           fig.savefig(self.config["outputDir"]+"/%s_%s%s_Njets%d_Compare_Shapes.pdf"%(var, process, mass, Njets))
 
         plt.close(fig)
 
@@ -657,60 +771,129 @@ class Validation:
         plt.legend(loc='best')
         plt.text(0.05, 0.94, r"Significance = %.2f"%(sign), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
 
-        fig.savefig(self.config["outputDir"]+"/Njets_Region_%s"%(label))
+        fig.savefig(self.config["outputDir"]+"/Njets_Region_%s.pdf"%(label))
 
         plt.close(fig)
 
         return sign
 
-    def plotNjetsClosure(self, bkgd, bkgdUnc, bkgdPred, bkgdPredUnc):
+    def plotNjetsClosure(self, bkgd, bkgdUnc, bkgdPred, bkgdPredUnc, bkgdSign):
 
-        newB        = [bkgd[0]];        newB        += bkgd
-        newBPred    = [bkgdPred[0]];    newBPred    += bkgdPred
+        binCenters = [i+self.config["minNJetBin"] for i in range(0, len(bkgd))]
+        xErr       = [0.5 for i in range(0, len(bkgd))]
+        abcdPull   = []
+        abcdError  = []
 
-        binEdges = [i for i in range(0, len(newB))]
-        errX     = [i+0.5 for i in range(0, len(bkgd))]
-
+        totalChi2 = 0.0; wtotalChi2 = 0.0; ndof = 0; totalSig = 0.0
+        for Njets in range(0, len(bkgd)):
+        
+            if bkgdUnc[Njets] != 0.0:
+                pull = (bkgdPred[Njets]-bkgd[Njets])/bkgdUnc[Njets]
+                closureError = 1.0 - bkgdPred[Njets]/bkgd[Njets]
+                abcdPull.append(pull)
+                abcdError.append(closureError)
+                totalChi2 += pull**2.0
+                wtotalChi2 += bkgdSign[Njets] * pull**2.0
+                totalSig += bkgdSign[Njets]
+                ndof += 1
+            else:
+                abcdPull.append(-999)
+        
         fig = plt.figure()
-        ax = plt.gca()
-        ax.set_yscale("log")
+        gs = fig.add_gridspec(8, 1)
+        ax = fig.add_subplot(111)
+        ax1 = fig.add_subplot(gs[0:6])
+        ax2 = fig.add_subplot(gs[6:8], sharex=ax1)
+       
+        fig.subplots_adjust(hspace=0)
+        
+        ax.spines['top'].set_color('none')
+        ax.spines['bottom'].set_color('none')
+        ax.spines['left'].set_color('none')
+        ax.spines['right'].set_color('none')
+        ax.tick_params(labelcolor='w', top=False, bottom=False, left=False, right=False)
+        
+        ax1.set_yscale("log")
+        ax1.text(0.05, 0.1, "$\chi^2$ / ndof = %3.2f"%(totalChi2/float(ndof)), horizontalalignment="left", verticalalignment="center", transform=ax1.transAxes, fontsize=18)
+        ax1.text(0.05, 0.20, "$\chi^2$ (weighted) / ndof = %3.2f"%(wtotalChi2/float(ndof)), horizontalalignment="left", verticalalignment="center", transform=ax1.transAxes, fontsize=18)
+       
+        ax1.errorbar(binCenters, bkgdPred, yerr=bkgdPredUnc, label="Observed",  xerr=xErr, fmt='', color="red",   lw=0, elinewidth=2, marker="o", markerfacecolor="red")
+        ax1.errorbar(binCenters, bkgd,     yerr=bkgdUnc,     label="Predicted", xerr=xErr, fmt='', color="black", lw=0, elinewidth=2, marker="o", markerfacecolor="black")
+        
+        #ax2.errorbar(binCenters, abcdPull, yerr=None,        xerr=xErr, fmt='', color="blue",  lw=0, elinewidth=2, marker="o", markerfacecolor="blue")
+        #ax2.axhline(y=0.0, color="black", linestyle="dashed", lw=1)
+        #ax2.grid(color="black", which="major", axis="y")
+        
+        ax2.errorbar(binCenters, abcdError, yerr=None,        xerr=xErr, fmt='', color="blue",  lw=0, elinewidth=2, marker="o", markerfacecolor="blue")
+        ax2.axhline(y=0.0, color="black", linestyle="dashed", lw=1)
+        ax2.grid(color="black", which="both", axis="y")
 
-        plt.step(binEdges, newB,     label="Background",           where="pre", color="black", linestyle="dashed")
-        plt.step(binEdges, newBPred, label="Predicted Background", where="pre", color="red",   linestyle="solid")
-        plt.errorbar(errX, bkgdPred, yerr=bkgdPredUnc, xerr=None, fmt='', ecolor="red", elinewidth=2, color=None, lw=0) 
-        plt.errorbar(errX, bkgd,     yerr=bkgdUnc,    xerr=None, fmt='', ecolor="black", elinewidth=2, color=None, lw=0) 
-
-        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
-
-        plt.xlabel('Number of jets')
-        plt.ylabel('Events')
-        plt.legend(loc='best')
-        #plt.text(0.05, 0.94, r"Closure = %.2f"%(closure), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
-
-        fig.savefig(self.config["outputDir"]+"/Njets_Region_A_PredVsActual")
-
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax1)
+        
+        ax2.set_xlabel('Number of jets')
+        ax2.set_ylabel('1 - Pred./Obs.', fontsize="small")
+        #ax2.set_ylabel('(Pred. - Obs.) / $\delta$')
+        ax1.set_ylabel('Unweighted Event Counts')
+        ax1.legend(loc='best')
+        
+        #ax2.set_ylim([-5.9, 5.9])
+        ax2.set_ylim([-1.6, 1.6])
+        
+        fig.savefig(self.config["outputDir"]+"/Njets_Region_A_PredVsActual.pdf")
+        
         plt.close(fig)
 
-    def makePlots(self, doQuickVal=False, valMass="400", valModel="RPV_SYY_SHH"):
+        return totalChi2, wtotalChi2/totalSig, ndof
+
+    def makePlots(self, doQuickVal=False, xvalMass="400", xvalModel="RPV_SYY_SHH"):
         NJetsRange = range(self.config["minNJetBin"], self.config["maxNJetBin"]+1)
-        massMask = self.trainSg["mask_m%s"%(valMass)]
 
-        sgValSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+mass+"*Val.root") for mass in self.config["massModels"]) , [])
-        bgValSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+ttbar+"*Val.root") for ttbar in self.config["ttbarMC"][1]), [])
-
+        # Validation set used events not a part of training samples
+        sgValSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+mass+"*Val.root") for mass in self.config["signal"]) , [])
+        bgValSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+bkgd+"*Val.root") for bkgd in self.config["bkgd"][1]), [])
         valData, valSg, valBg = get_data(sgValSet, bgValSet, self.config)
 
+        # Xvalidation set could be from samples that were not even trained on and the network has never seen
+        loadXvalSignal = not self.samplesLoaded(self.config["signal"], self.config["signalVal"])
+        loadXvalBkgd   = not self.samplesLoaded(self.config["bkgd"][1], self.config["bkgdVal"][1])
+
+        bgXvalSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+bkgd+"*.root") for bkgd in self.config["bkgdVal"][1]), [])
+        sgXvalSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+mass+"*.root") for mass in self.config["signalVal"]), [])
+
+        #if loadXvalBkgd or loadXvalSignal:
+        self.Data, self.Sg, self.Bg = get_data(sgXvalSet, bgXvalSet, self.config)
+
+        # For validating that the training on the samples worked well
+        # Pick a safe mass point and model that was present in the training set
+        # The "validation" events will be drawn based on this model/mass combination
+        tRange = list(range(self.config["minStopMass"], self.config["maxStopMass"], 50))
+        print(tRange)
+        valMass = None
+        if 550 in tRange:
+            valMass = 550
+        else:
+            valMass = tRange[0]
+
+        valModel = None
+        if "RPV" in self.config["trainModel"]:
+            valModel = "RPV"
+        elif "SYY" in self.config["trainModel"]:
+            valModel = "SYY"
+        elif "SHH" in self.config["trainModel"]:
+            valModel = "SHH"
+
+        massMask = self.Sg["mask_m%s"%(xvalMass)]
         massMaskVal = valSg["mask_m%s"%(valMass)]
 
         # Make signal model mask for signal training dataset
-        rpvMask = self.trainSg["mask_RPV"]
-        syyMask = self.trainSg["mask_SYY"]
-        shhMask = self.trainSg["mask_SHH"]
+        rpvMask = self.Sg["mask_RPV"]
+        syyMask = self.Sg["mask_SYY"]
+        shhMask = self.Sg["mask_SHH"]
 
         # Make signal model mask for mixed training dataset
-        rpvMaskData = self.trainData["mask_RPV"]
-        syyMaskData = self.trainData["mask_SYY"]
-        shhMaskData = self.trainData["mask_SHH"]
+        rpvMaskData = self.Data["mask_RPV"]
+        syyMaskData = self.Data["mask_SYY"]
+        shhMaskData = self.Data["mask_SHH"]
 
         # Make signal model mask for signal validation dataset
         rpvMaskVal = valSg["mask_RPV"]
@@ -723,7 +906,7 @@ class Validation:
         shhMaskValData = valData["mask_SHH"]
 
         sigMask = None; sigMaskData = None; sigMaskVal = None; sigMaskValData = None
-        if   "RPV" in valModel:
+        if   "RPV" in xvalModel:
             if sigMask is None:
                 sigMask = rpvMask
             else:
@@ -734,6 +917,7 @@ class Validation:
             else:
                 sigMaskData |= rpvMaskData
 
+        if "RPV" in valModel:
             if sigMaskVal is None:
                 sigMaskVal = rpvMaskVal
             else:
@@ -744,7 +928,7 @@ class Validation:
             else:
                 sigMaskValData |= rpvMaskValData
 
-        if "SYY" in valModel:
+        if "SYY" in xvalModel:
             if sigMask is None:
                 sigMask = syyMask
             else:
@@ -755,6 +939,7 @@ class Validation:
             else:
                 sigMaskData |= syyMaskData
 
+        if "SYY" in valModel:
             if sigMaskVal is None:
                 sigMaskVal = syyMaskVal
             else:
@@ -765,7 +950,7 @@ class Validation:
             else:
                 sigMaskValData |= syyMaskValData
 
-        if "SHH" in valModel:
+        if "SHH" in xvalModel:
             if sigMask is None:
                 sigMask = shhMask
             else:
@@ -776,6 +961,7 @@ class Validation:
             else:
                 sigMaskData |= shhMaskData
 
+        if "SHH" in valModel:
             if sigMaskVal is None:
                 sigMaskVal = shhMaskVal
             else:
@@ -786,49 +972,80 @@ class Validation:
             else:
                 sigMaskValData |= shhMaskValData
 
+        # Part of the training samples that were not used for training
         output_Val, output_Val_Sg, output_Val_Bg = self.getOutput(self.model, valData["data"], valSg["data"], valBg["data"])
-        output_Train, output_Train_Sg, output_Train_Bg = self.getOutput(self.model, self.trainData["data"], self.trainSg["data"], self.trainBg["data"])
+
+        # Separately loaded samples that can have nothing to do with the what was loaded for training
+        output_Train, output_Xval_Sg, output_Xval_Bg = self.getOutput(self.model, self.Data["data"], self.Sg["data"], self.Bg["data"])
 
         y_Val_disc1, y_Val_Sg_disc1, y_Val_Bg_disc1 = self.getResults(output_Val, output_Val_Sg, output_Val_Bg, outputNum=0, columnNum=0)
         y_Val_disc2, y_Val_Sg_disc2, y_Val_Bg_disc2 = self.getResults(output_Val, output_Val_Sg, output_Val_Bg, outputNum=0, columnNum=2)
         y_Val_mass, y_Val_mass_Sg, y_Val_mass_Bg = self.getResults(output_Val, output_Val_Sg, output_Val_Bg, outputNum=3, columnNum=0)
-        y_Train_disc1, y_Train_Sg_disc1, y_Train_Bg_disc1 = self.getResults(output_Train, output_Train_Sg, output_Train_Bg, outputNum=0, columnNum=0)
-        y_Train_disc2, y_Train_Sg_disc2, y_Train_Bg_disc2 = self.getResults(output_Train, output_Train_Sg, output_Train_Bg, outputNum=0, columnNum=2)
-        y_Train_mass, y_Train_mass_Sg, y_Train_mass_Bg = self.getResults(output_Train, output_Train_Sg, output_Train_Bg, outputNum=3, columnNum=0)
+        y_Xval_disc1, y_Xval_Sg_disc1, y_Xval_Bg_disc1 = self.getResults(output_Train, output_Xval_Sg, output_Xval_Bg, outputNum=0, columnNum=0)
+        y_Xval_disc2, y_Xval_Sg_disc2, y_Xval_Bg_disc2 = self.getResults(output_Train, output_Xval_Sg, output_Xval_Bg, outputNum=0, columnNum=2)
+        y_Xval_mass, y_Xval_mass_Sg, y_Xval_mass_Bg = self.getResults(output_Train, output_Xval_Sg, output_Xval_Bg, outputNum=3, columnNum=0)
 
         nBins = 20
         nBinsReg = 100
-        masses = [300, 400, 550, 850, 1200, 1400]
-        colors = ["red", "green", "blue", "magenta", "orange", "black"]; labels = ["Sg Train", "Sg Val", "Bg Train", "Bg Val"]
+        #masses = [350, 550, 850, 1150]
+        masses = [550]
 
-        self.plotDisc([y_Train_mass_Sg[sigMask], y_Val_mass_Sg[sigMaskVal], y_Train_mass_Bg, y_Val_mass_Bg], colors, labels, [self.trainSg["Weight"][sigMask], valSg["Weight"][sigMaskVal], self.trainBg["Weight"], valBg["Weight"]], "mass", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
-        self.plotDisc([y_Train_mass_Sg[sigMask], y_Val_mass_Sg[sigMaskVal], y_Train_mass_Bg, y_Val_mass_Bg], colors, labels, [self.trainSg["Weight"][sigMask], valSg["Weight"][sigMaskVal], self.trainBg["Weight"], valBg["Weight"]], "mass_log", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg, doLog=True)
+        colors = ["red", "green", "blue", "magenta", "cyan"]; labels = ["Bg Train", "Bg Val"]
 
-        tempColors = ["black"]; tempNames = ["ttbar"]; tempMass = [y_Train_mass_Bg]; tempEvents = [self.trainBg["Weight"]]; tempMassVal = [y_Val_mass_Bg]; tempEventsVal = [valBg["Weight"]]
+        self.plotDisc([y_Xval_mass_Bg, y_Val_mass_Bg], colors, labels, [self.Bg["Weight"], valBg["Weight"]], "mass", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
+        self.plotDisc([y_Xval_mass_Bg, y_Val_mass_Bg], colors, labels, [self.Bg["Weight"], valBg["Weight"]], "mass_log", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg, doLog=True)
+
+        tempColors = ["black"]; tempNames = ["ttbar"]; tempMass = [y_Xval_mass_Bg]; tempEvents = [self.Bg["Weight"]]; tempMassVal = [y_Val_mass_Bg]; tempEventsVal = [valBg["Weight"]]
         i = 0
         for imass in masses:
-            if imass >= self.config["minStopMass"] and imass <= self.config["maxStopMass"]:
-                mask = "mask_m%d"%(imass)
-                self.plotDisc([y_Train_mass_Sg[self.trainSg[mask]&sigMask], y_Val_mass_Sg[valSg[mask]&sigMaskVal]], colors, labels, [self.trainSg["Weight"][self.trainSg[mask]&sigMask], valSg["Weight"][valSg[mask]&sigMaskVal]], "mass_%d"%(imass), 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
+            mask = "mask_m%d"%(imass)
+            self.plotDisc([y_Xval_mass_Sg[self.Sg[mask]&sigMask], y_Val_mass_Sg[valSg[mask]]], colors, labels, [self.Sg["Weight"][self.Sg[mask]&sigMask], valSg["Weight"][valSg[mask]]], "mass_%d"%(imass), 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
 
-                tempColors.append(colors[i])
-                tempNames.append("mass %d"%(imass))
-                tempMass.append(y_Train_mass_Sg[self.trainSg[mask]&sigMask])
-                tempEvents.append(self.trainSg["Weight"][self.trainSg[mask]&sigMask])
+            tempColors.append(colors[i])
+            tempNames.append("mass %d"%(imass))
+            tempMass.append(y_Xval_mass_Sg[self.Sg[mask]&sigMask])
+            tempEvents.append(self.Sg["Weight"][self.Sg[mask]&sigMask])
 
-                tempMassVal.append(y_Val_mass_Sg[valSg[mask]&sigMaskVal])
-                tempEventsVal.append(valSg["Weight"][valSg[mask]&sigMaskVal])
+            tempMassVal.append(y_Val_mass_Sg[valSg[mask]])
+            tempEventsVal.append(valSg["Weight"][valSg[mask]])
 
-                i += 1
+            i += 1
 
-        self.plotDisc([y_Train_Sg_disc1[sigMask], y_Val_Sg_disc1[sigMaskVal], y_Train_Bg_disc1, y_Val_Bg_disc1], colors, labels, [self.trainSg["Weight"][sigMask], valSg["Weight"][sigMaskVal], self.trainBg["Weight"], valBg["Weight"]], "Disc1", 'Norm Events', 'Disc. 1')
-        self.plotDisc([y_Train_Sg_disc2[sigMask], y_Val_Sg_disc2[sigMaskVal], y_Train_Bg_disc2, y_Val_Bg_disc2], colors, labels, [self.trainSg["Weight"][sigMask], valSg["Weight"][sigMaskVal], self.trainBg["Weight"], valBg["Weight"]], "Disc2", 'Norm Events', 'Disc. 2')
+        self.plotDisc([y_Xval_Bg_disc1, y_Val_Bg_disc1], colors, labels, [self.Bg["Weight"], valBg["Weight"]], "Disc1", 'Norm Events', 'Disc. 1')
+        self.plotDisc([y_Xval_Bg_disc2, y_Val_Bg_disc2], colors, labels, [self.Bg["Weight"], valBg["Weight"]], "Disc2", 'Norm Events', 'Disc. 2')
 
         self.plotDisc(tempMass, tempColors, tempNames, tempEvents, "mass_split", 'Norm Events', 'predicted mass', arange=(-10, 2000), bins=nBinsReg)
         self.plotDisc(tempMass, tempColors, tempNames, tempEvents, "mass_split_log", 'Norm Events', 'predicted mass', arange=(-10, 2000), bins=nBinsReg, doLog=True)
 
         self.plotDisc(tempMassVal, tempColors, tempNames, tempEventsVal, "mass_split_val", 'Norm Events', 'predicted mass', arange=(-10, 2000), bins=nBinsReg)
         self.plotDisc(tempMassVal, tempColors, tempNames, tempEventsVal, "mass_split_val_log", 'Norm Events', 'predicted mass', arange=(-10, 2000), bins=nBinsReg, doLog=True)
+
+        for NJets in NJetsRange:
+            njetsStr = "mask_nJet_%s"%(("%s"%(NJets)).zfill(2))
+            bkgNjetsMask = self.Bg[njetsStr]; sigNjetsMask = self.Sg[njetsStr]
+            bkgNjetsMaskVal = valBg[njetsStr]; sigNjetsMaskVal = valSg[njetsStr]
+
+            tempColors = ["black"]; tempNames = ["ttbar"]; tempMass = [y_Xval_mass_Bg[bkgNjetsMask]]; tempEvents = [self.Bg["Weight"][bkgNjetsMask]]; tempMassVal = [y_Val_mass_Bg[bkgNjetsMaskVal]]; tempEventsVal = [valBg["Weight"][bkgNjetsMaskVal]]
+            i = 0
+            for imass in masses:
+                if imass >= self.config["minStopMass"] and imass <= self.config["maxStopMass"]:
+                    mask = "mask_m%d"%(imass)
+
+                    tempColors.append(colors[i])
+                    tempNames.append("mass %d"%(imass))
+                    tempMass.append(y_Xval_mass_Sg[self.Sg[mask]&sigMask&sigNjetsMask])
+                    tempEvents.append(self.Sg["Weight"][self.Sg[mask]&sigMask&sigNjetsMask])
+
+                    tempMassVal.append(y_Val_mass_Sg[valSg[mask]&sigMaskVal&sigNjetsMaskVal])
+                    tempEventsVal.append(valSg["Weight"][valSg[mask]&sigMaskVal&sigNjetsMaskVal])
+
+                    i += 1
+
+            self.plotDisc(tempMass, tempColors, tempNames, tempEvents, "mass_split_Njets%s"%(NJets), 'Norm Events', 'predicted mass', arange=(-10, 2000), bins=nBinsReg)
+            self.plotDisc(tempMass, tempColors, tempNames, tempEvents, "mass_split_Njets%s_log"%(NJets), 'Norm Events', 'predicted mass', arange=(-10, 2000), bins=nBinsReg, doLog=True)
+
+            self.plotDisc(tempMassVal, tempColors, tempNames, tempEventsVal, "mass_split_val_Njets%s"%(NJets), 'Norm Events', 'predicted mass', arange=(-10, 2000), bins=nBinsReg)
+            self.plotDisc(tempMassVal, tempColors, tempNames, tempEventsVal, "mass_split_val_Njets%s_log"%(NJets), 'Norm Events', 'predicted mass', arange=(-10, 2000), bins=nBinsReg, doLog=True)
 
         # Plot Acc vs Epoch
         if self.result_log != None:
@@ -843,89 +1060,153 @@ class Validation:
             self.plotAccVsEpoch('disc_comb_layer_loss', 'val_correlation_layer_loss', 'correlation_layer output loss', 'correlation_layer_loss_train_val')
        
         # Plot disc per njet
-        self.plotDiscPerNjet("_Disc1", {"Bg": [self.trainBg, y_Train_Bg_disc1, self.trainBg["Weight"]], "Sg": [self.trainSg, y_Train_Sg_disc1, self.trainSg["Weight"]]}, sigMask, nBins=nBins)
-        self.plotDiscPerNjet("_Disc2", {"Bg": [self.trainBg, y_Train_Bg_disc2, self.trainBg["Weight"]], "Sg": [self.trainSg, y_Train_Sg_disc2, self.trainSg["Weight"]]}, sigMask, nBins=nBins)
+        self.plotDiscPerNjet("_Disc1", {"Bg": [self.Bg, y_Xval_Bg_disc1, self.Bg["Weight"]], "Sg": [self.Sg, y_Xval_Sg_disc1, self.Sg["Weight"]]}, sigMask, nBins=nBins)
+        self.plotDiscPerNjet("_Disc2", {"Bg": [self.Bg, y_Xval_Bg_disc2, self.Bg["Weight"]], "Sg": [self.Sg, y_Xval_Sg_disc2, self.Sg["Weight"]]}, sigMask, nBins=nBins)
         
         if not doQuickVal:
-            self.plotD1VsD2SigVsBkgd(y_Train_Bg_disc1, y_Train_Bg_disc2, y_Train_Sg_disc1[massMask&sigMask], y_Train_Sg_disc2[massMask&sigMask], valMass)
+            self.plotD1VsD2SigVsBkgd(y_Xval_Bg_disc1, y_Xval_Bg_disc2, y_Xval_Sg_disc1[massMask&sigMask], y_Xval_Sg_disc2[massMask&sigMask], xvalMass)
             # Make arrays for possible values to cut on for both discriminant
             # starting at a minimum of 0.5 for each
-            c1s = np.arange(0.15, 0.85, 0.05); c2s = np.arange(0.15, 0.85, 0.05)
+            c1s = np.arange(0.10, 0.95, 0.02); c2s = np.arange(0.10, 0.95, 0.02)
         
             # Get number of background and signal counts for each A, B, C, D region for every possible combination of cuts on disc 1 and disc 2
-            bc, sc = self.cutAndCount(c1s, c2s, y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], y_Train_Sg_disc1[massMask&sigMask], y_Train_Sg_disc2[massMask&sigMask], self.trainSg["Weight"][:,0][massMask&sigMask])
+            bc, sc = self.cutAndCount(c1s, c2s, y_Xval_Bg_disc1, y_Xval_Bg_disc2, self.Bg["Weight"][:,0], y_Xval_Sg_disc1[massMask&sigMask], y_Xval_Sg_disc2[massMask&sigMask], self.Sg["Weight"][:,0][massMask&sigMask])
         
             # Plot signal contamination versus background rejection
-            self.plotBkgdRejVsSigCont(bc, sc, valMass)
+            self.plotBkgdRejVsSigCont(bc, sc, xvalMass)
         
             # For a given signal fraction, figure out the cut on disc 1 and disc 2 that maximizes the significance
-            c1, c2, significance, sigfrac = self.findDiscCut4SigFrac(bc, sc)
+            c1, c2, significance, sfracA, sbfracA, sfracB, sbfracB, sfracC, sbfracC, sfracD, sbfracD = self.findDiscCut4SigFrac(bc, sc)
         
             self.config["Disc1"] = c1
             self.config["Disc2"] = c2
             self.config["Significance"] = significance
-            self.config["SignalFrac"] = sigfrac
-        
-            for i in range(len(self.config["allVars"])):
-                theVar = self.config["allVars"][i]
-                self.plotInputVar(float(c1), float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg, self.trainSg, sigMask, massMask, theVar, theVar, "BG", mass = "", Njets = -1, bins = 64)
+            self.config["sFracA"] = sfracA
+            self.config["sFracB"] = sfracB
+            self.config["sFracC"] = sfracC
+            self.config["sFracD"] = sfracD
+            self.config["sbFracA"] = sbfracA
+            self.config["sbFracB"] = sbfracB
+            self.config["sbFracC"] = sbfracC
+            self.config["sbFracD"] = sbfracD
+ 
+            #for i in range(len(self.config["allVars"])):
+            #    theVar = self.config["allVars"][i]
+            #    self.plotInputVarMassCut(100, y_Xval_mass_Bg, y_Xval_mass_Sg, self.Bg, self.Sg, sigMask, massMask, theVar, theVar, "BGvSG", mass = "", Njets=-1, bins=100)
+            #    self.plotInputVar(float(c1), float(c2), y_Xval_Bg_disc1, y_Xval_Bg_disc2, self.Bg, self.Sg, sigMask, massMask, theVar, theVar, "BG", mass = "", Njets = -1, bins = 64)
 
             # Plot each discriminant for sig and background while making cut on other disc
-            self.plotDiscWithCut(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], y_Train_Sg_disc1[massMask&sigMask], y_Train_Sg_disc2[massMask&sigMask], self.trainSg["Weight"][:,0][massMask&sigMask], "1", "2", mass=valMass, Njets=-1, bins=nBins)
-            self.plotDiscWithCut(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], y_Train_Sg_disc2[massMask&sigMask], y_Train_Sg_disc1[massMask&sigMask], self.trainSg["Weight"][:,0][massMask&sigMask], "2", "1", mass=valMass, Njets=-1, bins=nBins)
+            self.plotDiscWithCut(float(c2), y_Xval_Bg_disc1, y_Xval_Bg_disc2, self.Bg["Weight"][:,0], y_Xval_Sg_disc1[massMask&sigMask], y_Xval_Sg_disc2[massMask&sigMask], self.Sg["Weight"][:,0][massMask&sigMask], "1", "2", mass=xvalMass, Njets=-1, bins=nBins)
+            self.plotDiscWithCut(float(c1), y_Xval_Bg_disc2, y_Xval_Bg_disc1, self.Bg["Weight"][:,0], y_Xval_Sg_disc2[massMask&sigMask], y_Xval_Sg_disc1[massMask&sigMask], self.Sg["Weight"][:,0][massMask&sigMask], "2", "1", mass=xvalMass, Njets=-1, bins=nBins)
         
-            self.plotDiscWithCutCompare(float(c2), y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], "1", "2", "BG", mass="", Njets=-1, bins=10)
-            self.plotDiscWithCutCompare(float(c2), y_Train_Sg_disc1[massMask&sigMask], y_Train_Sg_disc2[massMask&sigMask], self.trainSg["Weight"][:,0][massMask&sigMask], "1", "2", "SG", mass=valMass, Njets=-1, bins=10)
+            self.plotDiscWithCutCompare(float(c2), y_Xval_Bg_disc1, y_Xval_Bg_disc2, self.Bg["Weight"][:,0], "1", "2", "BG", mass="", Njets=-1, bins=10)
+            self.plotDiscWithCutCompare(float(c2), y_Xval_Sg_disc1[massMask&sigMask], y_Xval_Sg_disc2[massMask&sigMask], self.Sg["Weight"][:,0][massMask&sigMask], "1", "2", "SG", mass=xvalMass, Njets=-1, bins=10)
         
-            self.plotDiscWithCutCompare(float(c1), y_Train_Bg_disc2, y_Train_Bg_disc1, self.trainBg["Weight"][:,0], "2", "1", "BG", bins=10)
-            self.plotDiscWithCutCompare(float(c1), y_Train_Sg_disc2[massMask&sigMask], y_Train_Sg_disc1[massMask&sigMask], self.trainSg["Weight"][:,0][massMask&sigMask], "2", "1", "SG", mass=valMass, Njets=-1, bins=10)
+            self.plotDiscWithCutCompare(float(c1), y_Xval_Bg_disc2, y_Xval_Bg_disc1, self.Bg["Weight"][:,0], "2", "1", "BG", bins=10)
+            self.plotDiscWithCutCompare(float(c1), y_Xval_Sg_disc2[massMask&sigMask], y_Xval_Sg_disc1[massMask&sigMask], self.Sg["Weight"][:,0][massMask&sigMask], "2", "1", "SG", mass=xvalMass, Njets=-1, bins=10)
+
+
+            #bg1s = []; bg2s = []; wbg = []
+            #sg1s = []; sg2s = []; wsg = []
+            #for i in range(0, 1000000):
+            #    bg1 = np.random.exponential(1.0)
+            #    bg2 = np.random.exponential(1.0)
+
+            #    sg1 = np.random.normal(0.95, 0.1)
+            #    sg2 = np.random.normal(0.95, 0.1)
+
+            #    if bg1 >= 0.0 and bg1 <= 1.0 and bg2 >= 0.0 and bg2 <= 1.0:
+            #        bg1s.append(bg1); bg2s.append(bg2); wbg.append(1.0)
+            #
+            #    if sg1 >= 0.0 and sg1 <= 1.0 and sg2 >= 0.0 and sg2 <= 1.0:
+            #        sg1s.append(sg1); sg2s.append(sg2); wsg.append(1.0)
+
+            #self.plotDisc1vsDisc2(np.array(bg1s), np.array(bg2s), np.array(wbg), -1.0, -1.0, -999.0, "BGDREAM")
+            #self.plotDisc1vsDisc2(np.array(sg1s), np.array(sg2s), np.array(wsg), -1.0, -1.0, -999.0, "SGDREAM")
+           
         
             # Plot 2D of the discriminants
-            self.plotDisc1vsDisc2(y_Train_Bg_disc1, y_Train_Bg_disc2, self.trainBg["Weight"][:,0], self.trainSg["Weight"][:,0][sigMask], float(c1), float(c2), significance, "BG")
-            self.plotDisc1vsDisc2(y_Train_Sg_disc1[massMask&sigMask], y_Train_Sg_disc2[massMask&sigMask], self.trainSg["Weight"][:,0][massMask&sigMask], self.trainSg["Weight"][:,0][massMask&sigMask], float(c1), float(c2), significance, "SG", mass=valMass)
+            self.plotDisc1vsDisc2(y_Xval_Bg_disc1, y_Xval_Bg_disc2, self.Bg["Weight"][:,0], float(c1), float(c2), significance, "BG")
+            self.plotDisc1vsDisc2(y_Xval_Sg_disc1[massMask&sigMask], y_Xval_Sg_disc2[massMask&sigMask], self.Sg["Weight"][:,0][massMask&sigMask], float(c1), float(c2), significance, "SG", mass=xvalMass)
 
-            self.plotDisc1vsDisc2(y_Val_Bg_disc1, y_Val_Bg_disc2, valBg["Weight"][:,0], valSg["Weight"][:,0][sigMaskVal], float(c1), float(c2), significance, "valBG")
-            self.plotDisc1vsDisc2(y_Val_Sg_disc1[massMaskVal&sigMaskVal], y_Val_Sg_disc2[massMaskVal&sigMaskVal], valSg["Weight"][:,0][massMaskVal&sigMaskVal], valSg["Weight"][:,0][massMaskVal&sigMaskVal], float(c1), float(c2), significance, "valSG", mass=valMass)
+            self.plotDisc1vsDisc2(y_Val_Bg_disc1, y_Val_Bg_disc2, valBg["Weight"][:,0], float(c1), float(c2), significance, "valBG")
+            self.plotDisc1vsDisc2(y_Val_Sg_disc1[massMaskVal&sigMaskVal], y_Val_Sg_disc2[massMaskVal&sigMaskVal], valSg["Weight"][:,0][massMaskVal&sigMaskVal], float(c1), float(c2), significance, "valSG", mass=valMass)
 
-            bkgdNjets = {"A" : [], "B" : [], "C" : [], "D" : []}; sigNjets = {"A" : [], "B" : [], "C" : [], "D" : []}
-            bkgdNjetsErr = {"A" : [], "B" : [], "C" : [], "D" : []}; sigNjetsErr = {"A" : [], "B" : [], "C" : [], "D" : []}
+            bkgdNjets    = {"A" : [], "B" : [], "C" : [], "D" : [], "a" : [], "b" : [], "c" : [], "d" : []}; sigNjets    = {"A" : [], "B" : [], "C" : [], "D" : [], "a" : [], "b" : [], "c" : [], "d" : []}
+            bkgdNjetsErr = {"A" : [], "B" : [], "C" : [], "D" : [], "a" : [], "b" : [], "c" : [], "d" : []}; sigNjetsErr = {"A" : [], "B" : [], "C" : [], "D" : [], "a" : [], "b" : [], "c" : [], "d" : []}
             bkgdNjetsAPred = {"val" : [], "err" : []}
+            bkgdNjetsSign = []
+            bkgdCorrs = []
+            
+            # Training with systs
+            #c1vals = {7 : "0.50", 8 : "0.62", 9 : "0.70", 10 : "0.78", 11 : "0.82"}
+            #c2vals = {7 : "0.58", 8 : "0.64", 9 : "0.68", 10 : "0.68", 11 : "0.70"}
+
+            # Training just with POWHEG
+            #c1vals = {7 : "0.62", 8 : "0.78", 9 : "0.82", 10 : "0.88", 11 : "0.88"}
+            #c2vals = {7 : "0.72", 8 : "0.70", 9 : "0.76", 10 : "0.76", 11 : "0.82"}
+
             for NJets in NJetsRange:
             
                 njetsStr = "mask_nJet_%s"%(("%s"%(NJets)).zfill(2))
-                bkgNjetsMask = self.trainBg[njetsStr]; sigNjetsMask = self.trainSg[njetsStr]
+                bkgNjetsMask = self.Bg[njetsStr]; sigNjetsMask = self.Sg[njetsStr]
                 bkgFullMask  = bkgNjetsMask;           sigFullMask  = sigMask & massMask & sigNjetsMask
 
                 bkgNjetsMaskVal = valBg[njetsStr]; sigNjetsMask = valSg[njetsStr]
                 bkgFullMaskVal  = bkgNjetsMaskVal; sigFullMaskVal  = sigMaskVal & massMaskVal & sigNjetsMask
 
                 # Get number of background and signal counts for each A, B, C, D region for every possible combination of cuts on disc 1 and disc 2
-                bc, sc = self.cutAndCount(c1s, c2s, y_Train_Bg_disc1[bkgFullMask], y_Train_Bg_disc2[bkgFullMask], self.trainBg["Weight"][:,0][bkgFullMask], y_Train_Sg_disc1[sigFullMask], y_Train_Sg_disc2[sigFullMask], self.trainSg["Weight"][:,0][sigFullMask])
-                c1, c2, significance, sigfrac = self.findDiscCut4SigFrac(bc, sc)
+                bc, sc = self.cutAndCount(c1s, c2s, y_Xval_Bg_disc1[bkgFullMask], y_Xval_Bg_disc2[bkgFullMask], self.Bg["Weight"][:,0][bkgFullMask], y_Xval_Sg_disc1[sigFullMask], y_Xval_Sg_disc2[sigFullMask], self.Sg["Weight"][:,0][sigFullMask])
+                c1, c2, significance, _, _, _, _, _, _, _, _ = self.findDiscCut4SigFrac(bc, sc)
+                bkgdNjetsSign.append(significance)
+
+                #c1 = c1vals[NJets]
+                #c2 = c2vals[NJets]
+
                 if c1 == -1.0 or c2 == -1.0:
                     bkgdNjets["A"].append(0.0); sigNjets["A"].append(0.0)
                     bkgdNjets["B"].append(0.0); sigNjets["B"].append(0.0)
                     bkgdNjets["C"].append(0.0); sigNjets["C"].append(0.0)
                     bkgdNjets["D"].append(0.0); sigNjets["D"].append(0.0)
 
+                    bkgdNjets["a"].append(0.0); sigNjets["a"].append(0.0)
+                    bkgdNjets["b"].append(0.0); sigNjets["b"].append(0.0)
+                    bkgdNjets["c"].append(0.0); sigNjets["c"].append(0.0)
+                    bkgdNjets["d"].append(0.0); sigNjets["d"].append(0.0)
+
                     bkgdNjetsErr["A"].append(0.0); sigNjetsErr["A"].append(0.0)
                     bkgdNjetsErr["B"].append(0.0); sigNjetsErr["B"].append(0.0)
                     bkgdNjetsErr["C"].append(0.0); sigNjetsErr["C"].append(0.0)
                     bkgdNjetsErr["D"].append(0.0); sigNjetsErr["D"].append(0.0)
 
+                    bkgdNjetsErr["a"].append(0.0); sigNjetsErr["a"].append(0.0)
+                    bkgdNjetsErr["b"].append(0.0); sigNjetsErr["b"].append(0.0)
+                    bkgdNjetsErr["c"].append(0.0); sigNjetsErr["c"].append(0.0)
+                    bkgdNjetsErr["d"].append(0.0); sigNjetsErr["d"].append(0.0)
+
                     bkgdNjetsAPred["val"].append(0.0); bkgdNjetsAPred["err"].append(0.0)
 
                 else:
-                    closure, closureUnc, Apred, ApredUnc = self.simpleClosureABCD(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2], bc["A2"][c1][c2]**0.5, bc["B2"][c1][c2]**0.5, bc["C2"][c1][c2]**0.5, bc["D2"][c1][c2]**0.5)
+                    closure, closureUnc, Apred, ApredUnc = self.simpleClosureABCD(bc["a"][c1][c2], bc["b"][c1][c2], bc["c"][c1][c2], bc["d"][c1][c2], bc["a"][c1][c2]**0.5, bc["b"][c1][c2]**0.5, bc["c"][c1][c2]**0.5, bc["d"][c1][c2]**0.5)
+                    bkgdNjets["a"].append(bc["a"][c1][c2]); sigNjets["a"].append(sc["a"][c1][c2])
+                    bkgdNjets["b"].append(bc["b"][c1][c2]); sigNjets["b"].append(sc["b"][c1][c2])
+                    bkgdNjets["c"].append(bc["c"][c1][c2]); sigNjets["c"].append(sc["c"][c1][c2])
+                    bkgdNjets["d"].append(bc["d"][c1][c2]); sigNjets["d"].append(sc["d"][c1][c2])
+
                     bkgdNjets["A"].append(bc["A"][c1][c2]); sigNjets["A"].append(sc["A"][c1][c2])
                     bkgdNjets["B"].append(bc["B"][c1][c2]); sigNjets["B"].append(sc["B"][c1][c2])
                     bkgdNjets["C"].append(bc["C"][c1][c2]); sigNjets["C"].append(sc["C"][c1][c2])
                     bkgdNjets["D"].append(bc["D"][c1][c2]); sigNjets["D"].append(sc["D"][c1][c2])
 
-                    bkgdNjetsErr["A"].append(bc["A2"][c1][c2]**0.5); sigNjetsErr["A"].append(sc["A2"][c1][c2]**0.5)
-                    bkgdNjetsErr["B"].append(bc["B2"][c1][c2]**0.5); sigNjetsErr["B"].append(sc["B2"][c1][c2]**0.5)
-                    bkgdNjetsErr["C"].append(bc["C2"][c1][c2]**0.5); sigNjetsErr["C"].append(sc["C2"][c1][c2]**0.5)
-                    bkgdNjetsErr["D"].append(bc["D2"][c1][c2]**0.5); sigNjetsErr["D"].append(sc["D2"][c1][c2]**0.5)
+                    bkgdNjetsErr["a"].append(bc["a"][c1][c2]**0.5); sigNjetsErr["a"].append(sc["a"][c1][c2]**0.5)
+                    bkgdNjetsErr["b"].append(bc["b"][c1][c2]**0.5); sigNjetsErr["b"].append(sc["b"][c1][c2]**0.5)
+                    bkgdNjetsErr["c"].append(bc["c"][c1][c2]**0.5); sigNjetsErr["c"].append(sc["c"][c1][c2]**0.5)
+                    bkgdNjetsErr["d"].append(bc["d"][c1][c2]**0.5); sigNjetsErr["d"].append(sc["d"][c1][c2]**0.5)
+
+                    bkgdNjetsErr["A"].append(bc["A"][c1][c2]**0.5); sigNjetsErr["A"].append(sc["A"][c1][c2]**0.5)
+                    bkgdNjetsErr["B"].append(bc["B"][c1][c2]**0.5); sigNjetsErr["B"].append(sc["B"][c1][c2]**0.5)
+                    bkgdNjetsErr["C"].append(bc["C"][c1][c2]**0.5); sigNjetsErr["C"].append(sc["C"][c1][c2]**0.5)
+                    bkgdNjetsErr["D"].append(bc["D"][c1][c2]**0.5); sigNjetsErr["D"].append(sc["D"][c1][c2]**0.5)
 
                     bkgdNjetsAPred["val"].append(Apred); bkgdNjetsAPred["err"].append(ApredUnc)
 
@@ -936,33 +1217,42 @@ class Validation:
                 # highly unsafe
                 if not any(bkgNjetsMask) or not any(sigNjetsMask): continue
 
-                self.plotD1VsD2SigVsBkgd(y_Train_Bg_disc1[bkgFullMask], y_Train_Bg_disc2[bkgFullMask], y_Train_Sg_disc1[sigFullMask], y_Train_Sg_disc2[sigFullMask], valMass, NJets)
+                self.plotD1VsD2SigVsBkgd(y_Xval_Bg_disc1[bkgFullMask], y_Xval_Bg_disc2[bkgFullMask], y_Xval_Sg_disc1[sigFullMask], y_Xval_Sg_disc2[sigFullMask], xvalMass, NJets)
 
                 # Plot each discriminant for sig and background while making cut on other disc
-                self.plotDiscWithCut(float(c2), y_Train_Bg_disc1[bkgFullMask], y_Train_Bg_disc2[bkgFullMask], self.trainBg["Weight"][:,0][bkgFullMask], y_Train_Sg_disc1[sigFullMask], y_Train_Sg_disc2[sigFullMask], self.trainSg["Weight"][:,0][sigFullMask], "1", "2", mass=valMass, Njets=NJets, bins=nBins)
-                self.plotDiscWithCut(float(c1), y_Train_Bg_disc2[bkgFullMask], y_Train_Bg_disc1[bkgFullMask], self.trainBg["Weight"][:,0][bkgFullMask], y_Train_Sg_disc2[sigFullMask], y_Train_Sg_disc1[sigFullMask], self.trainSg["Weight"][:,0][sigFullMask], "2", "1", mass=valMass, Njets=NJets, bins=nBins)
+                self.plotDiscWithCut(float(c2), y_Xval_Bg_disc1[bkgFullMask], y_Xval_Bg_disc2[bkgFullMask], self.Bg["Weight"][:,0][bkgFullMask], y_Xval_Sg_disc1[sigFullMask], y_Xval_Sg_disc2[sigFullMask], self.Sg["Weight"][:,0][sigFullMask], "1", "2", mass=xvalMass, Njets=NJets, bins=nBins)
+                self.plotDiscWithCut(float(c1), y_Xval_Bg_disc2[bkgFullMask], y_Xval_Bg_disc1[bkgFullMask], self.Bg["Weight"][:,0][bkgFullMask], y_Xval_Sg_disc2[sigFullMask], y_Xval_Sg_disc1[sigFullMask], self.Sg["Weight"][:,0][sigFullMask], "2", "1", mass=xvalMass, Njets=NJets, bins=nBins)
             
-                self.plotDiscWithCutCompare(float(c2), y_Train_Bg_disc1[bkgFullMask], y_Train_Bg_disc2[bkgFullMask], self.trainBg["Weight"][:,0][bkgFullMask], "1", "2", "BG", mass="", Njets=-1, bins=10)
-                self.plotDiscWithCutCompare(float(c2), y_Train_Sg_disc1[sigFullMask], y_Train_Sg_disc2[sigFullMask], self.trainSg["Weight"][:,0][sigFullMask], "1", "2", "SG", mass=valMass, Njets=NJets, bins=10)
+                self.plotDiscWithCutCompare(float(c2), y_Xval_Bg_disc1[bkgFullMask], y_Xval_Bg_disc2[bkgFullMask], self.Bg["Weight"][:,0][bkgFullMask], "1", "2", "BG", mass="", Njets=-1, bins=10)
+                self.plotDiscWithCutCompare(float(c2), y_Xval_Sg_disc1[sigFullMask], y_Xval_Sg_disc2[sigFullMask], self.Sg["Weight"][:,0][sigFullMask], "1", "2", "SG", mass=xvalMass, Njets=NJets, bins=10)
             
-                self.plotDiscWithCutCompare(float(c1), y_Train_Bg_disc2[bkgFullMask], y_Train_Bg_disc1[bkgFullMask], self.trainBg["Weight"][:,0][bkgFullMask], "2", "1", "BG", mass="", Njets=-1, bins=10)
-                self.plotDiscWithCutCompare(float(c1), y_Train_Sg_disc2[sigFullMask], y_Train_Sg_disc1[sigFullMask], self.trainSg["Weight"][:,0][sigFullMask], "2", "1", "SG", mass=valMass, Njets=NJets, bins=10)
+                self.plotDiscWithCutCompare(float(c1), y_Xval_Bg_disc2[bkgFullMask], y_Xval_Bg_disc1[bkgFullMask], self.Bg["Weight"][:,0][bkgFullMask], "2", "1", "BG", mass="", Njets=-1, bins=10)
+                self.plotDiscWithCutCompare(float(c1), y_Xval_Sg_disc2[sigFullMask], y_Xval_Sg_disc1[sigFullMask], self.Sg["Weight"][:,0][sigFullMask], "2", "1", "SG", mass=xvalMass, Njets=NJets, bins=10)
             
                 # Plot 2D of the discriminants
-                bkgdCorr = self.plotDisc1vsDisc2(y_Train_Bg_disc1[bkgFullMask], y_Train_Bg_disc2[bkgFullMask], self.trainBg["Weight"][:,0][bkgFullMask], self.trainSg["Weight"][:,0][sigFullMask], float(c1), float(c2), significance, "BG", mass="",   Njets=NJets)
-                self.plotDisc1vsDisc2(y_Train_Sg_disc1[sigFullMask], y_Train_Sg_disc2[sigFullMask], self.trainSg["Weight"][:,0][sigFullMask], self.trainSg["Weight"][:,0][sigFullMask], float(c1), float(c2), significance, "SG", mass=valMass, Njets=NJets)
+                bkgdCorr = self.plotDisc1vsDisc2(y_Xval_Bg_disc1[bkgFullMask], y_Xval_Bg_disc2[bkgFullMask], self.Bg["Weight"][:,0][bkgFullMask], float(c1), float(c2), significance, "BG", mass="",   Njets=NJets)
+                self.plotDisc1vsDisc2(y_Xval_Sg_disc1[sigFullMask], y_Xval_Sg_disc2[sigFullMask], self.Sg["Weight"][:,0][sigFullMask], float(c1), float(c2), significance, "SG", mass=xvalMass, Njets=NJets)
                 self.metric["bkgdCorr_nJet_%s"%(NJets)] = abs(bkgdCorr) 
+                bkgdCorrs.append(bkgdCorr)
 
-                self.plotDisc1vsDisc2(y_Val_Bg_disc1[bkgFullMaskVal], y_Val_Bg_disc2[bkgFullMaskVal], valBg["Weight"][:,0][bkgFullMaskVal], valSg["Weight"][:,0][sigFullMaskVal], float(c1), float(c2), significance, "valBG", mass="",   Njets=NJets)
-                self.plotDisc1vsDisc2(y_Val_Sg_disc1[sigFullMaskVal], y_Val_Sg_disc2[sigFullMaskVal], valSg["Weight"][:,0][sigFullMaskVal], valSg["Weight"][:,0][sigFullMaskVal], float(c1), float(c2), significance, "valSG", mass=valMass, Njets=NJets)
+                self.plotDisc1vsDisc2(y_Val_Bg_disc1[bkgFullMaskVal], y_Val_Bg_disc2[bkgFullMaskVal], valBg["Weight"][:,0][bkgFullMaskVal], float(c1), float(c2), significance, "valBG", mass="",   Njets=NJets)
+                self.plotDisc1vsDisc2(y_Val_Sg_disc1[sigFullMaskVal], y_Val_Sg_disc2[sigFullMaskVal], valSg["Weight"][:,0][sigFullMaskVal], float(c1), float(c2), significance, "valSG", mass=valMass, Njets=NJets)
+
+            self.config["bkgdCorrAve"] = np.average(np.abs(bkgdCorrs))
+            self.config["bkgdCorrStd"] = np.std(bkgdCorrs)
 
             signA = self.plotNjets(bkgdNjets["A"], bkgdNjetsErr["A"], sigNjets["A"], sigNjetsErr["A"], "A")
             signB = self.plotNjets(bkgdNjets["B"], bkgdNjetsErr["B"], sigNjets["B"], sigNjetsErr["B"], "B")
             signC = self.plotNjets(bkgdNjets["C"], bkgdNjetsErr["C"], sigNjets["C"], sigNjetsErr["C"], "C")
             signD = self.plotNjets(bkgdNjets["D"], bkgdNjetsErr["D"], sigNjets["D"], sigNjetsErr["D"], "D")
 
-            self.plotNjetsClosure(bkgdNjets["A"], bkgdNjetsErr["A"], bkgdNjetsAPred["val"], bkgdNjetsAPred["err"])
+            totalChi2, wtotalChi2, ndof = self.plotNjetsClosure(bkgdNjets["a"], bkgdNjetsErr["a"], bkgdNjetsAPred["val"], bkgdNjetsAPred["err"], bkgdNjetsSign)
 
+            self.config["Achi2"] = totalChi2
+            if ndof != 0:
+                self.config["Achi2ndof"] = totalChi2/ndof
+            else:
+                self.config["Achi2ndof"] = 9999.0
             self.config["Asignificance"] = signA
             self.config["Bsignificance"] = signB
             self.config["Csignificance"] = signC
@@ -981,42 +1271,42 @@ class Validation:
         # Plot validation roc curve
         fpr_Val_disc1, tpr_Val_disc1, thresholds_Val_disc1 = roc_curve(valData["labels"][:,0][sigMaskValData], y_Val_disc1[sigMaskValData], sample_weight=valData["Weight"][:,0][sigMaskValData])
         fpr_Val_disc2, tpr_Val_disc2, thresholds_Val_disc2 = roc_curve(valData["labels"][:,0][sigMaskValData], y_Val_disc2[sigMaskValData], sample_weight=valData["Weight"][:,0][sigMaskValData])
-        fpr_Train_disc1, tpr_Train_disc1, thresholds_Train_disc1 = roc_curve(self.trainData["labels"][:,0][sigMaskData], y_Train_disc1[sigMaskData], sample_weight=self.trainData["Weight"][:,0][sigMaskData])
-        fpr_Train_disc2, tpr_Train_disc2, thresholds_Train_disc2 = roc_curve(self.trainData["labels"][:,0][sigMaskData], y_Train_disc2[sigMaskData], sample_weight=self.trainData["Weight"][:,0][sigMaskData])
+        fpr_Xval_disc1, tpr_Xval_disc1, thresholds_Xval_disc1 = roc_curve(self.Data["labels"][:,0][sigMaskData], y_Xval_disc1[sigMaskData], sample_weight=self.Data["Weight"][:,0][sigMaskData])
+        fpr_Xval_disc2, tpr_Xval_disc2, thresholds_Xval_disc2 = roc_curve(self.Data["labels"][:,0][sigMaskData], y_Xval_disc2[sigMaskData], sample_weight=self.Data["Weight"][:,0][sigMaskData])
         auc_Val_disc1 = roc_auc_score(valData["labels"][:,0][sigMaskValData], y_Val_disc1[sigMaskValData])
         auc_Val_disc2 = roc_auc_score(valData["labels"][:,0][sigMaskValData], y_Val_disc2[sigMaskValData])
-        auc_Train_disc1 = roc_auc_score(self.trainData["labels"][:,0][sigMaskData], y_Train_disc1[sigMaskData])
-        auc_Train_disc2 = roc_auc_score(self.trainData["labels"][:,0][sigMaskData], y_Train_disc2[sigMaskData])
+        auc_Xval_disc1 = roc_auc_score(self.Data["labels"][:,0][sigMaskData], y_Xval_disc1[sigMaskData])
+        auc_Xval_disc2 = roc_auc_score(self.Data["labels"][:,0][sigMaskData], y_Xval_disc2[sigMaskData])
         
         # Define metrics for the training
-        self.metric["OverTrain_Disc1"] = abs(auc_Val_disc1 - auc_Train_disc1)
-        self.metric["OverTrain_Disc2"] = abs(auc_Val_disc2 - auc_Train_disc2)
-        self.metric["Performance_Disc1"] = abs(1 - auc_Train_disc1)
-        self.metric["Performance_Disc2"] = abs(1 - auc_Train_disc2)
+        self.metric["OverTrain_Disc1"] = abs(auc_Val_disc1 - auc_Xval_disc1)
+        self.metric["OverTrain_Disc2"] = abs(auc_Val_disc2 - auc_Xval_disc2)
+        self.metric["Performance_Disc1"] = abs(1 - auc_Xval_disc1)
+        self.metric["Performance_Disc2"] = abs(1 - auc_Xval_disc2)
        
         # Plot some ROC curves
-        self.plotROC("_Disc1", None, None, None, None, fpr_Val_disc1, tpr_Val_disc1, fpr_Train_disc1, tpr_Train_disc1, auc_Val_disc1, auc_Train_disc1)
-        self.plotROC("_Disc2", None, None, None, None, fpr_Val_disc2, tpr_Val_disc2, fpr_Train_disc2, tpr_Train_disc2, auc_Val_disc2, auc_Train_disc2)
-        self.plotROC("_"+self.config["ttbarMC"][0]+"_nJet_disc1", y_Train_disc1, y_Val_disc1, self.trainData, valData)
-        self.plotROC("_"+self.config["ttbarMC"][0]+"_nJet_disc2", y_Train_disc2, y_Val_disc2, self.trainData, valData)
+        self.plotROC("_Disc1", None, None, None, None, fpr_Val_disc1, tpr_Val_disc1, fpr_Xval_disc1, tpr_Xval_disc1, auc_Val_disc1, auc_Xval_disc1)
+        self.plotROC("_Disc2", None, None, None, None, fpr_Val_disc2, tpr_Val_disc2, fpr_Xval_disc2, tpr_Xval_disc2, auc_Val_disc2, auc_Xval_disc2)
+        self.plotROC("_"+self.config["bkgd"][0]+"_nJet_disc1", y_Xval_disc1, y_Val_disc1, self.Data, valData)
+        self.plotROC("_"+self.config["bkgd"][0]+"_nJet_disc2", y_Xval_disc2, y_Val_disc2, self.Data, valData)
         
         # Plot validation precision recall
         precision_Val_disc1, recall_Val_disc1, _ = precision_recall_curve(valData["labels"][:,0][sigMaskValData], y_Val_disc1[sigMaskValData], sample_weight=valData["Weight"][:,0][sigMaskValData])
-        precision_Train_disc1, recall_Train_disc1, _ = precision_recall_curve(self.trainData["labels"][:,0][sigMaskData], y_Train_disc1[sigMaskData], sample_weight=self.trainData["Weight"][:,0][sigMaskData])
+        precision_Xval_disc1, recall_Xval_disc1, _ = precision_recall_curve(self.Data["labels"][:,0][sigMaskData], y_Xval_disc1[sigMaskData], sample_weight=self.Data["Weight"][:,0][sigMaskData])
         ap_Val_disc1 = average_precision_score(valData["labels"][:,0], y_Val_disc1, sample_weight=valData["Weight"][:,0])
-        ap_Train_disc1 = average_precision_score(self.trainData["labels"][:,0], y_Train_disc1, sample_weight=self.trainData["Weight"][:,0])
+        ap_Xval_disc1 = average_precision_score(self.Data["labels"][:,0], y_Xval_disc1, sample_weight=self.Data["Weight"][:,0])
         
-        self.plotPandR(precision_Val_disc1, recall_Val_disc1, precision_Train_disc1, recall_Train_disc1, ap_Val_disc1, ap_Train_disc1)
+        self.plotPandR(precision_Val_disc1, recall_Val_disc1, precision_Xval_disc1, recall_Xval_disc1, ap_Val_disc1, ap_Xval_disc1)
         
         # Plot NJet dependance
         binxl = self.config["minNJetBin"]
         binxh = self.config["maxNJetBin"] + 1
         numbin = binxh - binxl        
-        self.plot2DVar(name="nJet", binxl=binxl, binxh=binxh, numbin=numbin, xIn=self.trainBg["nJet"][:,0], yIn=y_Train_Bg_disc1, nbiny=50)
+        self.plot2DVar(name="nJet", binxl=binxl, binxh=binxh, numbin=numbin, xIn=self.Bg["nJet"][:,0], yIn=y_Xval_Bg_disc1, nbiny=50)
         
         # Save useful stuff
-        self.trainData["y"] = y_Train_disc1
-        #np.save(self.config["outputDir"]+"/deepESMbin_dis_nJet.npy", self.trainData)
+        self.Data["y"] = y_Xval_disc1
+        #np.save(self.config["outputDir"]+"/deepESMbin_dis_nJet.npy", self.Data)
         
         for key in self.metric:
             print(key, self.metric[key])
