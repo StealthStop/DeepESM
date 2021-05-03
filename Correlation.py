@@ -89,6 +89,22 @@ class Correlation:
         dcor = np.sqrt(dcov2_xy)/np.sqrt(np.sqrt(dcov2_xx) * np.sqrt(dcov2_yy))
         return dcor
 
+    def pearson_corr_tf(v, u):
+
+        mv, sv = tf.nn.moments(v, axes=[0])
+        mu, su = tf.nn.moments(u, axes=[0])
+
+        ev = v - mv
+        eu = u - mu
+
+        j = ev*eu
+        mj = tf.reduce_mean(j)
+
+        num = mj
+        den = sv*su
+
+        return tf.abs(num)
+
     def pearson_corr(X, Y):
         cor, pvalue = pearsonr(X, Y)
         return cor
