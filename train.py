@@ -299,7 +299,7 @@ class Train:
             nbC = tf.size(tf.where(tf.equal(bC, True)))
             nbD = tf.size(tf.where(tf.equal(bD, True)))
 
-            nbApred = nbB*nbC/nbD
+            nbApred = tf.dtypes.cast(nbB*nbC/nbD, tf.float32)
 
             chi2 = tf.math.square((tf.dtypes.cast(nbA, tf.float32)-nbApred)/tf.math.sqrt(tf.dtypes.cast(nbA, tf.float32)))
             return c1 * chi2 + c2 * cor.pearson_corr_tf(val_1_bg, val_2_bg)
