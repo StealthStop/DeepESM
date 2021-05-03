@@ -553,7 +553,7 @@ class Train:
         print("----------------Preparing training model------------------")
         # Kelvin says no
         self.gpu_allow_mem_grow()
-        model = self.make_model_alt2(trainData, trainDataTT)
+        model = self.make_model(trainData, trainDataTT)
         callbacks = self.get_callbacks()
         maskTrain = np.concatenate((trainData["labels"],trainData["labels"]), axis=1)
         maskTest = np.concatenate((testData["labels"],testData["labels"]), axis=1)
