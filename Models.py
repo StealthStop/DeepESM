@@ -110,7 +110,7 @@ def main_model_alt2(config, trainData, trainDataTT):
     for n in n_hidden_layers_M:
         layer = K.layers.Dense(n, activation='relu')(layer)
     layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
-    fourth_output = K.layers.Dense(trainData["masses"].shape[1], activation=None, name='fourth_output')(layer)
+    fourth_output = K.layers.Dense(trainData["massesReco"].shape[1], activation=None, name='fourth_output')(layer)
 
     layerSplit = K.layers.concatenate([layerSplit, fourth_output], name='concat_mass_layer')
         
