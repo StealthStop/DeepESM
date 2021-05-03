@@ -13,7 +13,7 @@ from Validation import Validation
 from Correlation import Correlation as cor
 import json
 import argparse
-from Models import main_model_alt, main_model_alt2, main_model, model_reg
+from Models import main_model, model_reg, model_doubleDisco
 import os
 import time
 import datetime
@@ -358,29 +358,12 @@ class Train:
 
     def make_model(self, trainData, trainDataTT):
         model, optimizer = main_model(self.config, trainData, trainDataTT)
-        model.compile(loss=[self.loss_crossentropy(c=self.config["disc1_lambda"]), self.loss_crossentropy(c=self.config["disc2_lambda"]), self.make_loss_adversary(c=self.config["gr_lambda"]), self.loss_disco(c=self.config["cor_lambda"]), 
-                            self.make_loss_MSE(c=self.config["reg_lambda"])], optimizer=optimizer, metrics=self.config["metrics"])
-        return model
-
-    def make_model_alt(self, trainData, trainDataTT):
-        model, optimizer = main_model_alt(self.config, trainData, trainDataTT)
-        model.compile(loss=[self.make_loss_adversary(c=self.config["gr_lambda"]), self.loss_disco_alt(c=self.config["cor_lambda"]), 
-                            self.make_loss_MSE(c=self.config["reg_lambda"])], optimizer=optimizer, metrics=self.config["metrics"])
-        return model
-
-    def make_model_alt2(self, trainData, trainDataTT):
-        model, optimizer = main_model_alt2(self.config, trainData, trainDataTT)
         model.compile(loss=[self.loss_crossentropy_comb(c1=self.config["disc_comb_lambda"], c2=self.config["disc_lambda"]), self.make_loss_adversary(c=self.config["gr_lambda"]), self.loss_disco(c1=self.config["bg_cor_lambda"], c2=self.config["sg_cor_lambda"]), 
                             self.make_loss_MSE(c=self.config["reg_lambda"])], optimizer=optimizer, metrics=self.config["metrics"])
         return model
 
-    def make_model_alt3(self, trainData, trainDataTT):
-        model, optimizer = main_model_alt3(self.config, trainData, trainDataTT)
-        model.compile(loss=self.loss_disc(c=self.config["disc_lambda"]), optimizer=optimizer, metrics=self.config["metrics"])
-        return model
-
-    def make_doubleDisco_model(self, trainData, trainDataTT):
-        model, optimizer = doubleDisco_model(self.config, trainData, trainDataTT)
+    def make_model_doubleDisco(self, trainData, trainDataTT):
+        model, optimizer = model.doubleDisco(self.config, trainData, trainDataTT)
         model.compile(loss=[self.loss_crossentropy(c=self.config["disc_lambda"]), self.loss_crossentropy(c=self.config["disc_lambda"]), self.make_loss_adversary(c=self.config["gr_lambda"]), self.loss_disco_par(c=self.config["bg_cor_lambda"])], 
                       optimizer=optimizer, metrics=self.config["metrics"])
         return model
