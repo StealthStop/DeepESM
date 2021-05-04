@@ -987,8 +987,7 @@ class Validation:
 
         nBins = 20
         nBinsReg = 100
-        #masses = [350, 550, 850, 1150]
-        masses = [550]
+        masses = [350, 550, 850, 1150]
 
         colors = ["red", "green", "blue", "magenta", "cyan"]; labels = ["Bg Train", "Bg Val"]
 
