@@ -157,11 +157,17 @@ class DataGetter:
                 continue
         return dsets
 
-    def importDataWorker(self, variables, maxNJetBin, df, index, njetsMask = -1):
-        # Common column names to signal and background
-        wgtColumnNames = ["Weight"]; massNames = ["mass"]; domainColumnNames = ["NGoodJets_pt30_double"]; njetsNames = ["NGoodJets_pt30_double"]; modelNames = ["model"]; recoMassNames = ["stop1_ptrank_mass"]
+    def importDataWorker(self, variables, maxNJetBin, df, index, treename, njetsMask = -1):
 
-        npyNjetsFilter = df[(df["NGoodJets_pt30_double"]!=njetsMask)][massNames].values
+        # Depending on channel, different pt used for jets
+        ptCut = "pt30"
+        if "0l" in treename:
+            ptCut = "pt45"
+            
+        # Common column names to signal and background
+        wgtColumnNames = ["Weight"]; massNames = ["mass"]; domainColumnNames = ["NGoodJets_%s_double"%(ptCut)]; njetsNames = ["NGoodJets_%s_double"%(ptCut)]; modelNames = ["model"]; recoMassNames = ["stop1_ptrank_mass"]
+
+        npyNjetsFilter = df[(df["NGoodJets_%s_double"%(ptCut)]!=njetsMask)][massNames].values
         unique, counts = np.unique(npyNjetsFilter, return_counts=True)
         masses = dict(zip(unique, counts)).keys()
 
@@ -170,12 +176,12 @@ class DataGetter:
 
         # Use this npyMasses for excluding 7 jet events
         # Changes weights
-        npyMassesFilter = df[(df["NGoodJets_pt30_double"]!=njetsMask)][massNames].values
+        npyMassesFilter = df[(df["NGoodJets_%s_double"%(ptCut)]!=njetsMask)][massNames].values
         #npyMassesFilter[npyMassesFilter == 173.0] = 0.0
 
         dnjets = {}
         for mass in masses:
-            npyNjetsFilter = df[(df["NGoodJets_pt30_double"]!=njetsMask)&(df["mass"]==mass)][njetsNames].values
+            npyNjetsFilter = df[(df["NGoodJets_%s_double"%(ptCut)]!=njetsMask)&(df["mass"]==mass)][njetsNames].values
             unique, counts = np.unique(npyNjetsFilter, return_counts=True)
             NjetsDict = dict(zip(unique, counts))
             for Njets, c in NjetsDict.items():
@@ -254,7 +260,7 @@ class DataGetter:
         dataBG = pd.concat(bgdsets)
         dataBG = dataBG.dropna()
 
-        npyInputDataBG, npyInputAnswersBG, npyInputDomainBG, npyInputSampleWgtsBG, npyNJetBG, npyMassesBG, npyMassesRecoBG, npyModelsBG, npyMassNjetsBG, countsBG, dBG = self.importDataWorker(variables, maxNJetBin, dataBG, 1, njetsMask=njetsMask)
+        npyInputDataBG, npyInputAnswersBG, npyInputDomainBG, npyInputSampleWgtsBG, npyNJetBG, npyMassesBG, npyMassesRecoBG, npyModelsBG, npyMassNjetsBG, countsBG, dBG = self.importDataWorker(variables, maxNJetBin, dataBG, 1, treename, njetsMask=njetsMask)
 
         #########################################################################################
 
@@ -264,7 +270,7 @@ class DataGetter:
         dataSG = pd.concat(sgdsets)
         dataSG = dataSG.dropna()
 
-        npyInputDataSG, npyInputAnswersSG, npyInputDomainSG, npyInputSampleWgtsSG, npyNJetSG, npyMassesSG, npyMassesRecoSG, npyModelsSG, npyMassNjetsSG, countsSG, dSG = self.importDataWorker(variables, maxNJetBin, dataSG, 0, njetsMask=njetsMask)
+        npyInputDataSG, npyInputAnswersSG, npyInputDomainSG, npyInputSampleWgtsSG, npyNJetSG, npyMassesSG, npyMassesRecoSG, npyModelsSG, npyMassNjetsSG, countsSG, dSG = self.importDataWorker(variables, maxNJetBin, dataSG, 0, treename, njetsMask=njetsMask)
 
         # Do some final changes to the weights for background and signal
         factor = 1.0
