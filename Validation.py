@@ -537,61 +537,6 @@ class Validation:
 
         return closure, closureErr, bNApred, bNApredUnc
 
-    # Calculate Eq. 2.8 from https://arxiv.org/pdf/2007.14400.pdf
-    def normSignalContamination(self, bNA, bNB, bNC, bND, sNA, sNB, sNC, sND):
-        if not bNA: bNA = 10e-20
-        if not bNB: bNB = 10e-20
-        if not bNC: bNC = 10e-20
-        if not bND: bND = 10e-20
-
-        Ar = sNA / bNA; Br = sNB / bNB; Cr = sNC / bNC; Dr = sND / bND
-        
-        return (Br + Cr - Dr) / Ar if Ar else -1.0
-
-    # Simple calculation of background rejection
-    def backgroundRejection(self, bNA, bNB, bNC, bND):
-        bN = bNA + bNB + bNC + bND
-        reject = bNB + bNC + bND
-
-        return reject / bN if bN else -1.0
-
-    def plotBkgdRejVsSigCont(self, bc, sc, mass, closureLimit = 0.1):
-
-        # Lame way of figuring out how long the array should be
-        nVals = 0
-        for c1, c2s in bc["A"].items():
-            for c2, temp in c2s.items():
-                nVals += 1
-
-        bkgdRej = np.zeros(nVals); sigCont = np.zeros(nVals)
-
-        i = 0
-        for c1, c2s in bc["A"].items():
-            for c2, temp in c2s.items():
-
-                closure, closureErr, _, _ = self.simpleClosureABCD(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2], bc["A2"][c1][c2]**0.5, bc["B2"][c1][c2]**0.5, bc["C2"][c1][c2]**0.5, bc["D2"][c1][c2]**0.5) 
-                if abs(1.0 - closure) < closureLimit: continue
-
-                sigContamination = self.normSignalContamination(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2], sc["A"][c1][c2], sc["B"][c1][c2], sc["C"][c1][c2], sc["D"][c1][c2])
-                backgroundReject = self.backgroundRejection(bc["A"][c1][c2], bc["B"][c1][c2], bc["C"][c1][c2], bc["D"][c1][c2])
-
-                bkgdRej[i] = backgroundReject; sigCont[i] = sigContamination
-
-                i += 1
-
-        fig = plt.figure()
-        hep.cms.label(data=True, paper=False, year=self.config["year"])
-        plt.ylim(0,1)
-        plt.xlim(0,1)
-        ax = plt.gca()
-        plt.scatter(sigCont, bkgdRej, color='xkcd:red', marker="o", label="30% Signal Fraction")
-        plt.xlabel('Normalized Signal Contamination')
-        plt.ylabel('Background Rejection')
-        plt.legend(loc='best')
-        plt.text(0.05, 0.94, r"$\bf{ABCD\;Closure}$ > %.1f"%(closureLimit), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
-        fig.savefig(self.config["outputDir"]+"/SigContamination_vs_BkgdRejection_m%s.pdf"%(mass), dpi=fig.dpi)        
-        plt.close(fig)
-
     def plotBinEdgeMetricComps(self, finalSign, finalClosureErr, invSign, closeErr, edges, Njets = -1):
 
         fig = plt.figure()
@@ -621,6 +566,8 @@ class Validation:
             fig.savefig(self.config["outputDir"]+"/InvSign_vs_CloseErr_Njets%d.pdf"%(Njets), dpi=fig.dpi)        
 
         plt.close(fig)
+
+        return np.average(closeErr), np.std(closeErr)
 
     # Member function to plot input variable for events in specific region 
     def plotInputVarMassCut(self, m, dm, sm, d, s, sigMask, massMask, var, varLabel, process, mass = "", Njets=-1, bins=100, arange=(0,1)):
@@ -811,6 +758,42 @@ class Validation:
 
         return sign
 
+    def plotAveClosureNjets(self, aves, stds):
+
+        binCenters = []
+        xErr       = []
+
+        for Njets in range(0, len(aves)):
+        
+            binCenters.append(Njets+self.config["minNJetBin"])
+            xErr.append(0.5)
+        
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+       
+        ax.errorbar(binCenters, aves, yerr=stds, label="Fractional Closure",  xerr=xErr, fmt='', color="red",   lw=0, elinewidth=2, marker="o", markerfacecolor="red")
+        
+        lowerNjets = self.config["minNJetBin"] 
+        if self.config["minNJetBin"] == int(self.config["Mask_nJet"]) and self.config["Mask"]:
+            lowerNjets = self.config["minNJetBin"] + 1
+
+        ax.set_xlim([lowerNjets-0.5,self.config["maxNJetBin"]+0.5])
+        
+        ax.axhline(y=0.0, color="black", linestyle="dashed", lw=2)
+        ax.grid(color="black", which="both", axis="y")
+
+        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        
+        ax.set_xlabel('Number of jets')
+        ax.set_ylabel('|1 - Pred./Obs.|', fontsize="small")
+        ax.legend(loc='best')
+        
+        ax.set_ylim([-0.4, 1.6])
+        
+        fig.savefig(self.config["outputDir"]+"/Njets_Closure_Robustness.pdf")
+        
+        plt.close(fig)
+
     def plotNjetsClosure(self, bkgd, bkgdUnc, bkgdPred, bkgdPredUnc, bkgdSign):
 
         binCenters = []
@@ -823,23 +806,31 @@ class Validation:
         pred       = []
 
         totalChi2 = 0.0; wtotalChi2 = 0.0; ndof = 0; totalSig = 0.0
-        for Njets in range(0, len(bkgd)):
+        i = 0; Njets = self.config["minNJetBin"]
+        while i < len(bkgd):
+
+            Njets += i
+
+            if Njets == int(self.config["Mask_nJet"]) and self.config["Mask"]:
+                Njets += 1
         
-            if bkgdUnc[Njets] != 0.0:
-                binCenters.append(Njets+self.config["minNJetBin"])
-                unc.append(bkgdUnc[Njets])
-                predUnc.append(bkgdPredUnc[Njets])
-                obs.append(bkgd[Njets])
-                pred.append(bkgdPred[Njets])
+            if bkgdUnc[i] != 0.0:
+                binCenters.append(Njets)
+                unc.append(bkgdUnc[i])
+                predUnc.append(bkgdPredUnc[i])
+                obs.append(bkgd[i])
+                pred.append(bkgdPred[i])
                 xErr.append(0.5)
-                pull = (bkgdPred[Njets]-bkgd[Njets])/bkgdUnc[Njets]
-                closureError = 1.0 - bkgdPred[Njets]/bkgd[Njets]
+                pull = (bkgdPred[i]-bkgd[i])/bkgdUnc[i]
+                closureError = 1.0 - bkgdPred[i]/bkgd[i]
                 abcdPull.append(pull)
                 abcdError.append(closureError)
                 totalChi2 += pull**2.0
-                wtotalChi2 += bkgdSign[Njets] * pull**2.0
-                totalSig += bkgdSign[Njets]
+                wtotalChi2 += bkgdSign[i] * pull**2.0
+                totalSig += bkgdSign[i]
                 ndof += 1
+
+            i += 1
         
         fig = plt.figure()
         gs = fig.add_gridspec(8, 1)
@@ -861,7 +852,12 @@ class Validation:
        
         ax1.errorbar(binCenters, pred, yerr=predUnc, label="Observed",  xerr=xErr, fmt='', color="red",   lw=0, elinewidth=2, marker="o", markerfacecolor="red")
         ax1.errorbar(binCenters, obs,  yerr=unc,     label="Predicted", xerr=xErr, fmt='', color="black", lw=0, elinewidth=2, marker="o", markerfacecolor="black")
-        ax1.set_xlim([self.config["minNJetBin"]-0.5,self.config["maxNJetBin"]+0.5])
+
+        lowerNjets = self.config["minNJetBin"] 
+        if self.config["minNJetBin"] == int(self.config["Mask_nJet"]) and self.config["Mask"]:
+            lowerNjets = self.config["minNJetBin"] + 1
+
+        ax1.set_xlim([lowerNjets-0.4,self.config["maxNJetBin"]+0.4])
         
         #ax2.errorbar(binCenters, abcdPull, yerr=None,        xerr=xErr, fmt='', color="blue",  lw=0, elinewidth=2, marker="o", markerfacecolor="blue")
         #ax2.axhline(y=0.0, color="black", linestyle="dashed", lw=1)
@@ -1117,13 +1113,10 @@ class Validation:
             # Get number of background and signal counts for each A, B, C, D region for every possible combination of cuts on disc 1 and disc 2
             bc, sc = self.cutAndCount(c1s, c2s, y_Xval_Bg_disc1, y_Xval_Bg_disc2, self.Bg["Weight"][:,0], y_Xval_Sg_disc1[massMask&sigMask], y_Xval_Sg_disc2[massMask&sigMask], self.Sg["Weight"][:,0][massMask&sigMask])
         
-            # Plot signal contamination versus background rejection
-            self.plotBkgdRejVsSigCont(bc, sc, xvalMass)
-        
             # For a given signal fraction, figure out the cut on disc 1 and disc 2 that maximizes the significance
             c1, c2, significance, closureErr, invSigns, closeErrs, sfracA, sbfracA, sfracB, sbfracB, sfracC, sbfracC, sfracD, sbfracD = self.findDiscCut4SigFrac(bc, sc)
         
-            self.plotBinEdgeMetricComps(significance, closureErr, invSigns, closeErrs, c1s)
+            _, _ = self.plotBinEdgeMetricComps(significance, closureErr, invSigns, closeErrs, c1s)
 
             self.config["Disc1"] = c1
             self.config["Disc2"] = c2
@@ -1193,6 +1186,8 @@ class Validation:
             #c1vals = {7 : "0.62", 8 : "0.78", 9 : "0.82", 10 : "0.88", 11 : "0.88"}
             #c2vals = {7 : "0.72", 8 : "0.70", 9 : "0.76", 10 : "0.76", 11 : "0.82"}
 
+            aveClosure = []; stdClosure = []
+
             for NJets in NJetsRange:
             
                 if self.config["Mask"] and self.config["Mask_nJet"] == int(NJets): continue
@@ -1208,7 +1203,13 @@ class Validation:
                 bc, sc = self.cutAndCount(c1s, c2s, y_Xval_Bg_disc1[bkgFullMask], y_Xval_Bg_disc2[bkgFullMask], self.Bg["Weight"][:,0][bkgFullMask], y_Xval_Sg_disc1[sigFullMask], y_Xval_Sg_disc2[sigFullMask], self.Sg["Weight"][:,0][sigFullMask])
                 c1, c2, significance, closureErr, invSigns, closeErrs, _, _, _, _, _, _, _, _ = self.findDiscCut4SigFrac(bc, sc)
 
-                self.plotBinEdgeMetricComps(significance, closureErr, invSigns, closeErrs, c1s, int(NJets))
+                tempAveClose, tempStdClose = self.plotBinEdgeMetricComps(significance, closureErr, invSigns, closeErrs, c1s, int(NJets))
+
+                aveClosure.append(tempAveClose)
+                stdClosure.append(tempStdClose)
+
+                self.config["aveClosureNjets%s"%(NJets)] = tempAveClose
+                self.config["stdClosureNjets%s"%(NJets)] = tempStdClose
 
                 bkgdNjetsSign.append(significance)
 
@@ -1261,6 +1262,8 @@ class Validation:
                     bkgdNjetsErr["D"].append(bc["D"][c1][c2]**0.5); sigNjetsErr["D"].append(sc["D"][c1][c2]**0.5)
 
                     bkgdNjetsAPred["val"].append(Apred); bkgdNjetsAPred["err"].append(ApredUnc)
+
+                self.plotAveClosureNjets(aveClosure, stdClosure)
 
                 self.config["c1_nJet_%s"%(("%s"%(NJets)).zfill(2))] = c1
                 self.config["c2_nJet_%s"%(("%s"%(NJets)).zfill(2))] = c2
