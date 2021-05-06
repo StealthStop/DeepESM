@@ -10,7 +10,9 @@ def getSamplesToRun(names):
     return s
 
 # Takes training vars, signal and background files and returns training data
-def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgWeight = False):
+def get_data(signalDataSet, backgroundDataSet, config, sgSampleFactor = 1, bgSampleFactor = 1, doSgWeight = False, doBgWeight = False):
+    np.random.seed(config["seed"]) 
+
     dgSig = DataGetter.DefinedVariables(config["allVars"], signal = True,  background = False)
     dgBg = DataGetter.DefinedVariables(config["allVars"],  signal = False, background = True)
 
@@ -35,14 +37,17 @@ def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgW
     for key in dataSig:
         dataBg[key] = dataBg[key][perms]
 
-    print(len(dataBg["data"]), len(dataSig["data"]))
-
-    minLen = min(len(dataSig["data"]),len(dataBg["data"]))
-    maxLen = max(len(dataSig["data"]),len(dataBg["data"]))
-    start = np.random.randint(0, maxLen-minLen)
+    print("Loading %dx %d background and %dx %d signal events"%(bgSampleFactor, len(dataBg["data"]), sgSampleFactor, len(dataSig["data"])))
 
     # Put signal and background data together in trainData dictionary
-    trainDataArray = [dataSig,dataBg]
+    trainDataArray = []
+    for sf in range(0, bgSampleFactor):
+        trainDataArray.append(dataBg)
+    for sf in range(0, sgSampleFactor):
+        trainDataArray.append(dataSig)
+
+    np.random.shuffle(trainDataArray)
+
     trainData = {}
     for data in trainDataArray:
         for key in data:
@@ -52,7 +57,6 @@ def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgW
                 trainData[key] = data[key][:]
 
     # Randomly shuffle the signal and background once put together
-    np.random.seed(config["seed"]) 
     perms = np.random.permutation(trainData["data"].shape[0])
     for key in trainData:
         trainData[key] = trainData[key][perms]
@@ -71,7 +75,8 @@ def get_data(signalDataSet, backgroundDataSet, config, doBgWeight = False, doSgW
             data[maskName]  = mask[:,0]
 
         # Get the masks for the different stop masses
-        for m in range(config["minStopMass"],config["maxStopMass"]+50,50):
+        #for m in range(config["minStopMass"],config["maxStopMass"]+50,50):
+        for m in range(300,1450,50):
             mask = np.ma.getmaskarray(np.ma.masked_where(data["masses"] == m, data["masses"]))
             data["mask_m"+str(m)] = mask[:,0]        
 
@@ -154,7 +159,7 @@ class DataGetter:
 
     def importDataWorker(self, variables, maxNJetBin, df, index, njetsMask = -1):
         # Common column names to signal and background
-        wgtColumnNames = ["Weight"]; massNames = ["mass"]; domainColumnNames = ["NGoodJets_pt30_double"]; njetsNames = ["NGoodJets_pt30_double"]; modelNames = ["model"]
+        wgtColumnNames = ["Weight"]; massNames = ["mass"]; domainColumnNames = ["NGoodJets_pt30_double"]; njetsNames = ["NGoodJets_pt30_double"]; modelNames = ["model"]; recoMassNames = ["stop1_ptrank_mass"]
 
         npyNjetsFilter = df[(df["NGoodJets_pt30_double"]!=njetsMask)][massNames].values
         unique, counts = np.unique(npyNjetsFilter, return_counts=True)
@@ -166,7 +171,7 @@ class DataGetter:
         # Use this npyMasses for excluding 7 jet events
         # Changes weights
         npyMassesFilter = df[(df["NGoodJets_pt30_double"]!=njetsMask)][massNames].values
-        npyMassesFilter[npyMassesFilter == 173.0] = 0.0
+        #npyMassesFilter[npyMassesFilter == 173.0] = 0.0
 
         dnjets = {}
         for mass in masses:
@@ -177,13 +182,25 @@ class DataGetter:
                 if mass == 173.0: dnjets[Njets] = c
                 else:             dnjets[mass+Njets] = c
 
-        npyMasses = df[massNames].values
+
         npyModels = df[modelNames].values
+        npyMasses = df[massNames].values
+        npyMassesReco = df[recoMassNames].values
         npyNjets  = df[njetsNames].values
-        npyMasses[npyMasses == 173.0] = 0.0
-        #for i in range(0, len(npyMasses)):
-        #    if npyMasses[i][0] != 173.0: continue
-        #    npyMasses[i] = np.random.uniform(175.0, 1400.0)
+        #npyMasses[npyMasses == 173.0] = 0.0
+
+        #signalMasses = np.arange(175, 1400, 50)
+        #signalMasses = np.append(signalMasses, 0)
+
+        # WARNING!!! ANY OF THIS LITTLE SECTION HERE MOST LIKELY MESSES UP REWEIGHTING
+        # GOOD THING WE ARE NOT USING REWEIGHTING
+        """
+        for i in range(0, len(npyMassesReco)):
+            if npyMasses[i][0] != 173.0: continue
+    
+            #npyMasses[i] = np.random.choice(signalMasses, 1)
+            npyMassesReco[i] = np.random.uniform(signalMasses[0], signalMasses[-1])
+        """
 
         npyMassNjets = npyMasses+npyNjets
 
@@ -221,7 +238,7 @@ class DataGetter:
             dnjets[massNjets] = round(float(mmin)/float(c),3)
             #dnjets[massNjets] = round(float(mmax)/float(c),3)
 
-        return npyInputData, npyInputAnswers, npyInputDomain, npyInputSampleWgts, npyNJet, npyMasses, npyModels, npyMassNjets, cmax, dnjets
+        return npyInputData, npyInputAnswers, npyInputDomain, npyInputSampleWgts, npyNJet, npyMasses, npyMassesReco, npyModels, npyMassNjets, cmax, dnjets
 
     def importData(self, bgSamplesToRun, sgSamplesToRun, treename = "myMiniTree", doReweight = False, maxNJetBin = 11, njetsMask=-1):
 
@@ -237,7 +254,7 @@ class DataGetter:
         dataBG = pd.concat(bgdsets)
         dataBG = dataBG.dropna()
 
-        npyInputDataBG, npyInputAnswersBG, npyInputDomainBG, npyInputSampleWgtsBG, npyNJetBG, npyMassesBG, npyModelsBG, npyMassNjetsBG, countsBG, dBG = self.importDataWorker(variables, maxNJetBin, dataBG, 1, njetsMask=njetsMask)
+        npyInputDataBG, npyInputAnswersBG, npyInputDomainBG, npyInputSampleWgtsBG, npyNJetBG, npyMassesBG, npyMassesRecoBG, npyModelsBG, npyMassNjetsBG, countsBG, dBG = self.importDataWorker(variables, maxNJetBin, dataBG, 1, njetsMask=njetsMask)
 
         #########################################################################################
 
@@ -247,7 +264,7 @@ class DataGetter:
         dataSG = pd.concat(sgdsets)
         dataSG = dataSG.dropna()
 
-        npyInputDataSG, npyInputAnswersSG, npyInputDomainSG, npyInputSampleWgtsSG, npyNJetSG, npyMassesSG, npyModelsSG, npyMassNjetsSG, countsSG, dSG = self.importDataWorker(variables, maxNJetBin, dataSG, 0, njetsMask=njetsMask)
+        npyInputDataSG, npyInputAnswersSG, npyInputDomainSG, npyInputSampleWgtsSG, npyNJetSG, npyMassesSG, npyMassesRecoSG, npyModelsSG, npyMassNjetsSG, countsSG, dSG = self.importDataWorker(variables, maxNJetBin, dataSG, 0, njetsMask=njetsMask)
 
         # Do some final changes to the weights for background and signal
         factor = 1.0
@@ -269,4 +286,4 @@ class DataGetter:
             for i in range(0, len(npySWBG)): npySWBG[i][0] = 1.0
             for i in range(0, len(npySWSG)): npySWSG[i][0] = 1.0
 
-        return {"data":npyInputDataBG, "labels":npyInputAnswersBG, "domain":npyInputDomainBG, "Weight":npyInputSampleWgtsBG, "nJet":npyNJetBG, "masses":npyMassesBG, "model":npyModelsBG, "massNjets":npyMassNjetsBG, "sample_weight":npySWBG}, {"data":npyInputDataSG, "labels":npyInputAnswersSG, "domain":npyInputDomainSG, "Weight":npyInputSampleWgtsSG, "nJet":npyNJetSG, "masses":npyMassesSG,"model":npyModelsSG, "massNjets":npyMassNjetsSG, "sample_weight":npySWSG}
+        return {"data":npyInputDataBG, "labels":npyInputAnswersBG, "domain":npyInputDomainBG, "Weight":npyInputSampleWgtsBG, "nJet":npyNJetBG, "masses":npyMassesBG, "massesReco" : npyMassesRecoBG, "model":npyModelsBG, "massNjets":npyMassNjetsBG, "sample_weight":npySWBG}, {"data":npyInputDataSG, "labels":npyInputAnswersSG, "domain":npyInputDomainSG, "Weight":npyInputSampleWgtsSG, "nJet":npyNJetSG, "masses":npyMassesSG, "massesReco" : npyMassesRecoSG, "model":npyModelsSG, "massNjets":npyMassNjetsSG, "sample_weight":npySWSG}
