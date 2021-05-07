@@ -547,7 +547,7 @@ class Validation:
         if finalSign != 0.0: 
             plt.scatter([1.0/finalSign], [finalClosureErr], color='xkcd:red', marker="o", label="Chosen Solution")
         plt.xlabel('1 / Significance')
-        plt.ylabel('1 - Pred./Obs.')
+        plt.ylabel('|1 - Pred./Obs.|')
         plt.legend(loc='best')
         #plt.text(0.05, 0.94, r"$\bf{ABCD\;Closure\;Error}$ = %.2f"%(finalClosureErr), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
         #plt.text(0.05, 0.84, r"$\bf{Significance}$ = %.2f"%(finalSign), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
