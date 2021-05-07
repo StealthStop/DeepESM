@@ -537,7 +537,7 @@ class Validation:
 
         return closure, closureErr, bNApred, bNApredUnc
 
-    def plotBinEdgeMetricComps(self, finalSign, finalClosureErr, invSign, closeErr, edges, Njets = -1):
+    def plotBinEdgeMetricComps(self, finalSign, finalClosureErr, invSign, closeErr, edges, d1edge, d2edge, Njets = -1):
 
         fig = plt.figure()
         hep.cms.label(data=True, paper=False, year=self.config["year"])
@@ -557,8 +557,8 @@ class Validation:
 
         plt.gca().invert_yaxis()
 
-        plt.text(0.65, 0.84, r"$%.2f < \bf{Disc. 1}$ < %.2f"%(edges[0],edges[-1]), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
-        plt.text(0.65, 0.77, r"$%.2f < \bf{Disc. 2}$ < %.2f"%(edges[0],edges[-1]), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
+        plt.text(0.50, 0.85, r"$%.2f < \bf{Disc.\;1\;Edge}$ = %s < %.2f"%(edges[0],d1edge,edges[-1]), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16)
+        plt.text(0.50, 0.80, r"$%.2f < \bf{Disc.\;2\;Edge}$ = %s < %.2f"%(edges[0],d2edge,edges[-1]), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16)
 
         if Njets == -1:
             fig.savefig(self.config["outputDir"]+"/InvSign_vs_CloseErr.pdf", dpi=fig.dpi)        
@@ -758,14 +758,18 @@ class Validation:
 
         return sign
 
-    def plotAveClosureNjets(self, aves, stds):
+    def plotAveNjetsClosure(self, aves, stds):
 
         binCenters = []
         xErr       = []
 
-        for Njets in range(0, len(aves)):
+        Njets = list(range(self.config["minNJetBin"], self.config["maxNJetBin"]+1))
+        if self.config["Mask"]:
+            del(Njets[Njets.index(int(self.config["Mask_nJet"]))])
+            
+        for i in range(0, len(Njets)):
         
-            binCenters.append(Njets+self.config["minNJetBin"])
+            binCenters.append(Njets[i])
             xErr.append(0.5)
         
         fig = plt.figure()
@@ -778,6 +782,8 @@ class Validation:
             lowerNjets = self.config["minNJetBin"] + 1
 
         ax.set_xlim([lowerNjets-0.5,self.config["maxNJetBin"]+0.5])
+
+        plt.xticks(Njets)
         
         ax.axhline(y=0.0, color="black", linestyle="dashed", lw=2)
         ax.grid(color="black", which="both", axis="y")
@@ -806,16 +812,15 @@ class Validation:
         pred       = []
 
         totalChi2 = 0.0; wtotalChi2 = 0.0; ndof = 0; totalSig = 0.0
-        i = 0; Njets = self.config["minNJetBin"]
-        while i < len(bkgd):
 
-            Njets += i
+        Njets = list(range(self.config["minNJetBin"], self.config["maxNJetBin"]+1))
+        if self.config["Mask"]:
+            del(Njets[Njets.index(int(self.config["Mask_nJet"]))])
+            
+        for i in range(0, len(Njets)):
 
-            if Njets == int(self.config["Mask_nJet"]) and self.config["Mask"]:
-                Njets += 1
-        
             if bkgdUnc[i] != 0.0:
-                binCenters.append(Njets)
+                binCenters.append(Njets[i])
                 unc.append(bkgdUnc[i])
                 predUnc.append(bkgdPredUnc[i])
                 obs.append(bkgd[i])
@@ -830,8 +835,6 @@ class Validation:
                 totalSig += bkgdSign[i]
                 ndof += 1
 
-            i += 1
-        
         fig = plt.figure()
         gs = fig.add_gridspec(8, 1)
         ax = fig.add_subplot(111)
@@ -857,8 +860,10 @@ class Validation:
         if self.config["minNJetBin"] == int(self.config["Mask_nJet"]) and self.config["Mask"]:
             lowerNjets = self.config["minNJetBin"] + 1
 
-        ax1.set_xlim([lowerNjets-0.4,self.config["maxNJetBin"]+0.4])
+        ax1.set_xlim([lowerNjets-0.5,self.config["maxNJetBin"]+0.5])
         
+        plt.xticks(Njets)
+
         #ax2.errorbar(binCenters, abcdPull, yerr=None,        xerr=xErr, fmt='', color="blue",  lw=0, elinewidth=2, marker="o", markerfacecolor="blue")
         #ax2.axhline(y=0.0, color="black", linestyle="dashed", lw=1)
         #ax2.grid(color="black", which="major", axis="y")
@@ -1116,7 +1121,7 @@ class Validation:
             # For a given signal fraction, figure out the cut on disc 1 and disc 2 that maximizes the significance
             c1, c2, significance, closureErr, invSigns, closeErrs, sfracA, sbfracA, sfracB, sbfracB, sfracC, sbfracC, sfracD, sbfracD = self.findDiscCut4SigFrac(bc, sc)
         
-            _, _ = self.plotBinEdgeMetricComps(significance, closureErr, invSigns, closeErrs, c1s)
+            _, _ = self.plotBinEdgeMetricComps(significance, closureErr, invSigns, closeErrs, c1s, c1, c2)
 
             self.config["Disc1"] = c1
             self.config["Disc2"] = c2
@@ -1203,7 +1208,7 @@ class Validation:
                 bc, sc = self.cutAndCount(c1s, c2s, y_Xval_Bg_disc1[bkgFullMask], y_Xval_Bg_disc2[bkgFullMask], self.Bg["Weight"][:,0][bkgFullMask], y_Xval_Sg_disc1[sigFullMask], y_Xval_Sg_disc2[sigFullMask], self.Sg["Weight"][:,0][sigFullMask])
                 c1, c2, significance, closureErr, invSigns, closeErrs, _, _, _, _, _, _, _, _ = self.findDiscCut4SigFrac(bc, sc)
 
-                tempAveClose, tempStdClose = self.plotBinEdgeMetricComps(significance, closureErr, invSigns, closeErrs, c1s, int(NJets))
+                tempAveClose, tempStdClose = self.plotBinEdgeMetricComps(significance, closureErr, invSigns, closeErrs, c1s, c1, c2, int(NJets))
 
                 aveClosure.append(tempAveClose)
                 stdClosure.append(tempStdClose)
@@ -1263,8 +1268,6 @@ class Validation:
 
                     bkgdNjetsAPred["val"].append(Apred); bkgdNjetsAPred["err"].append(ApredUnc)
 
-                self.plotAveClosureNjets(aveClosure, stdClosure)
-
                 self.config["c1_nJet_%s"%(("%s"%(NJets)).zfill(2))] = c1
                 self.config["c2_nJet_%s"%(("%s"%(NJets)).zfill(2))] = c2
 
@@ -1295,6 +1298,8 @@ class Validation:
 
             self.config["bkgdCorrAve"] = np.average(np.abs(bkgdCorrs))
             self.config["bkgdCorrStd"] = np.std(bkgdCorrs)
+
+            self.plotAveNjetsClosure(aveClosure, stdClosure)
 
             signA = self.plotNjets(bkgdNjets["A"], bkgdNjetsErr["A"], sigNjets["A"], sigNjetsErr["A"], "A")
             signB = self.plotNjets(bkgdNjets["B"], bkgdNjetsErr["B"], sigNjets["B"], sigNjetsErr["B"], "B")
