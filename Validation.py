@@ -775,7 +775,7 @@ class Validation:
         fig = plt.figure()
         ax = fig.add_subplot(111)
        
-        ax.errorbar(binCenters, aves, yerr=stds, label="Fractional Closure",  xerr=xErr, fmt='', color="red",   lw=0, elinewidth=2, marker="o", markerfacecolor="red")
+        ax.errorbar(binCenters, aves, yerr=stds, label="Closure Fractional Error",  xerr=xErr, fmt='', color="red",   lw=0, elinewidth=2, marker="o", markerfacecolor="red")
         
         lowerNjets = self.config["minNJetBin"] 
         if self.config["minNJetBin"] == int(self.config["Mask_nJet"]) and self.config["Mask"]:
