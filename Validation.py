@@ -336,7 +336,10 @@ class Validation:
         ax.add_line(l1); ax.add_line(l2)
         ax.set_ylabel("Disc. 2"); ax.set_xlabel("Disc. 1")
         plt.text(0.05, 0.90, r"$\bf{CC}$ = %.3f"%(corr), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
-        plt.text(0.05, 0.95, r"$\bf{Significance}$ = %.3f"%(significance), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
+    
+        if significance != -1.0:
+            plt.text(0.05, 0.95, r"$\bf{Significance}$ = %.3f"%(significance), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
+
         hep.cms.label(data=True, paper=False, year=self.config["year"])
 
         if Njets == -1: fig.savefig(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2.pdf"%(tag,mass), dpi=fig.dpi)
@@ -346,7 +349,7 @@ class Validation:
 
         return corr
 
-    def cutAndCount(self, c1s, c2s, b1, b2, bw, s1, s2, sw, cdiff = 0.2):
+    def cutAndCount(self, c1s, c2s, b1, b2, bw, s1, s2, sw):
         # First get the total counts in region "D" for all possible c1, c2
         bcounts = {"a" : {}, "b" : {}, "c" : {}, "d" : {}, "A" : {}, "B" : {}, "C" : {}, "D" : {}, "A2" : {}, "B2" : {}, "C2" : {}, "D2" : {}}  
         scounts = {"a" : {}, "b" : {}, "c" : {}, "d" : {}, "A" : {}, "B" : {}, "C" : {}, "D" : {}, "A2" : {}, "B2" : {}, "C2" : {}, "D2" : {}}  
@@ -366,10 +369,6 @@ class Validation:
 
             for c2 in c2s:
             
-                # Keep scan of c1,c2 close to the diagnonal
-                # Default c1 and c2 to be within 20% of one another
-                if abs(1.0 - c1/c2) > cdiff: continue
-
                 c2k = "%.2f"%c2
                 if c2k not in bcounts["A"][c1k]:
                     bcounts["A"][c1k][c2k] = 0.0; bcounts["A2"][c1k][c2k] = 0.0; bcounts["a"][c1k][c2k] = 0.0
@@ -435,84 +434,83 @@ class Validation:
 
         return bcounts, scounts
 
-    def findDiscCut4SigFrac(self, bcts, scts, minFracB = 0.05, minFracS = 0.1):
+    def findDiscCut4SigFrac(self, bcts, scts, minFracBkg = 0.01, minFracSig = 0.1):
         # Now calculate signal fraction and significance 
         # Pick c1 and c2 that give 30% sig fraction and maximizes significance
         significance = 0.0; finalc1 = -1.0; finalc2 = -1.0; 
         closureErr = 0.0; metric = 999.0
-        sFracA = 0.0; sbFracA = 0.0
-        sFracB = 0.0; sbFracB = 0.0
-        sFracC = 0.0; sbFracC = 0.0
-        sFracD = 0.0; sbFracD = 0.0
-        invSigns = []; closeErrs = []
+        invSigns = []; closeErrs = []; c1out = []; c2out = []
+        sFracsA = []; sFracsB = []; sFracsC = []; sFracsD = []
+        sTotFracsA = []; sTotFracsB = []; sTotFracsC = []; sTotFracsD = []
+        bTotFracsA = []; bTotFracsB = []; bTotFracsC = []; bTotFracsD = []
+
         for c1k, c2s in bcts["A"].items():
             for c2k, temp in c2s.items():
 
                 bA = bcts["A"][c1k][c2k]; bB = bcts["B"][c1k][c2k]; bC = bcts["C"][c1k][c2k]; bD = bcts["D"][c1k][c2k]
                 sA = scts["A"][c1k][c2k]; sB = scts["B"][c1k][c2k]; sC = scts["C"][c1k][c2k]; sD = scts["D"][c1k][c2k]
 
-                sTotal = sA + sB + sC + sD
                 bTotal = bA + bB + bC + bD
+                sTotal = sA + sB + sC + sD
 
-                tempsfracA = -1.0; tempsbfracA = -1.0
-                tempsfracB = -1.0; tempsbfracB = -1.0
-                tempsfracC = -1.0; tempsbfracC = -1.0
-                tempsfracD = -1.0; tempsbfracD = -1.0
+                tempsbfracA = -1.0; tempsTotfracA = -1.0; tempbTotfracA = -1.0
+                tempsbfracB = -1.0; tempsTotfracB = -1.0; tempbTotfracB = -1.0 
+                tempsbfracC = -1.0; tempsTotfracC = -1.0; tempbTotfracC = -1.0 
+                tempsbfracD = -1.0; tempsTotfracD = -1.0; tempbTotfracD = -1.0 
                 if bA + sA > 0.0: tempsbfracA = sA / (sA + bA)
                 if bB + sB > 0.0: tempsbfracB = sB / (sB + bB)
                 if bC + sC > 0.0: tempsbfracC = sC / (sC + bC)
                 if bD + sD > 0.0: tempsbfracD = sD / (sD + bD)
 
-                tempbfracA = bA / bTotal
-                tempsfracA = sA / sTotal
+                tempbfracA = bA / bTotal; tempsfracA = sA / sTotal
+                tempbfracB = bB / bTotal; tempsfracB = sB / sTotal
+                tempbfracC = bC / bTotal; tempsfracC = sC / sTotal
+                tempbfracD = bD / bTotal; tempsfracD = sD / sTotal
 
-                tempbfracB = bB / bTotal
-                tempsfracB = sB / sTotal
+                tempsignificance = 0.0; tempclosureerr = 999.0; tempmetric = 999.0
+                if bA > 0.0: tempsignificance += (sA / (bA + (0.3*bA)**2.0)**0.5)**2.0
+                if bB > 0.0: tempsignificance += (sB / (bB + (0.3*bB)**2.0)**0.5)**2.0
+                if bC > 0.0: tempsignificance += (sC / (bC + (0.3*bC)**2.0)**0.5)**2.0
+                if bD > 0.0: tempsignificance += (sD / (bD + (0.3*bD)**2.0)**0.5)**2.0
 
-                tempbfracC = bC / bTotal
-                tempsfracC = sC / sTotal
+                if bD > 0.0 and bA > 0.0: tempclosureerr = abs(1.0 - (bB * bC) / (bA * bD))
 
-                tempbfracD = bD / bTotal
-                tempsfracD = sD / sTotal
+                tempsignificance = tempsignificance**0.5
 
-                # Minimum signal fraction requirement
-                if tempbfracA > minFracB and \
-                   tempbfracB > minFracB and \
-                   tempbfracC > minFracB and \
-                   tempbfracD > minFracB:
+                if tempsignificance > 0.0:
+                    invSigns.append(1.0 / tempsignificance)
+                else:
+                    invSign.append(10e10)
 
-                    tempsignificance = 0.0; tempclosureerr = 999.0; tempmetric = 999.0
-                    if bA > 0.0: tempsignificance += (sA / (bA + (0.3*bA)**2.0)**0.5)**2.0
-                    if bB > 0.0: tempsignificance += (sB / (bB + (0.3*bB)**2.0)**0.5)**2.0
-                    if bC > 0.0: tempsignificance += (sC / (bC + (0.3*bC)**2.0)**0.5)**2.0
-                    if bD > 0.0: tempsignificance += (sD / (bD + (0.3*bD)**2.0)**0.5)**2.0
+                closeErrs.append(abs(tempclosureerr))
+                c1out.append(float(c1k))
+                c2out.append(float(c2k))
 
-                    if bD > 0.0 and bA > 0.0: tempclosureerr = abs(1.0 - (bB * bC) / (bA * bD))
+                sFracsA.append(float(tempsbfracA)); sTotFracsA.append(float(tempsfracA)); bTotFracsA.append(float(tempbfracA))
+                sFracsB.append(float(tempsbfracB)); sTotFracsB.append(float(tempsfracB)); bTotFracsB.append(float(tempbfracB))
+                sFracsC.append(float(tempsbfracC)); sTotFracsC.append(float(tempsfracC)); bTotFracsC.append(float(tempbfracC))
+                sFracsD.append(float(tempsbfracD)); sTotFracsD.append(float(tempsfracD)); bTotFracsD.append(float(tempbfracD))
 
-                    tempsignificance = tempsignificance**0.5
+                # Compute metric if...
+                # signal fraction in B, C, and D regions is < 10%
+                # total background fraction in A is greater than 5%
 
-                    if tempsignificance > 0.0:
-                        tempmetric = tempclosureerr**2.0 + (1.0 / tempsignificance)**2.0
+                #if tempbfracA > minFracB:
+                if tempbfracA > minFracBkg and \
+                   tempbfracB > minFracBkg and \
+                   tempbfracC > minFracBkg and \
+                   tempbfracD > minFracBkg:
 
-                        invSigns.append(1.0 / tempsignificance)
-                        closeErrs.append(abs(tempclosureerr))
- 
-                    if tempmetric < metric:
-                        sFracA = tempsfracA
-                        sbFracA = tempsbfracA
-                        sFracB = tempsfracB
-                        sbFracB = tempsbfracB
-                        sFracC = tempsfracC
-                        sbFracC = tempsbfracC
-                        sFracD = tempsfracD
-                        sbFracD = tempsbfracD
+                    tempmetric = tempclosureerr**2.0 + (1.0 / tempsignificance)**2.0
 
-                        finalc1 = c1k; finalc2 = c2k
-                        metric = tempmetric
-                        significance = tempsignificance
-                        closureErr = tempclosureerr
+                if tempmetric < metric:
+
+                    finalc1 = c1k; finalc2 = c2k
+                    metric = tempmetric
+                    significance = tempsignificance
+                    closureErr = tempclosureerr
                 
-        return finalc1, finalc2, significance, closureErr, invSigns, closeErrs, sFracA, sbFracA, sFracB, sbFracB, sFracC, sbFracC, sFracD, sbFracD
+        return finalc1, finalc2, significance, closureErr, invSigns, closeErrs, c1out, c2out, sFracsA, sFracsB, sFracsC, sFracsD, sTotFracsA, sTotFracsB, sTotFracsC, sTotFracsD, bTotFracsA, bTotFracsB, bTotFracsC, bTotFracsD
 
     # Define closure as how far away prediction for region D is compared to actual 
     def simpleClosureABCD(self, bNA, bNB, bNC, bND, bNAerr, bNBerr, bNCerr, bNDerr):
@@ -536,6 +534,248 @@ class Validation:
             closure = -999.0
 
         return closure, closureErr, bNApred, bNApredUnc
+
+    def plotDisc1vsDisc2(self, disc1, disc2, bw, c1, c2, significance, tag, mass = "", Njets = -1, nBins = 100):
+        fig = plt.figure() 
+        corr = 999.0
+        try: corr = cor.pearson_corr(disc1, disc2)
+        except: print("Correlation coefficient could not be calculated!")
+        plt.hist2d(disc1, disc2, bins=[nBins, nBins], range=[[0, 1], [0, 1]], cmap=plt.cm.jet, weights=bw, cmin = bw.min())
+        plt.colorbar()
+        ax = plt.gca()
+        l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="red", linewidth=2); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="red", linewidth=2)
+        ax.add_line(l1); ax.add_line(l2)
+        ax.set_ylabel("Disc. 2"); ax.set_xlabel("Disc. 1")
+        plt.text(0.05, 0.90, r"$\bf{CC}$ = %.3f"%(corr), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
+        plt.text(0.05, 0.95, r"$\bf{Significance}$ = %.3f"%(significance), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
+        hep.cms.label(data=True, paper=False, year=self.config["year"])
+
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2.pdf"%(tag,mass), dpi=fig.dpi)
+        else:           fig.savefig(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2_Njets%d.pdf"%(tag,mass,Njets), dpi=fig.dpi)
+
+        plt.close(fig)
+
+        return corr
+
+    def plotBkgSigFracVsBinEdges(self, sFracsA, sFracsB, sFracsC, sFracsD, sTotFracsA, sTotFracsB, sTotFracsC, sTotFracsD, bTotFracsA, bTotFracsB, bTotFracsC, bTotFracsD, d1edges, d2edges, c1, c2, minEdge, maxEdge, edgeWidth, Njets = -1):
+
+        nBins = int((1.0 + edgeWidth)/edgeWidth)
+
+        fig = plt.figure() 
+        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=sFracsA, cmin = 0.00001, cmax = 1.0)
+        plt.colorbar()
+        ax = plt.gca()
+        ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
+        hep.cms.label(data=True, paper=False, year=self.config["year"])
+
+        l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
+        ax.add_line(l1); ax.add_line(l2)
+
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/SigFracA_vs_Disc1Disc2.pdf", dpi=fig.dpi)
+        else:           fig.savefig(self.config["outputDir"]+"/SigFracA_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
+
+        plt.close(fig)
+
+        fig = plt.figure() 
+        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=sFracsB, cmin = 0.00001, cmax = 1.0)
+        plt.colorbar()
+        ax = plt.gca()
+        ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
+        hep.cms.label(data=True, paper=False, year=self.config["year"])
+
+        l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
+        ax.add_line(l1); ax.add_line(l2)
+
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/SigFracB_vs_Disc1Disc2.pdf", dpi=fig.dpi)
+        else:           fig.savefig(self.config["outputDir"]+"/SigFracB_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
+
+        plt.close(fig)
+
+        fig = plt.figure() 
+        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=sFracsC, cmin = 0.00001, cmax = 1.0)
+        plt.colorbar()
+        ax = plt.gca()
+        ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
+        hep.cms.label(data=True, paper=False, year=self.config["year"])
+
+        l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
+        ax.add_line(l1); ax.add_line(l2)
+
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/SigFracC_vs_Disc1Disc2.pdf", dpi=fig.dpi)
+        else:           fig.savefig(self.config["outputDir"]+"/SigFracC_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
+
+        plt.close(fig)
+
+        fig = plt.figure() 
+        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=sFracsD, cmin = 0.00001, cmax = 1.0)
+        plt.colorbar()
+        ax = plt.gca()
+        ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
+        hep.cms.label(data=True, paper=False, year=self.config["year"])
+
+        l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
+        ax.add_line(l1); ax.add_line(l2)
+
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/SigFracD_vs_Disc1Disc2.pdf", dpi=fig.dpi)
+        else:           fig.savefig(self.config["outputDir"]+"/SigFracD_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
+
+        plt.close(fig)
+
+        ################################################################
+
+        fig = plt.figure() 
+        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=sTotFracsA, cmin = 0.00001, cmax = 1.0)
+        plt.colorbar()
+        ax = plt.gca()
+        ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
+        hep.cms.label(data=True, paper=False, year=self.config["year"])
+
+        l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
+        ax.add_line(l1); ax.add_line(l2)
+
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/SigTotFracA_vs_Disc1Disc2.pdf", dpi=fig.dpi)
+        else:           fig.savefig(self.config["outputDir"]+"/SigTotFracA_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
+
+        plt.close(fig)
+
+        fig = plt.figure() 
+        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=sTotFracsB, cmin = 0.00001, cmax = 1.0)
+        plt.colorbar()
+        ax = plt.gca()
+        ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
+        hep.cms.label(data=True, paper=False, year=self.config["year"])
+
+        l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
+        ax.add_line(l1); ax.add_line(l2)
+
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/SigTotFracB_vs_Disc1Disc2.pdf", dpi=fig.dpi)
+        else:           fig.savefig(self.config["outputDir"]+"/SigTotFracB_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
+
+        plt.close(fig)
+
+        fig = plt.figure() 
+        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=sTotFracsC, cmin = 0.00001, cmax = 1.0)
+        plt.colorbar()
+        ax = plt.gca()
+        ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
+        hep.cms.label(data=True, paper=False, year=self.config["year"])
+
+        l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
+        ax.add_line(l1); ax.add_line(l2)
+
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/SigTotFracC_vs_Disc1Disc2.pdf", dpi=fig.dpi)
+        else:           fig.savefig(self.config["outputDir"]+"/SigTotFracC_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
+
+        plt.close(fig)
+
+        fig = plt.figure() 
+        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=sTotFracsD, cmin = 0.00001, cmax = 1.0)
+        plt.colorbar()
+        ax = plt.gca()
+        ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
+        hep.cms.label(data=True, paper=False, year=self.config["year"])
+
+        l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
+        ax.add_line(l1); ax.add_line(l2)
+
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/SigTotFracD_vs_Disc1Disc2.pdf", dpi=fig.dpi)
+        else:           fig.savefig(self.config["outputDir"]+"/SigTotFracD_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
+
+        plt.close(fig)
+
+        fig = plt.figure() 
+        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=bTotFracsA, cmin = 0.00001, cmax = 1.0)
+        plt.colorbar()
+        ax = plt.gca()
+        ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
+        hep.cms.label(data=True, paper=False, year=self.config["year"])
+
+        l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
+        ax.add_line(l1); ax.add_line(l2)
+
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/BkgTotFracA_vs_Disc1Disc2.pdf", dpi=fig.dpi)
+        else:           fig.savefig(self.config["outputDir"]+"/BkgTotFracA_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
+
+        plt.close(fig)
+
+        fig = plt.figure() 
+        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=bTotFracsB, cmin = 0.00001, cmax = 1.0)
+        plt.colorbar()
+        ax = plt.gca()
+        ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
+        hep.cms.label(data=True, paper=False, year=self.config["year"])
+
+        l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
+        ax.add_line(l1); ax.add_line(l2)
+
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/BkgTotFracB_vs_Disc1Disc2.pdf", dpi=fig.dpi)
+        else:           fig.savefig(self.config["outputDir"]+"/BkgTotFracB_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
+
+        plt.close(fig)
+
+        fig = plt.figure() 
+        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=bTotFracsC, cmin = 0.00001, cmax = 1.0)
+        plt.colorbar()
+        ax = plt.gca()
+        ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
+        hep.cms.label(data=True, paper=False, year=self.config["year"])
+
+        l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
+        ax.add_line(l1); ax.add_line(l2)
+
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/BkgTotFracC_vs_Disc1Disc2.pdf", dpi=fig.dpi)
+        else:           fig.savefig(self.config["outputDir"]+"/BkgTotFracC_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
+
+        plt.close(fig)
+
+        fig = plt.figure() 
+        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=bTotFracsD, cmin = 0.00001, cmax = 1.0)
+        plt.colorbar()
+        ax = plt.gca()
+        ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
+        hep.cms.label(data=True, paper=False, year=self.config["year"])
+
+        l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
+        ax.add_line(l1); ax.add_line(l2)
+
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/BkgTotFracD_vs_Disc1Disc2.pdf", dpi=fig.dpi)
+        else:           fig.savefig(self.config["outputDir"]+"/BkgTotFracD_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
+
+        plt.close(fig)
+
+    def plotMetricVsBinEdges(self, invSigns, closureErr, d1edges, d2edges, c1, c2, minEdge, maxEdge, edgeWidth, Njets = -1):
+
+        nBins = int((1.0 + edgeWidth)/edgeWidth)
+
+        fig = plt.figure() 
+        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=np.reciprocal(invSigns), cmin = 0.0001)
+        plt.colorbar()
+        ax = plt.gca()
+        ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
+        hep.cms.label(data=True, paper=False, year=self.config["year"])
+
+        l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
+        ax.add_line(l1); ax.add_line(l2)
+
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/Sign_vs_Disc1Disc2.pdf", dpi=fig.dpi)
+        else:           fig.savefig(self.config["outputDir"]+"/Sign_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
+
+        plt.close(fig)
+
+        fig = plt.figure() 
+        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=closureErr, cmin = 0.0001)
+        plt.colorbar()
+        ax = plt.gca()
+        ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
+        hep.cms.label(data=True, paper=False, year=self.config["year"])
+
+        l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
+        ax.add_line(l1); ax.add_line(l2)
+
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/CloseErr_vs_Disc1Disc2.pdf", dpi=fig.dpi)
+        else:           fig.savefig(self.config["outputDir"]+"/CloseErr_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
+
+        plt.close(fig)
 
     def plotBinEdgeMetricComps(self, finalSign, finalClosureErr, invSign, closeErr, edges, d1edge, d2edge, Njets = -1):
 
@@ -1031,7 +1271,8 @@ class Validation:
 
         nBins = 20
         nBinsReg = 100
-        masses = [350, 550, 850, 1150]
+        #masses = [350, 550, 850, 1150]
+        masses = [550]
 
         colors = ["red", "green", "blue", "magenta", "cyan"]; labels = ["Bg Train", "Bg Val"]
 
@@ -1113,43 +1354,13 @@ class Validation:
             self.plotD1VsD2SigVsBkgd(y_Xval_Bg_disc1, y_Xval_Bg_disc2, y_Xval_Sg_disc1[massMask&sigMask], y_Xval_Sg_disc2[massMask&sigMask], xvalMass)
             # Make arrays for possible values to cut on for both discriminant
             # starting at a minimum of 0.5 for each
-            c1s = np.arange(0.10, 0.95, 0.02); c2s = np.arange(0.10, 0.95, 0.02)
-        
-            # Get number of background and signal counts for each A, B, C, D region for every possible combination of cuts on disc 1 and disc 2
-            bc, sc = self.cutAndCount(c1s, c2s, y_Xval_Bg_disc1, y_Xval_Bg_disc2, self.Bg["Weight"][:,0], y_Xval_Sg_disc1[massMask&sigMask], y_Xval_Sg_disc2[massMask&sigMask], self.Sg["Weight"][:,0][massMask&sigMask])
-        
-            # For a given signal fraction, figure out the cut on disc 1 and disc 2 that maximizes the significance
-            c1, c2, significance, closureErr, invSigns, closeErrs, sfracA, sbfracA, sfracB, sbfracB, sfracC, sbfracC, sfracD, sbfracD = self.findDiscCut4SigFrac(bc, sc)
-        
-            _, _ = self.plotBinEdgeMetricComps(significance, closureErr, invSigns, closeErrs, c1s, c1, c2)
+            edgeWidth = 0.02; minEdge = 0.1; maxEdge = 0.90
+            c1s = np.arange(minEdge, maxEdge, edgeWidth); c2s = np.arange(minEdge, maxEdge, edgeWidth)
 
-            self.config["Disc1"] = c1
-            self.config["Disc2"] = c2
-            self.config["Significance"] = significance
-            self.config["sFracA"] = sfracA
-            self.config["sFracB"] = sfracB
-            self.config["sFracC"] = sfracC
-            self.config["sFracD"] = sfracD
-            self.config["sbFracA"] = sbfracA
-            self.config["sbFracB"] = sbfracB
-            self.config["sbFracC"] = sbfracC
-            self.config["sbFracD"] = sbfracD
- 
             #for i in range(len(self.config["allVars"])):
             #    theVar = self.config["allVars"][i]
             #    self.plotInputVarMassCut(100, y_Xval_mass_Bg, y_Xval_mass_Sg, self.Bg, self.Sg, sigMask, massMask, theVar, theVar, "BGvSG", mass = "", Njets=-1, bins=100)
             #    self.plotInputVar(float(c1), float(c2), y_Xval_Bg_disc1, y_Xval_Bg_disc2, self.Bg, self.Sg, sigMask, massMask, theVar, theVar, "BG", mass = "", Njets = -1, bins = 64)
-
-            # Plot each discriminant for sig and background while making cut on other disc
-            self.plotDiscWithCut(float(c2), y_Xval_Bg_disc1, y_Xval_Bg_disc2, self.Bg["Weight"][:,0], y_Xval_Sg_disc1[massMask&sigMask], y_Xval_Sg_disc2[massMask&sigMask], self.Sg["Weight"][:,0][massMask&sigMask], "1", "2", mass=xvalMass, Njets=-1, bins=nBins)
-            self.plotDiscWithCut(float(c1), y_Xval_Bg_disc2, y_Xval_Bg_disc1, self.Bg["Weight"][:,0], y_Xval_Sg_disc2[massMask&sigMask], y_Xval_Sg_disc1[massMask&sigMask], self.Sg["Weight"][:,0][massMask&sigMask], "2", "1", mass=xvalMass, Njets=-1, bins=nBins)
-        
-            self.plotDiscWithCutCompare(float(c2), y_Xval_Bg_disc1, y_Xval_Bg_disc2, self.Bg["Weight"][:,0], "1", "2", "BG", mass="", Njets=-1, bins=10)
-            self.plotDiscWithCutCompare(float(c2), y_Xval_Sg_disc1[massMask&sigMask], y_Xval_Sg_disc2[massMask&sigMask], self.Sg["Weight"][:,0][massMask&sigMask], "1", "2", "SG", mass=xvalMass, Njets=-1, bins=10)
-        
-            self.plotDiscWithCutCompare(float(c1), y_Xval_Bg_disc2, y_Xval_Bg_disc1, self.Bg["Weight"][:,0], "2", "1", "BG", bins=10)
-            self.plotDiscWithCutCompare(float(c1), y_Xval_Sg_disc2[massMask&sigMask], y_Xval_Sg_disc1[massMask&sigMask], self.Sg["Weight"][:,0][massMask&sigMask], "2", "1", "SG", mass=xvalMass, Njets=-1, bins=10)
-
 
             #bg1s = []; bg2s = []; wbg = []
             #sg1s = []; sg2s = []; wsg = []
@@ -1171,11 +1382,11 @@ class Validation:
            
         
             # Plot 2D of the discriminants
-            self.plotDisc1vsDisc2(y_Xval_Bg_disc1, y_Xval_Bg_disc2, self.Bg["Weight"][:,0], float(c1), float(c2), significance, "BG")
-            self.plotDisc1vsDisc2(y_Xval_Sg_disc1[massMask&sigMask], y_Xval_Sg_disc2[massMask&sigMask], self.Sg["Weight"][:,0][massMask&sigMask], float(c1), float(c2), significance, "SG", mass=xvalMass)
+            self.plotDisc1vsDisc2(y_Xval_Bg_disc1, y_Xval_Bg_disc2, self.Bg["Weight"][:,0], -1.0, -1.0, -1.0, "BG")
+            self.plotDisc1vsDisc2(y_Xval_Sg_disc1[massMask&sigMask], y_Xval_Sg_disc2[massMask&sigMask], self.Sg["Weight"][:,0][massMask&sigMask], -1.0, -1.0, -1.0, "SG", mass=xvalMass)
 
-            self.plotDisc1vsDisc2(y_Val_Bg_disc1, y_Val_Bg_disc2, valBg["Weight"][:,0], float(c1), float(c2), significance, "valBG")
-            self.plotDisc1vsDisc2(y_Val_Sg_disc1[massMaskVal&sigMaskVal], y_Val_Sg_disc2[massMaskVal&sigMaskVal], valSg["Weight"][:,0][massMaskVal&sigMaskVal], float(c1), float(c2), significance, "valSG", mass=valMass)
+            self.plotDisc1vsDisc2(y_Val_Bg_disc1, y_Val_Bg_disc2, valBg["Weight"][:,0], -1.0, -1.0, -1.0, "valBG")
+            self.plotDisc1vsDisc2(y_Val_Sg_disc1[massMaskVal&sigMaskVal], y_Val_Sg_disc2[massMaskVal&sigMaskVal], valSg["Weight"][:,0][massMaskVal&sigMaskVal], -1.0, -1.0, -1.0, "valSG", mass=valMass)
 
             bkgdNjets    = {"A" : [], "B" : [], "C" : [], "D" : [], "a" : [], "b" : [], "c" : [], "d" : []}; sigNjets    = {"A" : [], "B" : [], "C" : [], "D" : [], "a" : [], "b" : [], "c" : [], "d" : []}
             bkgdNjetsErr = {"A" : [], "B" : [], "C" : [], "D" : [], "a" : [], "b" : [], "c" : [], "d" : []}; sigNjetsErr = {"A" : [], "B" : [], "C" : [], "D" : [], "a" : [], "b" : [], "c" : [], "d" : []}
@@ -1206,7 +1417,11 @@ class Validation:
 
                 # Get number of background and signal counts for each A, B, C, D region for every possible combination of cuts on disc 1 and disc 2
                 bc, sc = self.cutAndCount(c1s, c2s, y_Xval_Bg_disc1[bkgFullMask], y_Xval_Bg_disc2[bkgFullMask], self.Bg["Weight"][:,0][bkgFullMask], y_Xval_Sg_disc1[sigFullMask], y_Xval_Sg_disc2[sigFullMask], self.Sg["Weight"][:,0][sigFullMask])
-                c1, c2, significance, closureErr, invSigns, closeErrs, _, _, _, _, _, _, _, _ = self.findDiscCut4SigFrac(bc, sc)
+                c1, c2, significance, closureErr, invSigns, closeErrs, d1edges, d2edges, sFracsA, sFracsB, sFracsC, sFracsD, sTotFracsA, sTotFracsB, sTotFracsC, sTotFracsD, bTotFracsA, bTotFracsB, bTotFracsC, bTotFracsD = self.findDiscCut4SigFrac(bc, sc)
+
+                self.plotMetricVsBinEdges(invSigns, closeErrs, d1edges, d2edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, int(NJets))
+
+                self.plotBkgSigFracVsBinEdges(sFracsA, sFracsB, sFracsC, sFracsD, sTotFracsA, sTotFracsB, sTotFracsC, sTotFracsD, bTotFracsA, bTotFracsB, bTotFracsC, bTotFracsD, d1edges, d2edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, int(NJets))
 
                 tempAveClose, tempStdClose = self.plotBinEdgeMetricComps(significance, closureErr, invSigns, closeErrs, c1s, c1, c2, int(NJets))
 
@@ -1296,8 +1511,8 @@ class Validation:
                 self.plotDisc1vsDisc2(y_Val_Bg_disc1[bkgFullMaskVal], y_Val_Bg_disc2[bkgFullMaskVal], valBg["Weight"][:,0][bkgFullMaskVal], float(c1), float(c2), significance, "valBG", mass="",   Njets=NJets)
                 self.plotDisc1vsDisc2(y_Val_Sg_disc1[sigFullMaskVal], y_Val_Sg_disc2[sigFullMaskVal], valSg["Weight"][:,0][sigFullMaskVal], float(c1), float(c2), significance, "valSG", mass=valMass, Njets=NJets)
 
-            self.config["bkgdCorrAve"] = np.average(np.abs(bkgdCorrs))
-            self.config["bkgdCorrStd"] = np.std(bkgdCorrs)
+            self.config["bkgdCorrAve_nJet_%s"%(NJets)] = np.average(np.abs(bkgdCorrs))
+            self.config["bkgdCorrStd_nJet_%s"%(NJets)] = np.std(bkgdCorrs)
 
             self.plotAveNjetsClosure(aveClosure, stdClosure)
 
@@ -1311,6 +1526,7 @@ class Validation:
             self.config["Achi2"] = totalChi2
             if ndof != 0:
                 self.config["Achi2ndof"] = totalChi2/ndof
+                self.config["Awchi2ndof"] = wtotalChi2/ndof
             else:
                 self.config["Achi2ndof"] = 9999.0
             self.config["Asignificance"] = signA
