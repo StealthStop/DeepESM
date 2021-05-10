@@ -1510,8 +1510,8 @@ class Validation:
                 self.plotDisc1vsDisc2(y_Val_Bg_disc1[bkgFullMaskVal], y_Val_Bg_disc2[bkgFullMaskVal], valBg["Weight"][:,0][bkgFullMaskVal], float(c1), float(c2), significance, "valBG", mass="",   Njets=NJets)
                 self.plotDisc1vsDisc2(y_Val_Sg_disc1[sigFullMaskVal], y_Val_Sg_disc2[sigFullMaskVal], valSg["Weight"][:,0][sigFullMaskVal], float(c1), float(c2), significance, "valSG", mass=valMass, Njets=NJets)
 
-            self.config["bkgdCorrAve_nJet_%s"%(NJets)] = np.average(np.abs(bkgdCorrs))
-            self.config["bkgdCorrStd_nJet_%s"%(NJets)] = np.std(bkgdCorrs)
+            self.config["bkgdCorrAve"] = np.average(np.abs(bkgdCorrs))
+            self.config["bkgdCorrStd"] = np.std(bkgdCorrs)
 
             self.plotAveNjetsClosure(aveClosure, stdClosure)
 
