@@ -86,13 +86,23 @@ def get_data(signalDataSet, backgroundDataSet, config, sgSampleFactor = 1, bgSam
             data["mask_nJet_%02d" % (config["minNJetBin"]+i)] = ~np.array(mask)
             mask = (data["domain"][:,i]).astype(bool)
             data["mask_stuff_%02d" % (config["minNJetBin"]+i)] = ~np.array(mask)
+        
+        # Mask the njets in the training
         if config["Mask"]:
-            mask = data["mask_stuff_%02d" % (config["Mask_nJet"])]
+            combMaskNjets = None
+            for njets in config["Mask_nJet"]:
+                mask = data["mask_stuff_%02d" % njets]
+                if combMaskNjets == None:
+                    combMaskNjets = mask
+                else:
+                    combMaskNjets &= mask
             for key in data:
-                data[key] = data[key][mask]
+                data[key] = data[key][combMaskNjets]
+
         data["mean"] = np.mean(data["data"], 0)
         data["std"] = np.std(data["data"], 0)
         data["scale"] = 1.0 / data["std"]
+
     scale(trainData)
     scale(dataSig)
     scale(dataBg)
@@ -157,7 +167,7 @@ class DataGetter:
                 continue
         return dsets
 
-    def importDataWorker(self, variables, maxNJetBin, df, index, treename, njetsMask = -1):
+    def importDataWorker(self, variables, maxNJetBin, df, index, treename, njetsMask = [-1]):
 
         # Depending on channel, different pt used for jets
         ptCut = "pt30"
@@ -167,7 +177,15 @@ class DataGetter:
         # Common column names to signal and background
         wgtColumnNames = ["Weight"]; massNames = ["mass"]; domainColumnNames = ["NGoodJets_%s_double"%(ptCut)]; njetsNames = ["NGoodJets_%s_double"%(ptCut)]; modelNames = ["model"]; recoMassNames = ["stop1_ptrank_mass"]
 
-        npyNjetsFilter = df[(df["NGoodJets_%s_double"%(ptCut)]!=njetsMask)][massNames].values
+        combMaskNjets = None
+        for njets in njetsMask:
+            mask = df["NGoodJets_%s_double"%(ptCut)] != njets
+            if combMaskNjets == None:
+                combMaskNjets = mask
+            else:
+                combMaskNjets &= mask       
+ 
+        npyNjetsFilter = df[combMaskNjets][massNames].values
         unique, counts = np.unique(npyNjetsFilter, return_counts=True)
         masses = dict(zip(unique, counts)).keys()
 
@@ -176,12 +194,12 @@ class DataGetter:
 
         # Use this npyMasses for excluding 7 jet events
         # Changes weights
-        npyMassesFilter = df[(df["NGoodJets_%s_double"%(ptCut)]!=njetsMask)][massNames].values
+        npyMassesFilter = df[combMaskNjets][massNames].values
         #npyMassesFilter[npyMassesFilter == 173.0] = 0.0
 
         dnjets = {}
         for mass in masses:
-            npyNjetsFilter = df[(df["NGoodJets_%s_double"%(ptCut)]!=njetsMask)&(df["mass"]==mass)][njetsNames].values
+            npyNjetsFilter = df[combMaskNjets & (df["mass"]==mass)][njetsNames].values
             unique, counts = np.unique(npyNjetsFilter, return_counts=True)
             NjetsDict = dict(zip(unique, counts))
             for Njets, c in NjetsDict.items():
@@ -246,7 +264,7 @@ class DataGetter:
 
         return npyInputData, npyInputAnswers, npyInputDomain, npyInputSampleWgts, npyNJet, npyMasses, npyMassesReco, npyModels, npyMassNjets, cmax, dnjets
 
-    def importData(self, bgSamplesToRun, sgSamplesToRun, treename = "myMiniTree", doReweight = False, maxNJetBin = 11, njetsMask=-1):
+    def importData(self, bgSamplesToRun, sgSamplesToRun, treename = "myMiniTree", doReweight = False, maxNJetBin = 11, njetsMask = [-1]):
 
         #variables to train
         variables = self.getList()
