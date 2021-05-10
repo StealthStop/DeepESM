@@ -480,7 +480,7 @@ class Validation:
                 if tempsignificance > 0.0:
                     invSigns.append(1.0 / tempsignificance)
                 else:
-                    invSign.append(10e10)
+                    invSigns.append(10e10)
 
                 closeErrs.append(abs(tempclosureerr))
                 c1out.append(float(c1k))
