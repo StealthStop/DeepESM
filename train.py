@@ -47,13 +47,13 @@ class Train:
             self.config["maxNJetBin"] = 12
             self.config["verbose"]    = 1
             self.config["Mask"]       = True
-            self.config["Mask_nJet"]  = 6
+            self.config["Mask_nJet"]  = [6]
         else:
             self.config["minNJetBin"] = 7
             self.config["maxNJetBin"] = 11
             self.config["verbose"]    = 1
             self.config["Mask"]       = False
-            self.config["Mask_nJet"]  = 7
+            self.config["Mask_nJet"]  = [7]
 
         TT_2016     = None; TT_2017     = None; TT_2018     = None
         TT_2016_val = None; TT_2017_val = None; TT_2018_val = None

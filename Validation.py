@@ -1305,8 +1305,8 @@ class Validation:
         self.plotDisc(tempMassVal, tempColors, tempNames, tempEventsVal, "mass_split_val_log", 'Norm Events', 'predicted mass', arange=(-10, 2000), bins=nBinsReg, doLog=True)
 
         for NJets in NJetsRange:
-
-            if self.config["Mask"] and self.config["Mask_nJet"] == int(NJets): continue
+            
+            if self.config["Mask"] and (int(NJets) in self.config["Mask_nJet"]): continue
 
             njetsStr = "mask_nJet_%s"%(("%s"%(NJets)).zfill(2))
             bkgNjetsMask = self.Bg[njetsStr]; sigNjetsMask = self.Sg[njetsStr]
