@@ -1005,10 +1005,12 @@ class Validation:
 
         Njets = list(range(self.config["minNJetBin"], self.config["maxNJetBin"]+1))
         if self.config["Mask"]:
-            del(Njets[Njets.index(int(self.config["Mask_nJet"]))])
-            
+            for i in self.config["Mask_nJet"]:
+                del(Njets[Njets.index(i)])
+
+ 
         for i in range(0, len(Njets)):
-        
+
             binCenters.append(Njets[i])
             xErr.append(0.5)
         
@@ -1017,9 +1019,7 @@ class Validation:
        
         ax.errorbar(binCenters, aves, yerr=stds, label="Closure Fractional Error",  xerr=xErr, fmt='', color="red",   lw=0, elinewidth=2, marker="o", markerfacecolor="red")
         
-        lowerNjets = self.config["minNJetBin"] 
-        if self.config["minNJetBin"] == int(self.config["Mask_nJet"]) and self.config["Mask"]:
-            lowerNjets = self.config["minNJetBin"] + 1
+        lowerNjets = Njets[0] 
 
         ax.set_xlim([lowerNjets-0.5,self.config["maxNJetBin"]+0.5])
 
@@ -1055,8 +1055,9 @@ class Validation:
 
         Njets = list(range(self.config["minNJetBin"], self.config["maxNJetBin"]+1))
         if self.config["Mask"]:
-            del(Njets[Njets.index(int(self.config["Mask_nJet"]))])
-            
+            for i in self.config["Mask_nJet"]:
+                del(Njets[Njets.index(i)])
+ 
         for i in range(0, len(Njets)):
 
             if bkgdUnc[i] != 0.0:
@@ -1096,9 +1097,7 @@ class Validation:
         ax1.errorbar(binCenters, pred, yerr=predUnc, label="Observed",  xerr=xErr, fmt='', color="red",   lw=0, elinewidth=2, marker="o", markerfacecolor="red")
         ax1.errorbar(binCenters, obs,  yerr=unc,     label="Predicted", xerr=xErr, fmt='', color="black", lw=0, elinewidth=2, marker="o", markerfacecolor="black")
 
-        lowerNjets = self.config["minNJetBin"] 
-        if self.config["minNJetBin"] == int(self.config["Mask_nJet"]) and self.config["Mask"]:
-            lowerNjets = self.config["minNJetBin"] + 1
+        lowerNjets = Njets[0]
 
         ax1.set_xlim([lowerNjets-0.5,self.config["maxNJetBin"]+0.5])
         
@@ -1271,8 +1270,8 @@ class Validation:
 
         nBins = 20
         nBinsReg = 100
-        #masses = [350, 550, 850, 1150]
-        masses = [550]
+        masses = [350, 550, 850, 1150]
+        #masses = [550]
 
         colors = ["red", "green", "blue", "magenta", "cyan"]; labels = ["Bg Train", "Bg Val"]
 
@@ -1405,8 +1404,8 @@ class Validation:
             aveClosure = []; stdClosure = []
 
             for NJets in NJetsRange:
-            
-                if self.config["Mask"] and self.config["Mask_nJet"] == int(NJets): continue
+           
+                if self.config["Mask"] and (int(NJets) in self.config["Mask_nJet"]): continue 
 
                 njetsStr = "mask_nJet_%s"%(("%s"%(NJets)).zfill(2))
                 bkgNjetsMask = self.Bg[njetsStr]; sigNjetsMask = self.Sg[njetsStr]
