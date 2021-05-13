@@ -748,7 +748,7 @@ class Validation:
         nBins = int((1.0 + edgeWidth)/edgeWidth)
 
         fig = plt.figure() 
-        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=np.reciprocal(invSigns), cmin = 0.0001, cmax = 10.0)
+        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=np.reciprocal(invSigns), cmin = 10e-10, cmax = 10.0)
         plt.colorbar()
         ax = plt.gca()
         ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
@@ -763,7 +763,7 @@ class Validation:
         plt.close(fig)
 
         fig = plt.figure() 
-        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=closureErr, cmin = 0.0001, cmax = 10.0)
+        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=closureErr, cmin = 10e-10, cmax = 10.0)
         plt.colorbar()
         ax = plt.gca()
         ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
