@@ -323,32 +323,6 @@ class Validation:
         fig.savefig(self.config["outputDir"]+"/PandR_plot.pdf", dpi=fig.dpi)        
         plt.close(fig)
 
-    # Just plot the 2D for either background or signal
-    def plotDisc1vsDisc2(self, disc1, disc2, bw, c1, c2, significance, tag, mass = "", Njets = -1, nBins = 100):
-        fig = plt.figure() 
-        corr = 999.0
-        try: corr = cor.pearson_corr(disc1, disc2)
-        except: print("Correlation coefficient could not be calculated!")
-        plt.hist2d(disc1, disc2, bins=[nBins, nBins], range=[[0, 1], [0, 1]], cmap=plt.cm.jet, weights=bw, cmin = bw.min())
-        plt.colorbar()
-        ax = plt.gca()
-        l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="red", linewidth=2); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="red", linewidth=2)
-        ax.add_line(l1); ax.add_line(l2)
-        ax.set_ylabel("Disc. 2"); ax.set_xlabel("Disc. 1")
-        plt.text(0.05, 0.90, r"$\bf{CC}$ = %.3f"%(corr), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
-    
-        if significance != -1.0:
-            plt.text(0.05, 0.95, r"$\bf{Significance}$ = %.3f"%(significance), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
-
-        hep.cms.label(data=True, paper=False, year=self.config["year"])
-
-        if Njets == -1: fig.savefig(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2.pdf"%(tag,mass), dpi=fig.dpi)
-        else:           fig.savefig(self.config["outputDir"]+"/2D_%s%s_Njets%d_Disc1VsDisc2.pdf"%(tag,mass,Njets), dpi=fig.dpi)
-
-        plt.close(fig)
-
-        return corr
-
     def cutAndCount(self, c1s, c2s, b1, b2, bw, s1, s2, sw):
         # First get the total counts in region "D" for all possible c1, c2
         bcounts = {"a" : {}, "b" : {}, "c" : {}, "d" : {}, "A" : {}, "B" : {}, "C" : {}, "D" : {}, "A2" : {}, "B2" : {}, "C2" : {}, "D2" : {}}  
@@ -467,7 +441,7 @@ class Validation:
                 tempbfracC = bC / bTotal; tempsfracC = sC / sTotal
                 tempbfracD = bD / bTotal; tempsfracD = sD / sTotal
 
-                tempsignificance = 0.0; tempclosureerr = 999.0; tempmetric = 999.0
+                tempsignificance = 0.0; tempclosureerr = -999.0; tempmetric = 999.0
                 if bA > 0.0: tempsignificance += (sA / (bA + (0.3*bA)**2.0)**0.5)**2.0
                 if bB > 0.0: tempsignificance += (sB / (bB + (0.3*bB)**2.0)**0.5)**2.0
                 if bC > 0.0: tempsignificance += (sC / (bC + (0.3*bC)**2.0)**0.5)**2.0
@@ -477,19 +451,17 @@ class Validation:
 
                 tempsignificance = tempsignificance**0.5
 
-                if tempsignificance > 0.0:
+                if tempsignificance > 0.0 and tempclosureerr > 0.0:
                     invSigns.append(1.0 / tempsignificance)
-                else:
-                    invSigns.append(10e10)
 
-                closeErrs.append(abs(tempclosureerr))
-                c1out.append(float(c1k))
-                c2out.append(float(c2k))
+                    closeErrs.append(abs(tempclosureerr))
+                    c1out.append(float(c1k))
+                    c2out.append(float(c2k))
 
-                sFracsA.append(float(tempsbfracA)); sTotFracsA.append(float(tempsfracA)); bTotFracsA.append(float(tempbfracA))
-                sFracsB.append(float(tempsbfracB)); sTotFracsB.append(float(tempsfracB)); bTotFracsB.append(float(tempbfracB))
-                sFracsC.append(float(tempsbfracC)); sTotFracsC.append(float(tempsfracC)); bTotFracsC.append(float(tempbfracC))
-                sFracsD.append(float(tempsbfracD)); sTotFracsD.append(float(tempsfracD)); bTotFracsD.append(float(tempbfracD))
+                    sFracsA.append(float(tempsbfracA)); sTotFracsA.append(float(tempsfracA)); bTotFracsA.append(float(tempbfracA))
+                    sFracsB.append(float(tempsbfracB)); sTotFracsB.append(float(tempsfracB)); bTotFracsB.append(float(tempbfracB))
+                    sFracsC.append(float(tempsbfracC)); sTotFracsC.append(float(tempsfracC)); bTotFracsC.append(float(tempbfracC))
+                    sFracsD.append(float(tempsbfracD)); sTotFracsD.append(float(tempsfracD)); bTotFracsD.append(float(tempbfracD))
 
                 # Compute metric if...
                 # signal fraction in B, C, and D regions is < 10%
@@ -547,7 +519,11 @@ class Validation:
         ax.add_line(l1); ax.add_line(l2)
         ax.set_ylabel("Disc. 2"); ax.set_xlabel("Disc. 1")
         plt.text(0.05, 0.90, r"$\bf{CC}$ = %.3f"%(corr), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
-        plt.text(0.05, 0.95, r"$\bf{Significance}$ = %.3f"%(significance), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
+
+        if significance > 0.0:
+            plt.text(0.05, 0.95, r"$\bf{Significance}$ = %.3f"%(significance), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
+        else:
+            plt.text(0.05, 0.95, r"$\bf{Significance}$ = N/A", fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
         hep.cms.label(data=True, paper=False, year=self.config["year"])
 
         if Njets == -1: fig.savefig(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2.pdf"%(tag,mass), dpi=fig.dpi)
@@ -748,7 +724,7 @@ class Validation:
         nBins = int((1.0 + edgeWidth)/edgeWidth)
 
         fig = plt.figure() 
-        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=np.reciprocal(invSigns), cmin = 10e-10, cmax = 10.0)
+        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=np.reciprocal(invSigns), cmin=10e-10, cmax=10.0)
         plt.colorbar()
         ax = plt.gca()
         ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
@@ -763,7 +739,7 @@ class Validation:
         plt.close(fig)
 
         fig = plt.figure() 
-        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=closureErr, cmin = 10e-10, cmax = 10.0)
+        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=closureErr, cmin=10e-10, cmax=2.5)
         plt.colorbar()
         ax = plt.gca()
         ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
