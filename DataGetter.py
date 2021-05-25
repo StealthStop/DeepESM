@@ -92,7 +92,7 @@ def get_data(signalDataSet, backgroundDataSet, config, sgSampleFactor = 1, bgSam
             combMaskNjets = None
             for njets in config["Mask_nJet"]:
                 mask = data["mask_stuff_%02d" % njets]
-                if combMaskNjets == None:
+                if combMaskNjets is None:
                     combMaskNjets = mask
                 else:
                     combMaskNjets &= mask
@@ -180,7 +180,7 @@ class DataGetter:
         combMaskNjets = None
         for njets in njetsMask:
             mask = df["NGoodJets_%s_double"%(ptCut)] != njets
-            if combMaskNjets == None:
+            if combMaskNjets is None:
                 combMaskNjets = mask
             else:
                 combMaskNjets &= mask       
