@@ -23,7 +23,7 @@ from Models import main_model, model_reg, model_doubleDisco
 from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
 
 class Train:
-    def __init__(self, USER, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", valMass=500, valModel="RPV_SYY_SHH", year = "2016_2017_2018", tree = "myMiniTree"):
+    def __init__(self, USER, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", valMass=500, valModel="RPV_SYY_SHH", year = "2016_2017_2018", tree = "myMiniTree", maskNjet = [-1], bkgSampleFactor=1, sigSampleFactor=1):
         self.user                  = USER
         self.logdir                = "/storage/local/data1/gpuscratch/%s"%(self.user)
         self.config                = {}
@@ -46,14 +46,20 @@ class Train:
             self.config["minNJetBin"] = 6
             self.config["maxNJetBin"] = 12
             self.config["verbose"]    = 1
-            self.config["Mask"]       = True
-            self.config["Mask_nJet"]  = [6]
         else:
             self.config["minNJetBin"] = 7
             self.config["maxNJetBin"] = 11
             self.config["verbose"]    = 1
-            self.config["Mask"]       = False
-            self.config["Mask_nJet"]  = [7]
+
+        # mask njet bins for 0l and 1l
+        self.config["Mask_nJet"] = maskNjet
+        if -1 in maskNjet:
+            self.config["Mask"] = False
+        else:
+            self.config["Mask"] = True
+
+        self.config["bkgSampleFactor"] = bkgSampleFactor 
+        self.config["sigSampleFactor"] = sigSampleFactor
 
         TT_2016     = None; TT_2017     = None; TT_2018     = None
         TT_2016_val = None; TT_2017_val = None; TT_2018_val = None
@@ -171,7 +177,8 @@ class Train:
         self.config["signal"]        = Signal
         self.config["signalVal"]     = SignalVal
         self.config["bkgdShift"]     = ("TT", TT_2016)
-        self.config["dataSet"]       = "2016_DisCo_0l_1l_WP0.98_05.05.2021/"
+        #self.config["dataSet"]       = "2016_DisCo_0l_1l_WP0.98_05.05.2021/"
+        self.config["dataSet"]       = "2016_DisCo_0l_1l_WP0.98_21.05.2021/"
         self.config["doBgWeight"]    = True
         self.config["doSgWeight"]    = True
         self.config["class_weight"]  = None
@@ -461,8 +468,10 @@ class Train:
 
         htVec_1l        = ["HT_trigger_pt30"]
         htVec_0l        = ["HT_trigger_pt45"]
-        fwmVec          = ["fwm2_top6",    "fwm3_top6",    "fwm4_top6", "fwm5_top6"]
-        jmtVec          = ["jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
+        fwmVec_0l       = ["fwm2_top6_0l",    "fwm3_top6_0l",    "fwm4_top6_0l",   "fwm5_top6_0l"]
+        jmtVec_0l       = ["jmt_ev0_top6_0l", "jmt_ev1_top6_0l", "jmt_ev2_top6_0l"]
+        fwmVec_1l       = ["fwm2_top6_1l",    "fwm3_top6_1l",    "fwm4_top6_1l",   "fwm5_top6_1l"]
+        jmtVec_1l       = ["jmt_ev0_top6_1l", "jmt_ev1_top6_1l", "jmt_ev2_top6_1l"]
         j4Vec           = ["Jet_pt_", "Jet_eta_", "Jet_m_", "Jet_phi_"]
         jFlavVec        = ["Jet_flavb_", "Jet_flavc_", "Jet_flavuds_", "Jet_flavq_", "Jet_flavg_"]
         jqgDiscVec      = ["Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_"]
@@ -486,11 +495,13 @@ class Train:
 
         if "0l" in self.config["tree"]:
             nJets = 6
-            theVars = j4Vec + jFlavVec + htVec_0l + fwmVec + jmtVec + stop1OldSeed + stop2OldSeed
+            label = "_0l"
+            theVars = j4Vec + jFlavVec + htVec_0l + fwmVec_0l + jmtVec_0l + stop1OldSeed + stop2OldSeed
         
         else:
             nJets = 7
-            theVars = j4Vec + jFlavVec + htVec_1l + fwmVec + jmtVec + stop1OldSeed + stop2OldSeed
+            label = "_1l"
+            theVars = j4Vec + jFlavVec + htVec_1l + fwmVec_1l + jmtVec_1l + stop1OldSeed + stop2OldSeed
 
         newVars = []
         for var in theVars:
@@ -502,7 +513,7 @@ class Train:
                     start = 1
         
                 for nJet in range(start,nJets):
-                    newVars.append(var + str(nJet+1))
+                    newVars.append(var + str(nJet+1) + str(label))
 
             else: newVars.append(var)
 
@@ -521,9 +532,9 @@ class Train:
         bgTrainSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Train.root") for bkgd in self.config["bkgd"][1]), [])
         sgTestSet  = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+mass+temp+"Test.root")  for mass in self.config["signal"]) , [])
         bgTestSet  = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Test.root")  for bkgd in self.config["bkgd"][1]), [])
-
-        trainData, trainSg, trainBg = get_data(sgTrainSet, bgTrainSet, self.config, sgSampleFactor = 1)
-        testData,  testSg,  testBg  = get_data(sgTestSet,  bgTestSet,  self.config, sgSampleFactor = 1)
+        
+        trainData, trainSg, trainBg = get_data(sgTrainSet, bgTrainSet, self.config, bgSampleFactor = self.config["bkgSampleFactor"], sgSampleFactor = self.config["sigSampleFactor"])
+        testData,  testSg,  testBg  = get_data(sgTestSet,  bgTestSet,  self.config)
 
         self.config["nBkgTrainEvents"] = len(trainBg["data"])
         self.config["nSigTrainEvents"] = len(trainSg["data"])
@@ -599,20 +610,23 @@ class Train:
 if __name__ == '__main__':
     usage = "usage: %prog [options]"
     parser = argparse.ArgumentParser(usage)
-    parser.add_argument("--quickVal",     dest="quickVal",     help="Do quick validation",           action="store_true", default=False) 
-    parser.add_argument("--reweight",     dest="reweight",     help="Do event reweighting",          action="store_true", default=False) 
-    parser.add_argument("--json",         dest="json",         help="JSON config file",              default="NULL"                    ) 
-    parser.add_argument("--minMass",      dest="minMass",      help="Minimum stop mass to train on", default=300                       )
-    parser.add_argument("--maxMass",      dest="maxMass",      help="Maximum stop mass to train on", default=1400                      ) 
-    parser.add_argument("--valMass",      dest="valMass",      help="Stop mass to validate on",      default=500                       ) 
-    parser.add_argument("--valModel",     dest="valModel",     help="Signal model to validate on",   default="RPV_SYY_SHH"             ) 
-    parser.add_argument("--model",        dest="model",        help="Signal model to train on",      type=str, default="RPV_SYY_SHH"   ) 
-    parser.add_argument("--replay",       dest="replay",       help="Replay saved model",            action="store_true", default=False) 
-    parser.add_argument("--year",         dest="year",         help="Year(s) to train on",           type=str, default="2016_2017_2018") 
-    parser.add_argument("--tree",         dest="tree",         help="myMiniTree to train on",        default="myMiniTree"              )
-    parser.add_argument("--saveAndPrint", dest="saveAndPrint", help="Save pb and print model",       action="store_true", default=False)
-    parser.add_argument("--seed",         dest="seed",         help="Use specific seed",             type=int, default=-1              )
-    parser.add_argument("--debug",        dest="debug",        help="Do some debugging",             action="store_true", default=False)
+    parser.add_argument("--quickVal",        dest="quickVal",        help="Do quick validation",            action="store_true", default=False) 
+    parser.add_argument("--reweight",        dest="reweight",        help="Do event reweighting",           action="store_true", default=False) 
+    parser.add_argument("--json",            dest="json",            help="JSON config file",               default="NULL"                    ) 
+    parser.add_argument("--minMass",         dest="minMass",         help="Minimum stop mass to train on",  default=300                       )
+    parser.add_argument("--maxMass",         dest="maxMass",         help="Maximum stop mass to train on",  default=1400                      ) 
+    parser.add_argument("--valMass",         dest="valMass",         help="Stop mass to validate on",       default=500                       ) 
+    parser.add_argument("--valModel",        dest="valModel",        help="Signal model to validate on",    default="RPV_SYY_SHH"             ) 
+    parser.add_argument("--model",           dest="model",           help="Signal model to train on",       type=str, default="RPV_SYY_SHH"   ) 
+    parser.add_argument("--replay",          dest="replay",          help="Replay saved model",             action="store_true", default=False) 
+    parser.add_argument("--year",            dest="year",            help="Year(s) to train on",            type=str, default="2016_2017_2018") 
+    parser.add_argument("--tree",            dest="tree",            help="myMiniTree to train on",         default="myMiniTree"              )
+    parser.add_argument("--saveAndPrint",    dest="saveAndPrint",    help="Save pb and print model",        action="store_true", default=False)
+    parser.add_argument("--seed",            dest="seed",            help="Use specific seed",              type=int, default=-1              )
+    parser.add_argument("--debug",           dest="debug",           help="Do some debugging",              action="store_true", default=False)
+    parser.add_argument("--maskNjet",        dest="maskNjet",        help="mask Njet bin/bins in training", default=[-1], nargs="+", type=int )
+    parser.add_argument("--bkgSampleFactor", dest="bkgSampleFactor", help="how many times to sample bkg",   default=1, type=int               )
+    parser.add_argument("--sigSampleFactor", dest="sigSampleFactor", help="how many times to sample sig",   default=1, type=int               )
 
     args = parser.parse_args()
 
@@ -646,7 +660,7 @@ if __name__ == '__main__':
     else: 
         hyperconfig = {"atag" : "TEST", "disc_comb_lambda": 0.0, "gr_lambda": 5.0, "disc_lambda": 10.0, "bg_cor_lambda": 2000.0, "sg_cor_lambda" : 2000.0, "reg_lambda": 0.001, "nNodes":100, "nNodesD":1, "nNodesM":100, "nHLayers":1, "nHLayersD":1, "nHLayersM":1, "drop_out":0.3, "batch_size":10000, "epochs":15, "lr":0.001}
 
-    t = Train(USER, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.model, valMass=args.valMass, valModel=args.valModel, year=args.year, tree=args.tree)
+    t = Train(USER, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.model, valMass=args.valMass, valModel=args.valModel, year=args.year, tree=args.tree, maskNjet=args.maskNjet, bkgSampleFactor=args.bkgSampleFactor, sigSampleFactor=args.sigSampleFactor)
 
     if replay: t.replay()
 
