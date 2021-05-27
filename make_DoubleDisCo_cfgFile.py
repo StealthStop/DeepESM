@@ -9,7 +9,6 @@ def print_db(input):
     if (debug):
         print input
 
-
 def main():
 
     # -----------------------------------------
@@ -75,7 +74,15 @@ def main():
         else:
             f.write("   nJetVar = \"NGoodJets_pt30\"\n")
 
-        f.write("   minNjet = %d \n" %minNjet)
+        # Find the highest Njet bin that was masked from the list
+        # If the highest masked Njet is higher than minNjet
+        # then change minNjet put in cfg to be 1 greater than the highest masked Njet
+        maxMaskedNjet = max(mask_njet)
+        adjustedMinNjet = minNjet
+        if maxMaskedNjet >= minNjet:
+            adjustedMinNjet = maxMaskedNjet+1
+            
+        f.write("   minNjet = %d \n" %adjustedMinNjet)
         f.write("   maxNjet = %d \n" %maxNjet)
 
         i = 0
