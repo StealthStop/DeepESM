@@ -9,7 +9,6 @@ def print_db(input):
     if (debug):
         print input
 
-
 def main():
 
     # -----------------------------------------
@@ -34,16 +33,16 @@ def main():
     # --------------------------
     # put pb file to this folder
     # --------------------------
-    os.system("cp %s/DoubleDisCo%s_%s.pb %s" %(args.path,args.case,args.year,release)) 
-    #os.system("cp %s/keras_frozen.pb %s" %(args.path,release))
+    os.system("cp %s/keras_frozen.pb %s" %(args.path,release))
 
     # -------------------
     # make tar file of pb
     # -------------------
-    os.system("tar czf %s/MVAFILES.tar.gz %s/keras_frozen.pb" %(release,release))    
+    os.system("tar -C %s -czf %s/MVAFILES.tar.gz keras_frozen.pb" %(release,release))    
    
-    
-    #  
+    # -------------
+    # make cfg file
+    # ------------- 
     with open (args.path + "config.json", "r") as c:
         cfg        = json.load(c)
         minNjet    = cfg["minNJetBin"]
@@ -67,15 +66,23 @@ def main():
         f.write("   outputOpVec[1] = \"Identity_3\"\n")
         f.write("   outputCmVec[0] = 4\n")
         f.write("   outputCmVec[1] = 1\n")
-        f.write("   year = \"2016\"\n")
-        f.write("   name = \"DoubleDisCo\"\n")
+        f.write("   year = \"%s\"\n" %(args.year))
+        f.write("   name = \"%s\"\n" %(args.case[1:]))
 
         if (args.case == "_0l"):
             f.write("   nJetVar = \"NGoodJets_pt45\"\n")
         else:
             f.write("   nJetVar = \"NGoodJets_pt30\"\n")
 
-        f.write("   minNjet = %d \n" %minNjet)
+        # Find the highest Njet bin that was masked from the list
+        # If the highest masked Njet is higher than minNjet
+        # then change minNjet put in cfg to be 1 greater than the highest masked Njet
+        maxMaskedNjet = max(mask_njet)
+        adjustedMinNjet = minNjet
+        if maxMaskedNjet >= minNjet:
+            adjustedMinNjet = maxMaskedNjet+1
+            
+        f.write("   minNjet = %d \n" %adjustedMinNjet)
         f.write("   maxNjet = %d \n" %maxNjet)
 
         i = 0
@@ -96,7 +103,7 @@ def main():
         i = 0
         for var in allVars:
 
-            f.write("   mvaVar[%d] = %s \n" %(i,var))
+            f.write("   mvaVar[%d] = \"%s\" \n" %(i,var))
             i += 1
 
         f.write("}\n")
