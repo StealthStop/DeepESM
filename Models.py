@@ -44,11 +44,6 @@ def main_model(config, trainData, trainDataTT):
    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
    third_output = K.layers.Dense(trainData["domain"].shape[1], activation='softmax', name='third_output')(layer)
 
-   trainable_corr = TrainableLayer(name="correlation_layer")(corr)
-   trainable_disc = TrainableLayer(name="disc_comb_layer")(disc_comb)
-   trainable_reg  = TrainableLayer(name="reg_layer")(fourth_output)
-   trainable_gr   = TrainableLayer(name="gr_layer")(third_output)
-
    model = K.models.Model(inputs=main_input, outputs=[disc_comb, third_output, corr, fourth_output], name='model')
    return model, optimizer
 
