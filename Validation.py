@@ -1319,7 +1319,7 @@ class Validation:
 
             #for rank in ["first", "second", "third", "fourth"]: self.plotAccVsEpoch('%s_output_loss'%(rank), 'val_%s_output_loss'%(rank), '%s output loss'%(rank), '%s_output_loss_train_val'%(rank))        
             self.plotAccVsEpoch('correlation_layer_loss', 'val_correlation_layer_loss', 'correlation_layer output loss', 'correlation_layer_loss_train_val')
-            self.plotAccVsEpoch('disc_comb_layer_loss', 'val_correlation_layer_loss', 'correlation_layer output loss', 'correlation_layer_loss_train_val')
+            self.plotAccVsEpoch('disc_comb_layer_loss', 'val_disc_comb_layer_loss', 'disc_comb_layer output loss', 'disc_comb_layer_loss_train_val')
        
         # Plot disc per njet
         self.plotDiscPerNjet("_Disc1", {"Bg": [self.Bg, y_Xval_Bg_disc1, self.Bg["Weight"]], "Sg": [self.Sg, y_Xval_Sg_disc1, self.Sg["Weight"]]}, sigMask, nBins=nBins)

@@ -198,15 +198,23 @@ class DataGetter:
         #npyMassesFilter[npyMassesFilter == 173.0] = 0.0
 
         dnjets = {}
+        njetBinCounts = {"6" : 0, "7" : 0, "8" : 0, "9" : 0, "10" : 0, "11" : 0, "12" : 0, "13" : 0, "14" : 0, "15" : 0, "16" : 0, "17" : 0, "18" : 0, "19" : 0, "20" : 0}
         for mass in masses:
             npyNjetsFilter = df[combMaskNjets & (df["mass"]==mass)][njetsNames].values
             unique, counts = np.unique(npyNjetsFilter, return_counts=True)
             NjetsDict = dict(zip(unique, counts))
             for Njets, c in NjetsDict.items():
+                njetBinCounts[str(int(Njets))] += c
                 if mass == 173.0: dnjets[Njets] = c
                 else:             dnjets[mass+Njets] = c
 
+        totalRelevantEvents = 0
+        for Njets in range(6, 21):
+            if Njets not in njetsMask:
+                totalRelevantEvents += njetBinCounts[str(Njets)]
 
+        print("Total non-masked events to train on: %d"%(totalRelevantEvents))
+            
         npyModels = df[modelNames].values
         npyMasses = df[massNames].values
         npyMassesReco = df[recoMassNames].values
