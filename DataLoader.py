@@ -192,7 +192,6 @@ class DataLoader(K.utils.Sequence):
     
     def importData(self):
     
-        print("CALLING IMPORTDATA !!!")
         # Load events from the inputs ROOT files
         # and store them in pandas dataframes temporarily
         variables = self.getList()
