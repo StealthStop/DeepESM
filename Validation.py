@@ -488,7 +488,6 @@ class Validation:
                 # signal fraction in B, C, and D regions is < 10%
                 # total background fraction in A is greater than 5%
 
-                #if tempbfracA > minFracB:
                 if tempbfracA > minFracBkg and \
                    tempbfracB > minFracBkg and \
                    tempbfracC > minFracBkg and \
@@ -1101,10 +1100,6 @@ class Validation:
         
         plt.xticks(Njets)
 
-        #ax2.errorbar(binCenters, abcdPull, yerr=None,        xerr=xErr, fmt='', color="blue",  lw=0, elinewidth=2, marker="o", markerfacecolor="blue")
-        #ax2.axhline(y=0.0, color="black", linestyle="dashed", lw=1)
-        #ax2.grid(color="black", which="major", axis="y")
-        
         ax2.errorbar(binCenters, abcdError, yerr=None,        xerr=xErr, fmt='', color="blue",  lw=0, elinewidth=2, marker="o", markerfacecolor="blue")
         ax2.axhline(y=0.0, color="black", linestyle="dashed", lw=1)
         ax2.grid(color="black", which="both", axis="y")
@@ -1113,11 +1108,9 @@ class Validation:
         
         ax2.set_xlabel('Number of jets')
         ax2.set_ylabel('1 - Pred./Obs.', fontsize="small")
-        #ax2.set_ylabel('(Pred. - Obs.) / $\delta$')
         ax1.set_ylabel('Unweighted Event Counts')
         ax1.legend(loc='best')
         
-        #ax2.set_ylim([-5.9, 5.9])
         ax2.set_ylim([-1.6, 1.6])
         
         fig.savefig(self.config["outputDir"]+"/Njets_Region_A_PredVsActual.pdf")
@@ -1278,7 +1271,6 @@ class Validation:
         nBins = 20
         nBinsReg = 100
         masses = [350., 550., 850., 1150.]
-        #masses = [1250.]
 
         colors = ["red", "green", "blue", "magenta", "cyan"]; labels = ["Bg Train", "Bg Val"]
 
@@ -1396,14 +1388,6 @@ class Validation:
             bkgdNjetsSign = []
             bkgdCorrs = []
             
-            # Training with systs
-            #c1vals = {7 : "0.50", 8 : "0.62", 9 : "0.70", 10 : "0.78", 11 : "0.82"}
-            #c2vals = {7 : "0.58", 8 : "0.64", 9 : "0.68", 10 : "0.68", 11 : "0.70"}
-
-            # Training just with POWHEG
-            #c1vals = {7 : "0.62", 8 : "0.78", 9 : "0.82", 10 : "0.88", 11 : "0.88"}
-            #c2vals = {7 : "0.72", 8 : "0.70", 9 : "0.76", 10 : "0.76", 11 : "0.82"}
-
             aveClosure = []; stdClosure = []
 
             for NJets in NJetsRange:
@@ -1436,9 +1420,6 @@ class Validation:
                 self.config["stdClosureNjets%s"%(NJets)] = float(tempStdClose)
 
                 bkgdNjetsSign.append(significance)
-
-                #c1 = c1vals[NJets]
-                #c2 = c2vals[NJets]
 
                 if c1 == -1.0 or c2 == -1.0:
                     bkgdNjets["A"].append(0.0); sigNjets["A"].append(0.0)

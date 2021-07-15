@@ -1,7 +1,6 @@
 #!/bin/env python
 import os
 import json
-from glob import glob
 import time
 import shutil
 import argparse
@@ -22,6 +21,7 @@ from Correlation import Correlation as cor
 from DataLoader import DataLoader
 from Models import main_model
 from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
+from glob import glob
 
 class Train:
     def __init__(self, USER, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", valMass=500, valModel="RPV_SYY_SHH", year = "2016_2017_2018", tree = "myMiniTree", maskNjet = [-1], procCats=False, massCats=False, njetsCats=False):
@@ -504,24 +504,24 @@ class Train:
 if __name__ == '__main__':
     usage = "usage: %prog [options]"
     parser = argparse.ArgumentParser(usage)
-    parser.add_argument("--quickVal",        dest="quickVal",        help="Do quick validation",            action="store_true", default=False) 
-    parser.add_argument("--reweight",        dest="reweight",        help="Do event reweighting",           action="store_true", default=False) 
-    parser.add_argument("--json",            dest="json",            help="JSON config file",               default="NULL"                    ) 
-    parser.add_argument("--minMass",         dest="minMass",         help="Minimum stop mass to train on",  default=300                       )
-    parser.add_argument("--maxMass",         dest="maxMass",         help="Maximum stop mass to train on",  default=1400                      ) 
-    parser.add_argument("--valMass",         dest="valMass",         help="Stop mass to validate on",       default=500                       ) 
-    parser.add_argument("--valModel",        dest="valModel",        help="Signal model to validate on",    default="RPV_SYY_SHH"             ) 
-    parser.add_argument("--model",           dest="model",           help="Signal model to train on",       type=str, default="RPV_SYY_SHH"   ) 
-    parser.add_argument("--replay",          dest="replay",          help="Replay saved model",             action="store_true", default=False) 
-    parser.add_argument("--year",            dest="year",            help="Year(s) to train on",            type=str, default="2016_2017_2018") 
-    parser.add_argument("--tree",            dest="tree",            help="myMiniTree to train on",         default="myMiniTree"              )
-    parser.add_argument("--saveAndPrint",    dest="saveAndPrint",    help="Save pb and print model",        action="store_true", default=False)
-    parser.add_argument("--seed",            dest="seed",            help="Use specific seed",              type=int, default=-1              )
-    parser.add_argument("--debug",           dest="debug",           help="Do some debugging",              action="store_true", default=False)
-    parser.add_argument("--maskNjet",        dest="maskNjet",        help="mask Njet bin/bins in training", default=[-1], nargs="+", type=int )
-    parser.add_argument("--procCats",        dest="procCats",        help="Balance batches bkg/sig",      default=False, action="store_true" )
-    parser.add_argument("--massCats",        dest="massCats",        help="Balance batches among masses", default=False, action="store_true" )
-    parser.add_argument("--njetsCats",       dest="njetsCats",       help="Balance batches among njets",  default=False, action="store_true" )
+    parser.add_argument("--quickVal",     dest="quickVal",     help="Do quick validation",            action="store_true", default=False) 
+    parser.add_argument("--reweight",     dest="reweight",     help="Do event reweighting",           action="store_true", default=False) 
+    parser.add_argument("--json",         dest="json",         help="JSON config file",               default="NULL"                    ) 
+    parser.add_argument("--minMass",      dest="minMass",      help="Minimum stop mass to train on",  default=300                       )
+    parser.add_argument("--maxMass",      dest="maxMass",      help="Maximum stop mass to train on",  default=1400                      ) 
+    parser.add_argument("--valMass",      dest="valMass",      help="Stop mass to validate on",       default=500                       ) 
+    parser.add_argument("--valModel",     dest="valModel",     help="Signal model to validate on",    default="RPV_SYY_SHH"             ) 
+    parser.add_argument("--model",        dest="model",        help="Signal model to train on",       type=str, default="RPV_SYY_SHH"   ) 
+    parser.add_argument("--replay",       dest="replay",       help="Replay saved model",             action="store_true", default=False) 
+    parser.add_argument("--year",         dest="year",         help="Year(s) to train on",            type=str, default="2016_2017_2018") 
+    parser.add_argument("--tree",         dest="tree",         help="myMiniTree to train on",         default="myMiniTree"              )
+    parser.add_argument("--saveAndPrint", dest="saveAndPrint", help="Save pb and print model",        action="store_true", default=False)
+    parser.add_argument("--seed",         dest="seed",         help="Use specific seed",              type=int, default=-1              )
+    parser.add_argument("--debug",        dest="debug",        help="Do some debugging",              action="store_true", default=False)
+    parser.add_argument("--maskNjet",     dest="maskNjet",     help="mask Njet bin/bins in training", default=[-1], nargs="+", type=int )
+    parser.add_argument("--procCats",     dest="procCats",     help="Balance batches bkg/sig",        default=False, action="store_true")
+    parser.add_argument("--massCats",     dest="massCats",     help="Balance batches among masses",   default=False, action="store_true")
+    parser.add_argument("--njetsCats",    dest="njetsCats",    help="Balance batches among njets",    default=False, action="store_true")
 
     args = parser.parse_args()
 
@@ -553,7 +553,7 @@ if __name__ == '__main__':
         with open(str(args.json), "r") as f:
             hyperconfig = json.load(f)
     else: 
-        hyperconfig = {"atag" : "best_twsysts_amsgrad", "disc_lambda": 2.0, "bkg_disco_lambda": 1000.0, "sig_disco_lambda" : 0.0, "mass_reg_lambda": 0.001, "abcd_close_lambda" : 2.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs":10, "default_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 1.0}
+        hyperconfig = {"atag" : "TEST", "disc_lambda": 2.0, "bkg_disco_lambda": 1000.0, "sig_disco_lambda" : 0.0, "mass_reg_lambda": 0.001, "abcd_close_lambda" : 2.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs":10, "default_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 1.0}
 
     t = Train(USER, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.model, valMass=args.valMass, valModel=args.valModel, year=args.year, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
 
