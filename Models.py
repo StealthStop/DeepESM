@@ -1,99 +1,53 @@
 import tensorflow.keras as K
-from flipGradientTF2 import GradientReversal 
+from CustomOptimizer import CustomAdam
 
-def main_model(config, trainData, trainDataTT):
-   optimizer = K.optimizers.Adam(lr=config["lr"], beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
-   n_hidden_layers = list(config["nNodes"] for x in range(config["nHLayers"]))
-   n_hidden_layers_M = list(config["nNodesM"] for x in range(config["nHLayersM"]))
-   n_hidden_layers_D = list(config["nNodesD"] for x in range(config["nHLayersD"]))
+def main_model(config, scales, means, regShape, discoShape, inputShape):
+   theOptimizer = AdamMultiplier(learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8, decay=0.0, amsgrad=True, config=config)
 
-   main_input = K.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
+   n_hidden_layers = list(config["disc_nodes"] for x in range(config["disc_layers"]))
+   n_hidden_layers_M = list(config["mass_reg_nodes"] for x in range(config["mass_reg_layers"]))
+
+   main_input = K.layers.Input(shape=(inputShape,), name='main_input')
    # Set the rescale inputs to have unit variance centered at 0 between -1 and 1
-   layer = K.layers.Lambda(lambda x: (x - K.backend.constant(trainDataTT["mean"])) * K.backend.constant(trainDataTT["scale"]), name='normalizeData')(main_input)
+   layer = K.layers.Lambda(lambda x: (x - K.backend.constant(means)) * K.backend.constant(scales), name='normalizeData')(main_input)
+   iD = 0
    for n in n_hidden_layers:
-       layer = K.layers.Dense(n, activation='relu')(layer)
-   layerSplit = K.layers.Dense(config["nNodes"], activation='relu')(layer)
+       layer = K.layers.Dense(n, activation='relu', name="disc_%d"%(iD))(layer)
+       iD += 1
+   layerSplit = K.layers.Dense(config["disc_nodes"], activation='relu', name="disc_%d"%(iD))(layer)
 
-   layer = K.layers.BatchNormalization()(layerSplit)        
+   iD += 1
+   layer = K.layers.BatchNormalization(name="disc_%d"%(iD))(layerSplit)        
+   iM = 0
    for n in n_hidden_layers_M:
-       layer = K.layers.Dense(n, activation='relu')(layer)
-   layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
-   fourth_output = K.layers.Dense(trainData["massesReco"].shape[1], activation=None, name='fourth_output')(layer)
+       layer = K.layers.Dense(n, activation='relu', name="mass_reg_%d"%(iM))(layer)
+       iM += 1
+   layer = K.layers.Dropout(config["dropout"],seed=config["seed"])(layer)
+   mass_reg = K.layers.Dense(regShape, activation=None, name='mass_reg')(layer)
 
-   layerSplit = K.layers.concatenate([layerSplit, fourth_output], name='concat_mass_layer')
+   layerSplit = K.layers.concatenate([layerSplit, mass_reg], name='concat_mass_layer')
        
-   layer = K.layers.BatchNormalization()(layerSplit)
+   iD += 1
+   layer = K.layers.BatchNormalization(name="disc_%d"%(iD))(layerSplit)
    for n in n_hidden_layers:
-       layer = K.layers.Dense(n, activation='relu')(layer)
-   layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
-   first_output = K.layers.Dense(trainData["labels"].shape[1], activation='softmax', name='first_output')(layer)
+       iD += 1
+       layer = K.layers.Dense(n, activation='relu', name="disc_%d"%(iD))(layer)
+   layer = K.layers.Dropout(config["dropout"],seed=config["seed"])(layer)
+
+   iD += 1
+   first_output = K.layers.Dense(discoShape, activation='softmax', name='disc_%d'%(iD))(layer)
 
    layer = K.layers.BatchNormalization()(layerSplit)        
    for n in n_hidden_layers:
-       layer = K.layers.Dense(n, activation='relu')(layer)
-   layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
-   second_output = K.layers.Dense(trainData["labels"].shape[1], activation='softmax', name='second_output')(layer)
+       iD += 1
+       layer = K.layers.Dense(n, activation='relu', name="disc_%d"%(iD))(layer)
+   layer = K.layers.Dropout(config["dropout"],seed=config["seed"])(layer)
 
-   disc_comb = K.layers.concatenate([first_output, second_output], name='disc_comb_layer')
-   corr = K.layers.concatenate([first_output, second_output], name='correlation_layer')
+   iD += 1
+   second_output = K.layers.Dense(discoShape, activation='softmax', name='disc_%d'%(iD))(layer)
 
-   layer = GradientReversal()(corr)
-   layer = K.layers.BatchNormalization()(layer)
-   for n in n_hidden_layers_D:
-       layer = K.layers.Dense(n, activation='relu')(layer)
-   layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
-   third_output = K.layers.Dense(trainData["domain"].shape[1], activation='softmax', name='third_output')(layer)
+   disc = K.layers.concatenate([first_output, second_output], name='disc')
+   disco = K.layers.concatenate([first_output, second_output], name='disco')
 
-   model = K.models.Model(inputs=main_input, outputs=[disc_comb, third_output, corr, fourth_output], name='model')
-   return model, optimizer
-
-def model_doubleDisco(config, trainData, trainDataTT):
-    optimizer = K.optimizers.Adam(lr=config["lr"], beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
-    n_hidden_layers = list(config["nNodes"] for x in range(config["nHLayers"]))
-    n_hidden_layers_D = list(config["nNodesD"] for x in range(config["nHLayersD"]))
-
-    main_input = K.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
-    # Set the rescale inputs to have unit variance centered at 0 between -1 and 1
-    layer = K.layers.Lambda(lambda x: (x - K.backend.constant(trainDataTT["mean"])) * K.backend.constant(trainDataTT["scale"]), name='normalizeData')(main_input)
-    for n in n_hidden_layers:
-        layer = K.layers.Dense(n, activation='relu')(layer)
-    layerSplit = K.layers.Dense(config["nNodes"], activation='relu')(layer)
-            
-    layer = K.layers.BatchNormalization()(layerSplit)
-    for n in n_hidden_layers:
-        layer = K.layers.Dense(n, activation='relu')(layer)
-    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
-    first_output = K.layers.Dense(trainData["labels"].shape[1], activation='softmax', name='first_output')(layer)
-
-    layer = K.layers.BatchNormalization()(layerSplit)        
-    for n in n_hidden_layers:
-        layer = K.layers.Dense(n, activation='relu')(layer)
-    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
-    second_output = K.layers.Dense(trainData["labels"].shape[1], activation='softmax', name='second_output')(layer)
-
-    corr = K.layers.concatenate([first_output, second_output], name='correlation_layer')
-    layer = GradientReversal()(corr)
-    layer = K.layers.BatchNormalization()(layer)
-    for n in n_hidden_layers_D:
-        layer = K.layers.Dense(n, activation='relu')(layer)
-    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
-    third_output = K.layers.Dense(trainData["domain"].shape[1], activation='softmax', name='third_output')(layer)
-            
-    model = K.models.Model(inputs=main_input, outputs=[first_output, second_output, third_output, corr], name='model')
-    return model, optimizer
-
-def model_reg(config, trainData, trainDataTT):
-    optimizer = K.optimizers.Adam(lr=config["lr"], beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
-    n_hidden_layers_M = list(config["nNodesM"] for x in range(config["nHLayersM"]))
-
-    main_input = K.layers.Input(shape=(trainData["data"].shape[1],), name='main_input')
-    # Set the rescale inputs to have unit variance centered at 0 between -1 and 1
-    layer = K.layers.Lambda(lambda x: (x - K.backend.constant(trainDataTT["mean"])) * K.backend.constant(trainDataTT["scale"]), name='normalizeData')(main_input)
-    for n in n_hidden_layers_M:
-        layer = K.layers.Dense(n, activation='relu')(layer)
-    layer = K.layers.Dropout(config["drop_out"],seed=config["seed"])(layer)
-    first_output = K.layers.Dense(trainData["masses"].shape[1], activation=None, name='first_output')(layer)
-
-    model = K.models.Model(inputs=main_input, outputs=first_output, name='model')
-    return model, optimizer
-    
+   model = K.models.Model(inputs=main_input, outputs=[disc, disco, mass_reg], name='model')
+   return model, theOptimizer
