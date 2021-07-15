@@ -17,10 +17,10 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
-from ValidationDataLoader import Validation
+from Validation import Validation
 from Correlation import Correlation as cor
 from DataLoader import DataLoader
-from ModelsDataLoader import main_model
+from Models import main_model
 from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
 
 class Train:
