@@ -101,7 +101,6 @@ class Train:
         else: 
             # Train on default tt POWHEG
             TT_2016 = ["2016_TT_?_", "2016_TT_??_", "2016_TT_???_"]
-            #TT_2016 = ["2016_TT_?_"]
 
         if debug:
             TT_2016 = ["2016_TT_0_"]
@@ -182,7 +181,6 @@ class Train:
         self.config["signal"]        = Signal
         self.config["signalVal"]     = SignalVal
         self.config["bkgdShift"]     = ("TT", TT_2016)
-        #self.config["dataSet"]       = "2016_DisCo_0l_1l_WP0.98_05.05.2021/"
         self.config["dataSet"]       = "2016_NN_0l_1l/"
         self.config["doBgWeight"]    = True
         self.config["doSgWeight"]    = True
@@ -480,7 +478,7 @@ class Train:
         val = Validation(model, self.config, result_log)
 
         metric = val.makePlots(self.doQuickVal, self.config["valMass"], self.config["valModel"])
-        #del val
+        del val
         
         #Clean up training
         del model

@@ -2,7 +2,7 @@ import tensorflow.keras as K
 from CustomOptimizer import CustomAdam
 
 def main_model(config, scales, means, regShape, discoShape, inputShape):
-   theOptimizer = AdamMultiplier(learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8, decay=0.0, amsgrad=True, config=config)
+   theOptimizer = CustomAdam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8, decay=0.0, amsgrad=True, config=config)
 
    n_hidden_layers = list(config["disc_nodes"] for x in range(config["disc_layers"]))
    n_hidden_layers_M = list(config["mass_reg_nodes"] for x in range(config["mass_reg_layers"]))
