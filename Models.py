@@ -2,7 +2,7 @@ import tensorflow.keras as K
 from CustomOptimizer import CustomAdam
 
 def main_model(config, scales, means, regShape, discoShape, inputShape):
-   theOptimizer = CustomAdam(mass_reg_learning_rate=config["mass_reg_lr"], disc_learning_rate=config["disc_lr"], default_learning_rate=config["default_lr"],
+   theOptimizer = CustomAdam(mass_reg_lr=config["mass_reg_lr"], disc_lr=config["disc_lr"], default_lr=config["default_lr"],
                              mass_reg_beta_1=0.9, mass_reg_beta_2=0.999, disc_beta_1=0.9, disc_beta_2=0.999, 
                              default_beta_1=0.9, default_beta_2=0.999, epsilon=1e-8, amsgrad=True)
 
