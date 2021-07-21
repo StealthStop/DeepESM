@@ -134,24 +134,33 @@ class DataLoader(K.utils.Sequence):
         if len(self.datasets[process]) == 0:
             raise IndexError("No sample in samplesToRun")
         for filename in self.datasets[process]:
-            try:
-                f = uproot.open(filename)
-                model = None
-                if   "RPV" in filename: model = 100 
-                elif "SYY" in filename: model = 101
-                elif "SHH" in filename: model = 102
-                else:                   model = 0 
-    
-                pdf = f[self.config["tree"]].pandas.df()
-                pdf.insert(0, "model", model)
-                dsets.append( pdf )
-                f.close()
-            except Exception as e:
-                print("Warning: \"%s\" has issues" % filename, e)
-                continue
+            for suffix in ["", "JECup", "JECdown", "JERup", "JERdown"]:
+                try:
+                    f = uproot.open(filename)
+                    pdf = f[self.config["tree"]+suffix].pandas.df()
+
+                    model = None
+                    if   "RPV" in filename: model = 100 
+                    elif "SYY" in filename: model = 101
+                    elif "SHH" in filename: model = 102
+                    else:                   model = 0 
+
+                    pdf.insert(0, "model", model)
+
+                    columns = list(pdf.columns)
+                    newColumns = {header : header.replace(suffix, "") for header in columns}
+                    pdf.rename(columns=newColumns)
+
+                    dsets.append( pdf )
+                    f.close()
+                except Exception as e:
+                    #print("Skipping tree \"%s\" !" %(self.config["tree"]+suffix) , e)
+                    continue
         return dsets
 
     # This special function is called per-batch and constructs the batch
+    # Based on how many background and signal events should appear as well as the 
+    # different categories specified.
     def __getitem__(self, index):
 
         batchInputs   = np.empty([1,1]) 
@@ -164,10 +173,8 @@ class DataLoader(K.utils.Sequence):
             batchIndices = None; factor = -1
             if "BKG" in mnjet or ("EVTS" in mnjet and "_0" in mnjet):
                 factor = self.bkgSampleFactor
-                #print(mnjet, self.bkgSampleFactor)
             else:
                 factor = self.sigSampleFactor
-                #print(mnjet, self.sigSampleFactor)
 
             # Determine and get random indices to grab events for the batch
             if factor > data["domain"].shape[0]:

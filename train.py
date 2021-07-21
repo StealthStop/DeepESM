@@ -234,33 +234,14 @@ class Train:
             d1 = g.uniform(shape=(), minval=0.0, maxval=1.0)
             d2 = g.uniform(shape=(), minval=0.0, maxval=1.0)
 
-            #tf.print("d1:", d1, output_stream=sys.stdout)
-            #tf.print("d2:", d2, output_stream=sys.stdout)
-
-            #tf.print("val_1_bg:", val_1_bg, output_stream=sys.stdout)
-            #tf.print("val_1_bg - d1:", val_1_bg-d1, output_stream=sys.stdout)
-            #tf.print("10e0*(val_1_bg - d1):", 10e0*(val_1_bg-d1), output_stream=sys.stdout)
-            #tf.print("tf.sigmoid(10e0*(val_1_bg - d1):", tf.sigmoid(10e0*(val_1_bg-d1)), output_stream=sys.stdout)
-
             nbA = tf.reduce_sum(tf.sigmoid(10e1*(val_1_bg-d1))*tf.sigmoid(10e1*(val_2_bg-d2)))
             nbB = tf.reduce_sum(tf.sigmoid(10e1*(val_2_bg-d2))) - nbA
             nbC = tf.reduce_sum(tf.sigmoid(10e1*(val_1_bg-d1))) - nbA
             nbD = 2.0*tf.reduce_sum(tf.sigmoid(0.0*val_1_bg)) - nbA - nbB - nbC
 
-            #tf.print("nbAsigm", nbA, output_stream=sys.stdout)
-            #tf.print("nbBsigm", nbB, output_stream=sys.stdout)
-            #tf.print("nbCsigm", nbC, output_stream=sys.stdout)
-            #tf.print("nbDsigm", nbD, output_stream=sys.stdout)
-           
             nbApred = tf.cond(nbD == tf.constant(0.0, dtype=tf.float32), lambda: nbA, lambda: nbB*nbC/nbD)
             frac = tf.cond(nbApred*nbA == tf.constant(0.0, dtype=tf.float32), lambda: tf.constant(0.0, dtype=tf.float32), lambda: abs(nbApred - nbA)/nbApred)
 
-            #tf.print("nbA", nbA, output_stream=sys.stdout)
-            #tf.print("nbApred", nbApred, output_stream=sys.stdout)
-            #tf.print("nbB", nbB, output_stream=sys.stdout)
-            #tf.print("nbC", nbC, output_stream=sys.stdout)
-            #tf.print("nbD", nbD, output_stream=sys.stdout)
-            #tf.print("frac", frac, output_stream=sys.stdout)
             return c3 * frac + c1 * cor.distance_corr(temp1, temp2, normedweight_bg, 1) + c2 * cor.distance_corr(val_1_sg, val_2_sg, normedweight_sg, 1)
         return discoLoss
 
@@ -559,7 +540,7 @@ if __name__ == '__main__':
         with open(str(args.json), "r") as f:
             hyperconfig = json.load(f)
     else: 
-        hyperconfig = {"atag" : "test_twsysts_amsgrad", "disc_lambda": 2.0, "bkg_disco_lambda": 1000.0, "sig_disco_lambda" : 0.0, "mass_reg_lambda": 0.001, "abcd_close_lambda" : 2.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs":10, "default_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 100.0}
+        hyperconfig = {"atag" : "test_twsysts_amsgrad", "disc_lambda": 2.0, "bkg_disco_lambda": 1000.0, "sig_disco_lambda" : 0.0, "mass_reg_lambda": 0.001, "abcd_close_lambda" : 2.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs":10, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 100.0}
 
     t = Train(USER, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.model, valMass=args.valMass, valModel=args.valModel, year=args.year, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
 

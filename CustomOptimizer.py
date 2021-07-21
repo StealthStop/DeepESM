@@ -10,9 +10,9 @@ class CustomAdam(Adam):
     # and decay parameters for specified parts of a neural network model
     # Thus, an lr, beta_1, and beta_2 are provided for the mass regression component
     # and then for disc components. Default values are also provided for all other components
-    def __init__(self, mass_reg_lr=1.0, disc_lr=0.001, default_lr=0.001,
+    def __init__(self, mass_reg_lr=1.0, disc_lr=0.001, other_lr=0.001,
                        mass_reg_beta_1=0.9, mass_reg_beta_2=0.999, disc_beta_1=0.9, disc_beta_2=0.999, 
-                       default_beta_1=0.9, default_beta_2=0.999, epsilon=1e-8, amsgrad=False, **kwargs):
+                       other_beta_1=0.9, other_beta_2=0.999, epsilon=1e-8, amsgrad=False, **kwargs):
 
         super().__init__(name = "CustomAdam", **kwargs)
 
@@ -25,9 +25,9 @@ class CustomAdam(Adam):
         self._set_hyper('disc_beta_1', disc_beta_1)
         self._set_hyper('disc_beta_2', disc_beta_2)
 
-        self._set_hyper("default_lr", default_lr)
-        self._set_hyper('default_beta_1', default_beta_1)
-        self._set_hyper('default_beta_2', default_beta_2)
+        self._set_hyper("other_lr", other_lr)
+        self._set_hyper('other_beta_1', other_beta_1)
+        self._set_hyper('other_beta_2', other_beta_2)
 
         self.epsilon = epsilon
         self.amsgrad = amsgrad
@@ -75,7 +75,7 @@ class CustomAdam(Adam):
     # a model variable tuple to a dictionary that will contain
     # information related to the learning rate-related hyperparmeters.
     # E.g. each layer (kernel/bias/etc) specified in the model will appear in the var list
-    # therefore, the dictionary maps the unique layer name, GPU device, and type to
+    # therefore, the dictionary maps the unique layer name, GPU device, and variable type
     # to the learning rate hyperparams to keep track of them as Adam updates/uses them
     # during training.
     def _prepare(self, var_list):
