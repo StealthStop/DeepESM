@@ -108,7 +108,7 @@ class CustomAdam(Adam):
         component = "_".join(splits[:-1])
 
         if component not in ["disc", "mass_reg"]:
-            component = "default"
+            component = "other"
 
         local_step   = math_ops.cast(self.iterations + 1, var_dtype)
         beta_1_t     = array_ops.identity(self._get_hyper('%s_beta_1'%(component), var_dtype))
