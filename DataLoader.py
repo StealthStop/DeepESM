@@ -139,14 +139,6 @@ class DataLoader(K.utils.Sequence):
                     f = uproot.open(filename)
                     pdf = f[self.config["tree"]+suffix].pandas.df()
 
-                    model = None
-                    if   "RPV" in filename: model = 100 
-                    elif "SYY" in filename: model = 101
-                    elif "SHH" in filename: model = 102
-                    else:                   model = 0 
-
-                    pdf.insert(0, "model", model)
-
                     columns = list(pdf.columns)
                     newColumns = {header : header.replace(suffix, "") for header in columns}
                     pdf.rename(columns=newColumns)
@@ -235,6 +227,27 @@ class DataLoader(K.utils.Sequence):
         massDict = dict(zip(unique, counts))
 
         # Get a dictionary with process mapped to number of events
+        # The "model" field of the dataframe is utilized as follows:
+        # Nominal           POWHEG ttbar - 0
+        # erdOn             POWHEG ttbar - 1
+        # hdampUp           POWHEG ttbar - 2
+        # hdampDown         POWHEG ttbar - 3
+        # underlyingEvtUp   POWHEG ttbar - 4
+        # underlyingEvtDown POWHEG ttbar - 5
+        # fsrUp             POWHEG ttbar - 2
+        # fsrDown           POWHEG ttbar - 3
+        # isrUp             POWHEG ttbar - 4
+        # isrDown           POWHEG ttbar - 5
+
+        # RPV signal - 100
+        # SYY signal - 101
+        # SHH signal - 102
+
+        # JECup   - (add 10)
+        # JECdown - (add 20)
+        # JERup   - (add 30)
+        # JERdown - (add 40)
+
         temp = df[combMaskNjets]["model"].values
         unique, counts = np.unique(temp, return_counts=True)
         procDict = dict(zip(unique, counts))
