@@ -74,7 +74,6 @@ class Validation:
 
     def getResults(self, output, output_sg, output_bg, outputNum=0, columnNum=0):
         return output[outputNum][:,columnNum].ravel(), output_sg[outputNum][:,columnNum].ravel(), output_bg[outputNum][:,columnNum].ravel()
-        #return output[:,columnNum].ravel(), output_sg[:,columnNum].ravel(), output_bg[:,columnNum].ravel()
 
     # Plot a set of 1D hists together, where the hists, colors, labels, weights
     # are provided as a list argument.

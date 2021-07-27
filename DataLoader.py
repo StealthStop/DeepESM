@@ -117,7 +117,7 @@ class DataLoader(K.utils.Sequence):
         if self.config["debug"]:
             max_entries = 10
 
-        for suffix in [""]:#, "JECup", "JECdown", "JERup", "JERdown"]:
+        for suffix in ["", "JECup", "JECdown", "JERup", "JERdown"]:
             theVars = [v+suffix if v not in ["mass", "model", "Weight"] else v for v in self.variables]
             for filename in self.datasets[process]:
             

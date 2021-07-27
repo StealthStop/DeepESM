@@ -7,6 +7,7 @@ import argparse
 import datetime
 import numpy as np
 from glob import glob
+import multiprocessing
 import tensorflow as tf
 import tensorflow.keras as K
 
@@ -222,7 +223,7 @@ class Train:
         self.config.update(hyperconfig)
 
         if not os.path.exists(self.logdir): os.makedirs(self.logdir)
-        
+
     # Define loss functions
     def loss_mass_reg(self, c):
         def regLoss(y_true, y_pred):
@@ -587,7 +588,7 @@ if __name__ == '__main__':
         with open(str(args.json), "r") as f:
             hyperconfig = json.load(f)
     else: 
-        hyperconfig = {"atag" : "test2_vpow", "disc_lambda": 2.0, "bkg_disco_lambda": 1000.0, "sig_disco_lambda" : 0.0, "mass_reg_lambda": 0.001, "abcd_close_lambda" : 2.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":10000, "epochs":10, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 100.0}
+        hyperconfig = {"atag" : "test2_vpow", "disc_lambda": 2.0, "bkg_disco_lambda": 1000.0, "sig_disco_lambda" : 0.0, "mass_reg_lambda": 0.001, "abcd_close_lambda" : 2.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs":10, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 100.0}
 
     t = Train(USER, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.model, evalMass=args.evalMass, evalModel=args.evalModel, year=args.year, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
 
