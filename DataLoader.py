@@ -1,10 +1,11 @@
-import uproot
 import time
 import math
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import uproot4 as uproot
 import tensorflow.keras as K
+from time import process_time
 
 class DataLoader(K.utils.Sequence):
 
@@ -14,6 +15,10 @@ class DataLoader(K.utils.Sequence):
 
         self.config = config
         self.datasets = [tuple(backgroundDataSet), tuple(signalDataSet)]
+
+        # We use "variables" to store all needed branches from the inputs
+        # auxVars hold variables used as labels in the network
+        self.variables = self.config["trainVars"] + self.config["auxVars"]
 
         # These sample factor variables store how many events
         # per category should be drawn per batch
@@ -31,20 +36,6 @@ class DataLoader(K.utils.Sequence):
         # For use by the lambda layer when constructing the model
         self.means = None
         self.scales = None
-
-        # Depending on final state, different pt requirements
-        # and resultant objects are used
-        ptCut = "pt30"
-        if "0l" in config["tree"]:
-            ptCut = "pt45"
-
-        # Labels for extracting relevant information from the
-        # dataframes constructed from the inputs ROOT files
-        self.massLabel = "mass"
-        self.domainLabel = "NGoodJets_%s_double"%(ptCut)
-        self.regressionLabel = "stop1_ptrank_mass"
-        self.modelLabel = "model"
-        self.weightLabel = "Weight"
 
         # Keeps track of the number of unique categories for 
         # background and signal. Can depend on mass bins, njets bins
@@ -68,7 +59,7 @@ class DataLoader(K.utils.Sequence):
             mask = (np.ones(d[list(d.keys())[0]].shape[0]))==1
 
             if process != None:
-                mask &= (d["model"]==process)
+                mask &= (d[self.config["modelLabel"]]==process)
 
             if mass != None:
                 mask &= (d["mass"]==mass)
@@ -91,12 +82,6 @@ class DataLoader(K.utils.Sequence):
     def getNumSigEvents(self):
         return float(self.numSigEvents)
     
-    def getList(self):
-        return self.config["allVars"]
-    
-    def getData(self):
-        return self.data
-
     def getDataMeans(self):
         return self.means
 
@@ -106,25 +91,21 @@ class DataLoader(K.utils.Sequence):
     # Returns the shapes of the unique layers output in the NN model
     # Order: Mass regression, Domain (Njets), Double DisCo, Input
     def getShapes(self):
-        return 1, self.config["maxNJetBin"] - self.config["minNJetBin"] + 1, 2, len(self.config["allVars"])
+        return 1, self.config["maxNJetBin"] - self.config["minNJetBin"] + 1, 2, len(self.config["trainVars"])
    
     def getColumnHeaders(self):
         if self.columnHeaders is None:
             try:
                 sample = self.datasets[0][0]                
                 f = uproot.open(sample)
-                self.columnHeaders = f[self.config["tree"]].pandas.df().columns.tolist()
+                theVars = [v for v in self.variables]
+                self.columnHeaders = f[self.config["tree"]].arrays(expressions=theVars, library="np")
                 f.close()
             except IndexError as e:
-                print(e)
-                raise IndexError("No sample in samplesToRun")
+                raise IndexError("Problem getting variable names:", e)
+
         return self.columnHeaders
     
-    def checkVariables(self):
-        for v in self.config["allVars"]:            
-            if not v in self.columnHeaders:
-                raise ValueError("Variable not found in input root file: %s"%v)
-        
     # Process is 0 for background and 1 for signal
     def getDataSets(self, process = -1):
         if process != 0 and process != 1:
@@ -133,20 +114,26 @@ class DataLoader(K.utils.Sequence):
         dsets = []
         if len(self.datasets[process]) == 0:
             raise IndexError("No sample in samplesToRun")
-        for filename in self.datasets[process]:
-            for suffix in ["", "JECup", "JECdown", "JERup", "JERdown"]:
-                try:
-                    f = uproot.open(filename)
-                    pdf = f[self.config["tree"]+suffix].pandas.df()
 
-                    columns = list(pdf.columns)
-                    newColumns = {header : header.replace(suffix, "") for header in columns}
-                    pdf.rename(columns=newColumns)
+        max_entries = None
+        if self.config["debug"]:
+            max_entries = 10
+
+        for suffix in [""]:#, "JECup", "JECdown", "JERup", "JERdown"]:
+            theVars = [v+suffix if v not in ["mass", "model", "Weight"] else v for v in self.variables]
+            for filename in self.datasets[process]:
+            
+                try:
+                    t0 = process_time()
+                    f = uproot.open(filename)
+                    pdf = f[self.config["tree"]+suffix].arrays(expressions=theVars, library="np", entry_stop=max_entries)
+                    t1 = process_time()
+                    print("Loaded \"%s\" from input file \"%s\" in %.3f seconds"%(self.config["tree"]+suffix,filename,t1-t0))
 
                     dsets.append( pdf )
                     f.close()
                 except Exception as e:
-                    #print("Skipping tree \"%s\" !" %(self.config["tree"]+suffix) , e)
+                    print("Skipping tree \"%s\" in file \"%s\" !" %(self.config["tree"]+suffix, filename) , e)
                     continue
         return dsets
 
@@ -179,9 +166,9 @@ class DataLoader(K.utils.Sequence):
                 batchDisCo   = data["label"][batchIndices]
                 initialized = True
             else:
-                batchInputs  = np.append(batchInputs,  data["inputs"][batchIndices], axis=0)
+                batchInputs  = np.append(batchInputs,  data["inputs"][batchIndices],  axis=0)
                 batchMassReg = np.append(batchMassReg, data["massReg"][batchIndices], axis=0)
-                batchDisCo   = np.append(batchDisCo,   data["label"][batchIndices], axis=0)
+                batchDisCo   = np.append(batchDisCo,   data["label"][batchIndices],   axis=0)
 
         return batchInputs, tuple((batchDisCo, batchDisCo, batchMassReg))
 
@@ -193,51 +180,60 @@ class DataLoader(K.utils.Sequence):
     
         # Load events from the inputs ROOT files
         # and store them in pandas dataframes temporarily
-        variables = self.getList()
         self.getColumnHeaders()
-        self.checkVariables()
-        
+
+        df = {} 
+
         bgdsets = self.getDataSets(0)
-        df = pd.concat(bgdsets)
+        for dset in bgdsets:
+            for var, vals in dset.items():
+                cleanVar = var.replace("JERup", "").replace("JECup", "").replace("JERdown", "").replace("JECdown", "")
+
+                if cleanVar in df:
+                    df[cleanVar] = np.concatenate((df[cleanVar],vals)) 
+                else:
+                    df[cleanVar] = vals
 
         sgdsets = self.getDataSets(1)
-        df = df.append(pd.concat(sgdsets))
-        df = df.dropna()
+        for dset in sgdsets:
+            for var, vals in dset.items():
+                cleanVar = var.replace("JERup", "").replace("JECup", "").replace("JERdown", "").replace("JECdown", "")
 
-        # Depending on channel, different pt used for jets and derived quantities
-        ptCut = "pt30"
-        if "0l" in self.config["tree"]:
-            ptCut = "pt45"
-            
+                if cleanVar in df:
+                    df[cleanVar] = np.concatenate((df[cleanVar],vals))
+                else:
+                    df[cleanVar] = vals
+
         # Make a mask for any njets events we do not want to use
         combMaskNjets = None
         if self.config["Mask"]:
             for njets in self.config["Mask_nJet"]:
                 if combMaskNjets == None:
-                    combMaskNjets = (df[self.domainLabel] != njets)
-
+                    combMaskNjets = (df[self.config["domainLabel"]] != njets)
                 else:
-                    combMaskNjets &= (df[self.domainLabel] != njets)
+                    combMaskNjets &= (df[self.config["domainLabel"]] != njets)
         else:
-            combMaskNjets = (df[self.domainLabel] != -1)
+            combMaskNjets = (df[self.config["domainLabel"]] != -1)
 
         # Get a dictionary with mass points mapped to number of events
-        temp = df[combMaskNjets][self.massLabel].values
+        temp = df[self.config["massLabel"]][combMaskNjets]
+
         unique, counts = np.unique(temp, return_counts=True)
         massDict = dict(zip(unique, counts))
 
         # Get a dictionary with process mapped to number of events
         # The "model" field of the dataframe is utilized as follows:
         # Nominal           POWHEG ttbar - 0
-        # erdOn             POWHEG ttbar - 1
-        # hdampUp           POWHEG ttbar - 2
-        # hdampDown         POWHEG ttbar - 3
-        # underlyingEvtUp   POWHEG ttbar - 4
-        # underlyingEvtDown POWHEG ttbar - 5
-        # fsrUp             POWHEG ttbar - 2
-        # fsrDown           POWHEG ttbar - 3
-        # isrUp             POWHEG ttbar - 4
-        # isrDown           POWHEG ttbar - 5
+        #                 MADGRAPH ttbar - 1 
+        # erdOn             POWHEG ttbar - 2
+        # hdampUp           POWHEG ttbar - 3
+        # hdampDown         POWHEG ttbar - 4
+        # underlyingEvtUp   POWHEG ttbar - 5
+        # underlyingEvtDown POWHEG ttbar - 6
+        # fsrUp             POWHEG ttbar - 7
+        # fsrDown           POWHEG ttbar - 8
+        # isrUp             POWHEG ttbar - 9
+        # isrDown           POWHEG ttbar - 10 
 
         # RPV signal - 100
         # SYY signal - 101
@@ -248,38 +244,39 @@ class DataLoader(K.utils.Sequence):
         # JERup   - (add 30)
         # JERdown - (add 40)
 
-        temp = df[combMaskNjets]["model"].values
+        temp = df[self.config["modelLabel"]][combMaskNjets]
+
         unique, counts = np.unique(temp, return_counts=True)
         procDict = dict(zip(unique, counts))
 
         # Calculated the mean and inverse std dev for the input variables
-        self.means = np.mean(df[self.config["allVars"]].astype(float).values, 0)
-        self.scales = 1.0 / np.std(df[self.config["allVars"]].astype(float).values, 0)
+        self.means = [np.mean(v) for k,v in df.items() if k not in self.config["auxVars"]]
+        self.scales = [1.0 / np.std(v) for k,v in df.items() if k not in self.config["auxVars"]]
 
-        self.numBkgEvents = df[combMaskNjets&(df["model"]<100)][self.massLabel].shape[0]
-        self.numSigEvents = df[combMaskNjets&(df["model"]>=100)][self.massLabel].shape[0]
+        self.numBkgEvents = df[self.config["massLabel"]][combMaskNjets&(df[self.config["modelLabel"]]<100)].shape[0]
+        self.numSigEvents = df[self.config["massLabel"]][combMaskNjets&(df[self.config["modelLabel"]]>=100)].shape[0]
 
-        minNJetBin = df[combMaskNjets][self.domainLabel].min()
+        minNJetBin = df[self.config["domainLabel"]][combMaskNjets].min()
         numDomains = int(self.config["maxNJetBin"] + 1 - minNJetBin)
 
         for p in procDict.keys(): 
 
-            pcond = np.ones(df["model"].shape[0]).astype(bool)
-            pcond &= combMaskNjets.values
+            pcond = np.ones(df[self.config["modelLabel"]].shape[0]).astype(bool)
+            pcond &= combMaskNjets
 
             isBackground = (p<100)
 
             process = None
             if not self.config["procCats"]:
                 process = "EVTS"
-                pcond &= (df["model"]>=0)
+                pcond &= (df[self.config["modelLabel"]]>=0)
             else:
                 if isBackground:
                     process = "BKG"
-                    pcond &= (df["model"]<100)
+                    pcond &= (df[self.config["modelLabel"]]<100)
                 else:
                     process = "SIG"
-                    pcond &= (df["model"]>=100)
+                    pcond &= (df[self.config["modelLabel"]]>=100)
 
             for m in massDict.keys():
 
@@ -287,34 +284,34 @@ class DataLoader(K.utils.Sequence):
                 if (m != 173.0 and isBackground) or (m == 173.0 and not isBackground):
                     continue
 
-                mcond = np.ones(df["model"].shape[0]).astype(bool)
+                mcond = np.ones(df[self.config["modelLabel"]].shape[0]).astype(bool)
 
                 # Shift ttbar mass to 0 just for internal simplicity
                 shiftedMass = 0
                 if self.config["massCats"]:
-                    mcond &= ((df[self.massLabel]==m).values)
+                    mcond &= (df[self.config["massLabel"]]==m)
                     if not isBackground: 
                         shiftedMass = int(m)
 
                 for n in np.arange(minNJetBin, self.config["maxNJetBin"]+1, dtype=float):
 
-                    ncond = np.ones(df["model"].shape[0]).astype(bool)
+                    ncond = np.ones(df[self.config["modelLabel"]].shape[0]).astype(bool)
 
                     # Depending on how finely we want to categorize and balance events
                     # The mask to pick out the correct events is defined accordingly
                     if self.config["njetsCats"]:
                         if n == float(self.config["maxNJetBin"]):
-                            ncond &= ((df[self.domainLabel]>=n).values)
+                            ncond &= ((df[self.config["domainLabel"]]>=n))
                         else:
-                            ncond &= ((df[self.domainLabel]==n).values)
+                            ncond &= ((df[self.config["domainLabel"]]==n))
 
                     # Aquire all the needed information from the dataframes and store as numpy arrays
-                    njets  = df[pcond&mcond&ncond][self.domainLabel].values
-                    inputs = df[pcond&mcond&ncond][self.config["allVars"]].values
-                    reg    = df[pcond&mcond&ncond][[self.regressionLabel]].values
-                    massp  = df[pcond&mcond&ncond][self.massLabel].values
-                    weight = df[pcond&mcond&ncond][self.weightLabel].values*self.config["lumi"]
-                    model  = df[pcond&mcond&ncond][self.modelLabel].values
+                    njets  = df[self.config["domainLabel"]][pcond&mcond&ncond]
+                    inputs = np.array([df[v][pcond&mcond&ncond] for v in self.config["trainVars"]]).T
+                    reg    = df[self.config["regressionLabel"]][pcond&mcond&ncond]
+                    massp  = df[self.config["massLabel"]][pcond&mcond&ncond]
+                    weight = df[self.config["weightLabel"]][pcond&mcond&ncond]*self.config["lumi"]
+                    model  = df[self.config["modelLabel"]][pcond&mcond&ncond]
 
                     labelSig   = (model>=100).astype(float)
                     labelBkg   = (model<100).astype(float)
@@ -341,6 +338,7 @@ class DataLoader(K.utils.Sequence):
                         theKey += "_%d"%(int(n))
 
                     perms = np.random.permutation(domain.shape[0])
+
                     if theKey not in self.data:
                         self.data[theKey] = {"domain" : domain[perms], "label" : labelDisCo[perms], "inputs" : inputs[perms], "massReg" : reg[perms], "mass" : massp[perms], "model" : model[perms], "weight" : weight[perms], "njets" : njets[perms]}
                     else:

@@ -6,6 +6,7 @@ import shutil
 import argparse
 import datetime
 import numpy as np
+from glob import glob
 import tensorflow as tf
 import tensorflow.keras as K
 
@@ -15,30 +16,55 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import tensorflow as tf
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
 
 from Validation import Validation
 from Correlation import Correlation as cor
 from DataLoader import DataLoader
 from Models import main_model
-from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
-from glob import glob
+
+from time import process_time
 
 class Train:
-    def __init__(self, USER, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", valMass=500, valModel="RPV_SYY_SHH", year = "2016_2017_2018", tree = "myMiniTree", maskNjet = [-1], procCats=False, massCats=False, njetsCats=False):
+    def __init__(self, USER, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", evalMass=500, evalModel="RPV_SYY_SHH", year = "2016_2017_2018", tree = "myMiniTree", maskNjet = [-1], procCats=False, massCats=False, njetsCats=False):
+
+        host = os.getenv("HOSTNAME")
+        atMN = ".umn." in host
+
         self.user                  = USER
-        self.logdir                = "/storage/local/data1/gpuscratch/%s"%(self.user)
+
+        if not atMN:
+            self.logdir                = "/storage/local/data1/gpuscratch/%s"%(self.user)
+        else: 
+            self.logdir                = "/scratch.global/%s"%(self.user)
+
         self.config                = {}
+        self.config["host"]        = host
         self.config["seed"]        = seed
         self.config["debug"]       = debug
         self.config["minStopMass"] = int(minStopMass)
         self.config["maxStopMass"] = int(maxStopMass)
         self.config["doReweight"]  = doReweight
 
+        # Depending on final state, different pt requirements
+        # and resultant objects are used
+        ptCut = "pt30"
+        if "0l" in tree:
+            ptCut = "pt45"
+
+        # Labels for extracting relevant information from the
+        # dataframes constructed from the inputs ROOT files
+        self.config["massLabel"] = "mass"
+        self.config["domainLabel"] = "NGoodJets_%s_double"%(ptCut)
+        self.config["regressionLabel"] = "stop1_ptrank_mass"
+        self.config["modelLabel"] = "model"
+        self.config["weightLabel"] = "Weight"
+
         self.doQuickVal           = doQuickVal
         self.saveAndPrint         = saveAndPrint
         self.config["trainModel"] = trainModel
-        self.config["valMass"]    = valMass
-        self.config["valModel"]   = valModel
+        self.config["evalMass"]   = evalMass
+        self.config["evalModel"]  = evalModel
         self.config["year"]       = year
         self.config["tree"]       = tree
 
@@ -55,95 +81,95 @@ class Train:
             self.config["maxNJetBin"] = 11
             self.config["verbose"]    = 1
 
-        # mask njet bins for 0l and 1l
+        # Mask njet bins for 0l and 1l
         self.config["Mask_nJet"] = maskNjet
         if -1 in maskNjet:
             self.config["Mask"] = False
         else:
             self.config["Mask"] = True
 
+        # The loader will hold all events used for training
+        # The valLoader will hold 10% of events not used in training
+        # The testLoader will hold remaning 10% of events not directly trained on
+        # The evalLoader will hold events for any sample the user wants to validate the network with
         self.loader = None
         self.valLoader = None
+        self.evalLoader = None
+        self.testLoader = None
 
-        TT_2016     = None; TT_2017     = None; TT_2018     = None
-        TT_2016_val = None; TT_2017_val = None; TT_2018_val = None
+        TT_2016      = None; TT_2017      = None; TT_2018      = None
+        TT_2016_eval = None; TT_2017_eval = None; TT_2018_eval = None
 
-        Signal_2016     = []; Signal_2017     = []; Signal_2018     = []
-        Signal_2016_val = []; Signal_2017_val = []; Signal_2018_val = []
+        Signal_2016      = []; Signal_2017      = []; Signal_2018      = []
+        Signal_2016_eval = []; Signal_2017_eval = []; Signal_2018_eval = []
+
+        self.config["evalBkg"] = None
 
         ################### Samples to train on #####################
-        if "tpowmad" in hyperconfig["atag"]:
-            # Train on POWHEG and MADGRAPH
-            TT_2016 = ["2016_TT_?_", "2016_TT_??_", "2016_TT_???_", "2016_TTJets"]
+        extra = "_[TV]*"
 
-        elif "twsysts" in hyperconfig["atag"]:
-            # Train on POWHEG with systs variations
-            # Using the X and XX numbered files gives the closest number events to the total 300 to 1400 RPV set
-            if "tRPVSYY" in hyperconfig["atag"]:
-                TT_2016 = [
-                            "2016_TT_???_",       "2016_TT_hdampDown_???_", "2016_TT_hdampUp_???_", "2016_TT_underlyingEvtUp_???_", "2016_TT_underlyingEvtDown_???_", 
-                            "2016_TT_erdOn_???_", "2016_TT_isrUp_???_",     "2016_TT_isrDown_???_", "2016_TT_fsrUp_???_",           "2016_TT_fsrDown_???_"
-                ]
- 
-            # Closest number of event when using XXX numbered files for 300 to 1400 RPV+SYY
-            elif "tRPV" in hyperconfig["atag"]:
-                TT_2016 = [
-                            "2016_TT_??_",        "2016_TT_?_",                  "2016_TT_hdampDown_??_",      "2016_TT_hdampDown_?_",          "2016_TT_hdampUp_??_", 
-                            "2016_TT_hdampUp_?_", "2016_TT_underlyingEvtUp_??_", "2016_TT_underlyingEvtUp_?_", "2016_TT_underlyingEvtDown_??_", "2016_TT_underlyingEvtDown_?_", 
-                            "2016_TT_erdOn_??_",  "2016_TT_erdOn_?_",            "2016_TT_isrUp_??_",          "2016_TT_isrUp_?_",              "2016_TT_isrDown_??_", 
-                            "2016_TT_isrDown_?_", "2016_TT_fsrUp_??_",           "2016_TT_fsrUp_?_",           "2016_TT_fsrDown_??_",           "2016_TT_fsrDown_?_"
-                ]
-
-            else:
-                TT_2016 = ["2016_TT_*_"]
-        elif "twfsr" in hyperconfig["atag"]:
-                TT_2016 = ["2016_TT_?_", "2016_TT_??_", "2016_TT_???_", "2016_TT_fsr*_"]
-        else: 
-            # Train on default tt POWHEG
-            TT_2016 = ["2016_TT_?_", "2016_TT_??_", "2016_TT_???_"]
-
-        if debug:
-            TT_2016 = ["2016_TT_0_"]
+        TT_2016 = ["2016_TT*"]
 
         ################### Samples to validate on #####################
-        if "visrd" in hyperconfig["atag"]:
-            TT_2016_val = ["2016_TT_isrDown_"]
-    
-        elif "visru" in hyperconfig["atag"]:
-            TT_2016_val = ["2016_TT_isrUp_"]
-
-        elif "vfsrd" in hyperconfig["atag"]:
-            TT_2016_val = ["2016_TT_fsrDown_"]
-    
-        elif "vfsru" in hyperconfig["atag"]:
-            TT_2016_val = ["2016_TT_fsrUp_"]
-
-        elif "vhdampd" in hyperconfig["atag"]:
-            TT_2016_val = ["2016_TT_hdampDown_"]
-    
-        elif "vhdampu" in hyperconfig["atag"]:
-            TT_2016_val = ["2016_TT_hdampUp_"]
-
-        elif "vued" in hyperconfig["atag"]:
-            TT_2016_val = ["2016_TT_underlyingEvtDown_"]
-    
-        elif "vueu" in hyperconfig["atag"]:
-            TT_2016_val = ["2016_TT_underlyingEvtUp_"]
-
-        elif "verd" in hyperconfig["atag"]:
-            TT_2016_val = ["2016_TT_erdOn_"]
+        if "vpow" in hyperconfig["atag"]:
+            TT_2016_eval = ["2016_TT%s"%(extra)]
+            self.config["evalBkg"] = 0
 
         elif "vmad" in hyperconfig["atag"]:
-            TT_2016_val = ["2016_TTJets_"]
+            TT_2016_eval = ["2016_TTJets%s"%(extra)]
+            self.config["evalBkg"] = 1
 
-        else:
-            TT_2016_val = ["2016_TT_?_", "2016_TT_??_", "2016_TT_???_"]
+        elif "verd" in hyperconfig["atag"]:
+            TT_2016_eval = ["2016_TT_erdOn%s"%(extra)]
+            self.config["evalBkg"] = 2
 
-        for model in valModel.split("_"):
-            valMasses = {"350", "550", "850", "1150"} 
-            valMasses.add(valMass)
-            for mass in valMasses:
-                Signal_2016_val.append("2016*%s*mStop-%s*"%(model,mass))
+        elif "vhdampu" in hyperconfig["atag"]:
+            TT_2016_eval = ["2016_TT_hdampUp%s"%(extra)]
+            self.config["evalBkg"] = 3
+
+        elif "vhdampd" in hyperconfig["atag"]:
+            TT_2016_eval = ["2016_TT_hdampDown%s"%(extra)]
+            self.config["evalBkg"] = 4
+
+        elif "vueu" in hyperconfig["atag"]:
+            TT_2016_eval = ["2016_TT_underlyingEvtUp%s"%(extra)]
+            self.config["evalBkg"] = 5
+
+        elif "vued" in hyperconfig["atag"]:
+            TT_2016_eval = ["2016_TT_underlyingEvtDown%s"%(extra)]
+            self.config["evalBkg"] = 6
+
+        elif "vfsru" in hyperconfig["atag"]:
+            TT_2016_eval = ["2016_TT_fsrUp%s"%(extra)]
+            self.config["evalBkg"] = 7
+
+        elif "vfsrd" in hyperconfig["atag"]:
+            TT_2016_eval = ["2016_TT_fsrDown%s"%(extra)]
+            self.config["evalBkg"] = 8
+
+        elif "visru" in hyperconfig["atag"]:
+            TT_2016_eval = ["2016_TT_isrUp%s"%(extra)]
+            self.config["evalBkg"] = 9
+
+        elif "visrd" in hyperconfig["atag"]:
+            TT_2016_eval = ["2016_TT_isrDown%s"%(extra)]
+            self.config["evalBkg"] = 10
+
+        if "vjcu" in hyperconfig["atag"]:
+            self.config["evalBkg"] += 10
+        elif "vjcd" in hyperconfig["atag"]:
+            self.config["evalBkg"] += 20
+        elif "vjru" in hyperconfig["atag"]:
+            self.config["evalBkg"] += 30
+        elif "vjrd" in hyperconfig["atag"]:
+            self.config["evalBkg"] += 40
+
+        # Add user-requested validation mass point to a pre-defined list
+        for model in evalModel.split("_"):
+            evalMasses = {"350", "550", "850", "1150"} 
+            evalMasses.add(evalMass)
+            for mass in evalMasses:
+                Signal_2016_eval.append("2016*%s*mStop-%s"%(model,mass))
 
         if "0l" in self.config["tree"]:
             TT_2017 = ["2017_TTToHadronic"]
@@ -155,23 +181,17 @@ class Train:
             TT_2017 = ["2017_TTToSemiLeptonic"]
             TT_2018 = ["2018pre_TTToSemiLeptonic"]
 
-        if debug:
-            for model in trainModel.split("_"):
-                Signal_2016 += list("2016*%s*mStop*"%(model)+str(m)+"*_0_*" for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
-                Signal_2017 += list("2017*%s*mStop*"%(model)+str(m)+"*_0_*" for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
-                Signal_2018 += list("2018*%s*mStop*"%(model)+str(m)+"*_0_*" for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
-        else:
-            for model in trainModel.split("_"):
-                Signal_2016 += list("2016*%s*mStop*"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
-                Signal_2017 += list("2017*%s*mStop*"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
-                Signal_2018 += list("2018*%s*mStop*"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
+        for model in trainModel.split("_"):
+            Signal_2016 += list("2016*%s*mStop*"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
+            Signal_2017 += list("2017*%s*mStop*"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
+            Signal_2018 += list("2018*%s*mStop*"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
 
-        TT = []; TTval = []; Signal = []; SignalVal = []; self.config["lumi"] = 0
+        TT = []; TTeval = []; Signal = []; SignalEval = []; self.config["lumi"] = 0
         if "2016" in self.config["year"]: 
             TT                  += TT_2016
-            TTval               += TT_2016_val
+            TTeval              += TT_2016_eval
             Signal              += Signal_2016
-            SignalVal           += Signal_2016_val
+            SignalEval          += Signal_2016_eval
             self.config["lumi"] += 35900
         if "2017" in self.config["year"]:
             TT                  += TT_2017
@@ -183,21 +203,21 @@ class Train:
             self.config["lumi"] += 59800
 
         self.config["bkgd"]          = ("TT", TT)
-        self.config["bkgdVal"]       = ("TTval", TTval)
+        self.config["bkgdEval"]      = ("TTeval", TTeval)
         self.config["signal"]        = Signal
-        self.config["signalVal"]     = SignalVal
+        self.config["signalEval"]    = SignalEval
         self.config["bkgdShift"]     = ("TT", TT_2016)
-        self.config["dataSet"]       = "2016_NN_0l_1l/"
+        self.config["dataSet"]       = "2016_NN_inputs_20210722/"
         self.config["doBgWeight"]    = True
         self.config["doSgWeight"]    = True
         self.config["class_weight"]  = None
         self.config["sample_weight"] = None
         self.config["metrics"]       = ['accuracy']
-        print("Using "+self.config["dataSet"]+" data set")
-        print("Training on signal: ",       self.config["signal"])
-        print("Training on background: ",   self.config["bkgd"][1])
-        print("Validating on signal: ",     self.config["signalVal"])
-        print("Validating on background: ", self.config["bkgdVal"][1])
+        print("Using "+self.config["dataSet"]+" data set\n")
+        print("Training on signal: ",       self.config["signal"], "\n")
+        print("Training on background: ",   self.config["bkgd"][1], "\n")
+        print("Validating on signal: ",     self.config["signalEval"], "\n")
+        print("Validating on background: ", self.config["bkgdEval"][1], "\n")
 
         # Define ouputDir based on input config
         self.makeOutputDir(hyperconfig, replay)
@@ -344,7 +364,7 @@ class Train:
         outputDir += hyperStr + "_" + nodesStr + "_" + layersStr + "_" + learningStr + "_" + otherStr
         d["outputDir"] = outputDir[:-1]
         if os.path.exists(d["outputDir"]) and not replay:
-            print("Removing old training files: ", d["outputDir"])
+            print("Removing old training files: ", d["outputDir"] + "\n")
             shutil.rmtree(d["outputDir"])
 
         if not replay: os.makedirs(d["outputDir"]+"/log_graph")    
@@ -383,13 +403,13 @@ class Train:
             nJets = 6
             label = "_0l"
             theVars = j4Vec + jFlavVec + htVec_0l + fwmVec_0l + jmtVec_0l + stop1OldSeed + stop2OldSeed
-        
+
         else:
             nJets = 7
             label = "_1l"
             theVars = j4Vec + jFlavVec + htVec_1l + fwmVec_1l + jmtVec_1l + stop1OldSeed + stop2OldSeed
 
-        newVars = []
+        newVars = []; auxVars = []
         for var in theVars:
 
             if "Jet_" in var:
@@ -403,28 +423,60 @@ class Train:
 
             else: newVars.append(var)
 
-        self.config["allVars"] = newVars
-
+        self.config["trainVars"] = newVars
+        
+        # We load auxiliary variables that are not to be used as direct inputs
+        # DataLoader handles these separately
+        auxVars.append(self.config["weightLabel"])
+        auxVars.append(self.config["modelLabel"])
+        auxVars.append(self.config["regressionLabel"])
+        auxVars.append(self.config["massLabel"])
+        auxVars.append(self.config["domainLabel"])
+       
+        self.config["auxVars"] = auxVars
 
     def importData(self):
         # Import data
-        print("----------------Preparing data------------------")
+        print("\n----------------Preparing data------------------")
         temp = "*"
 
         #Get Data set used in training and validation
         sgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+mass+temp+"Train.root") for mass in self.config["signal"]) , [])
         bgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Train.root") for bkgd in self.config["bkgd"][1]), [])
+
         sgTestSet  = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+mass+temp+"Test.root")  for mass in self.config["signal"]) , [])
         bgTestSet  = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Test.root")  for bkgd in self.config["bkgd"][1]), [])
-        
-        self.loader    = DataLoader(self.config, sgTrainSet, bgTrainSet)
-        self.valLoader = DataLoader(self.config, sgTestSet, bgTestSet)
+
+        sgEvalSet   = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+mass+temp+".root")      for mass in self.config["signalEval"]) , [])
+        bgEvalSet   = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+".root")      for bkgd in self.config["bkgdEval"][1]), [])
+
+        sgValSet  = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+mass+temp+"Val.root")   for mass in self.config["signal"]) , [])
+        bgValSet  = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Val.root")   for bkgd in self.config["bkgd"][1]), [])
+
+        sgSet = sgTrainSet + sgTestSet + sgValSet
+        bgSet = bgTrainSet + bgTestSet + bgValSet
+
+        needeval = False
+        for sample in sgEvalSet:
+            if sample not in sgSet:
+                needeval = True
+                break
+        for sample in bgEvalSet:
+            if sample not in bgSet:
+                needeval = True
+                break
+
+        if needeval: self.evalLoader = DataLoader(self.config, sgEvalSet, bgEvalSet)
+       
+        self.loader     = DataLoader(self.config, sgTrainSet, bgTrainSet)
+        self.valLoader  = DataLoader(self.config, sgValSet,   bgValSet)
+        self.testLoader = DataLoader(self.config, sgTestSet,  bgTestSet)
 
     def train(self):
         # Define vars for training
         self.defineVars()
         print("Training variables:")
-        print(len(self.config["allVars"]), self.config["allVars"])
+        print(len(self.config["trainVars"]), self.config["trainVars"])
 
         # Get stuff from input ROOT files
         self.importData()
@@ -435,36 +487,33 @@ class Train:
         scales = self.loader.getDataScales()
         means  = self.loader.getDataMeans()
 
-        print(scales)
-        print(means)
-
         regShape, domainShape, discoShape, inputShape = self.loader.getShapes()
 
         # Make model
-        print("----------------Preparing training model------------------")
+        print("\n----------------Preparing training model------------------")
         # Kelvin says no
         self.gpu_allow_mem_grow()
         model     = self.make_model(scales, means, regShape, discoShape, inputShape)
         callbacks = self.get_callbacks()
 
         # Training model
-        print("----------------Training model------------------")
-        result_log = model.fit(self.loader, epochs=self.config["epochs"], callbacks=callbacks, validation_data=self.valLoader)
+        print("\n----------------Training model------------------")
+        result_log = model.fit(self.loader, epochs=self.config["epochs"], callbacks=callbacks, validation_data=self.testLoader)
 
         if self.saveAndPrint:
             # Model Visualization
-            print("----------------Printed model layout------------------")
+            print("\n----------------Printed model layout------------------")
             self.plot_model(model)
             
             # Save trainig model as a protocol buffers file
-            print("----------------Saving model------------------")
+            print("\n----------------Saving model------------------")
             self.save_model_pb(model)
        
         #Plot results
-        print("----------------Validation of training------------------")
-        val = Validation(model, self.config, result_log)
+        print("\n----------------Validation of training------------------")
+        val = Validation(model, self.config, self.loader, self.valLoader, self.evalLoader, self.testLoader, result_log)
 
-        metric = val.makePlots(self.doQuickVal, self.config["valMass"], self.config["valModel"])
+        metric = val.makePlots(self.doQuickVal, self.config["evalMass"], self.config["evalModel"])
         del val
         
         #Clean up training
@@ -485,7 +534,7 @@ class Train:
         trainData, trainSg, trainBg = get_data(sgTrainSet, bgTrainSet, self.config)
 
         val = Validation(model, self.config, trainData, trainSg, trainBg)
-        metric = val.makePlots(doQuickVal, valMass)
+        metric = val.makePlots(doQuickVal, evalMass)
         del val
 
 if __name__ == '__main__':
@@ -496,8 +545,8 @@ if __name__ == '__main__':
     parser.add_argument("--json",         dest="json",         help="JSON config file",               default="NULL"                    ) 
     parser.add_argument("--minMass",      dest="minMass",      help="Minimum stop mass to train on",  default=300                       )
     parser.add_argument("--maxMass",      dest="maxMass",      help="Maximum stop mass to train on",  default=1400                      ) 
-    parser.add_argument("--valMass",      dest="valMass",      help="Stop mass to validate on",       default=500                       ) 
-    parser.add_argument("--valModel",     dest="valModel",     help="Signal model to validate on",    default="RPV_SYY_SHH"             ) 
+    parser.add_argument("--evalMass",     dest="evalMass",     help="Stop mass to evaluate on",       default=500                       ) 
+    parser.add_argument("--evalModel",    dest="evalModel",    help="Signal model to evaluate on",    default="RPV_SYY_SHH"             ) 
     parser.add_argument("--model",        dest="model",        help="Signal model to train on",       type=str, default="RPV_SYY_SHH"   ) 
     parser.add_argument("--replay",       dest="replay",       help="Replay saved model",             action="store_true", default=False) 
     parser.add_argument("--year",         dest="year",         help="Year(s) to train on",            type=str, default="2016_2017_2018") 
@@ -540,9 +589,9 @@ if __name__ == '__main__':
         with open(str(args.json), "r") as f:
             hyperconfig = json.load(f)
     else: 
-        hyperconfig = {"atag" : "test_twsysts_amsgrad", "disc_lambda": 2.0, "bkg_disco_lambda": 1000.0, "sig_disco_lambda" : 0.0, "mass_reg_lambda": 0.001, "abcd_close_lambda" : 2.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs":10, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 100.0}
+        hyperconfig = {"atag" : "test2_vpow", "disc_lambda": 2.0, "bkg_disco_lambda": 1000.0, "sig_disco_lambda" : 0.0, "mass_reg_lambda": 0.001, "abcd_close_lambda" : 2.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":10000, "epochs":10, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 100.0}
 
-    t = Train(USER, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.model, valMass=args.valMass, valModel=args.valModel, year=args.year, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
+    t = Train(USER, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.model, evalMass=args.evalMass, evalModel=args.evalModel, year=args.year, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
 
     if replay: t.replay()
 
