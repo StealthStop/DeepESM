@@ -4,7 +4,6 @@ import numpy as np
 import tensorflow as tf
 import uproot4 as uproot
 import tensorflow.keras as K
-from time import process_time
 
 class DataLoader(K.utils.Sequence):
 
@@ -123,11 +122,9 @@ class DataLoader(K.utils.Sequence):
             for filename in self.datasets[process]:
             
                 try:
-                    t0 = process_time()
                     f = uproot.open(filename)
                     pdf = f[self.config["tree"]+suffix].arrays(expressions=theVars, library="np", entry_stop=max_entries)
-                    t1 = process_time()
-                    print("Loaded \"%s\" from input file \"%s\" in %.3f seconds"%(self.config["tree"]+suffix,filename,t1-t0))
+                    print("Loaded \"%s\" from input file \"%s\""%(self.config["tree"]+suffix,filename))
 
                     dsets.append( pdf )
                     f.close()

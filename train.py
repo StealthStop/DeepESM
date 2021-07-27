@@ -23,8 +23,6 @@ from Correlation import Correlation as cor
 from DataLoader import DataLoader
 from Models import main_model
 
-from time import process_time
-
 class Train:
     def __init__(self, USER, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", evalMass=500, evalModel="RPV_SYY_SHH", year = "2016_2017_2018", tree = "myMiniTree", maskNjet = [-1], procCats=False, massCats=False, njetsCats=False):
 
