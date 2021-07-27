@@ -1,7 +1,6 @@
 import time
 import math
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 import uproot4 as uproot
 import tensorflow.keras as K
@@ -179,7 +178,7 @@ class DataLoader(K.utils.Sequence):
     def importData(self):
     
         # Load events from the inputs ROOT files
-        # and store them in pandas dataframes temporarily
+        # and store them in numpy dataframes
         self.getColumnHeaders()
 
         df = {} 
