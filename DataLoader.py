@@ -1,5 +1,6 @@
 import time
 import math
+import itertools
 import numpy as np
 import tensorflow as tf
 import uproot4 as uproot
@@ -60,10 +61,10 @@ class DataLoader(K.utils.Sequence):
                 mask &= (d[self.config["modelLabel"]]==process)
 
             if mass != None:
-                mask &= (d["mass"]==mass)
+                mask &= (d[self.config["massLabel"]]==mass)
 
             if Njets != None:
-                mask &= (d["njets"]==Njets)
+                mask &= (d[self.config["domainLabel"]]==Njets)
 
             for label, data in d.items():
 
@@ -115,18 +116,31 @@ class DataLoader(K.utils.Sequence):
 
         max_entries = None
         if self.config["debug"]:
-            max_entries = 10
+            max_entries = 1
 
-        for suffix in ["", "JECup", "JECdown", "JERup", "JERdown"]:
+        variations = ["", "JECup", "JECdown", "JERup", "JERdown"]
+        if self.config["debug"]:
+            variations = [""]
+
+        for suffix in variations:
             theVars = [v+suffix if v not in ["mass", "model", "Weight"] else v for v in self.variables]
             for filename in self.datasets[process]:
             
                 try:
                     f = uproot.open(filename)
-                    pdf = f[self.config["tree"]+suffix].arrays(expressions=theVars, library="np", entry_stop=max_entries)
+                    tempnpf = f[self.config["tree"]+suffix].arrays(expressions=theVars, library="np", entry_stop=max_entries)
+                    tempVars = list(tempnpf.keys())
+                    npf = {}
+                    for var in tempVars:
+                        newVar = var.replace("JERup", "").replace("JECup", "").replace("JERdown", "").replace("JECdown", "")
+                        if newVar == var:
+                            npf[newVar] = tempnpf[var]
+                        else:
+                            npf[newVar] = tempnpf.pop(var)
+
                     print("Loaded \"%s\" from input file \"%s\""%(self.config["tree"]+suffix,filename))
 
-                    dsets.append( pdf )
+                    dsets.append(npf)
                     f.close()
                 except Exception as e:
                     print("Skipping tree \"%s\" in file \"%s\" !" %(self.config["tree"]+suffix, filename) , e)
@@ -181,24 +195,34 @@ class DataLoader(K.utils.Sequence):
         df = {} 
 
         bgdsets = self.getDataSets(0)
-        for dset in bgdsets:
-            for var, vals in dset.items():
-                cleanVar = var.replace("JERup", "").replace("JECup", "").replace("JERdown", "").replace("JECdown", "")
-
-                if cleanVar in df:
-                    df[cleanVar] = np.concatenate((df[cleanVar],vals)) 
-                else:
-                    df[cleanVar] = vals
-
         sgdsets = self.getDataSets(1)
-        for dset in sgdsets:
-            for var, vals in dset.items():
-                cleanVar = var.replace("JERup", "").replace("JECup", "").replace("JERdown", "").replace("JECdown", "")
+        trainlists = [[] for var in self.config["trainVars"]]
+        ziplists   = []
 
-                if cleanVar in df:
-                    df[cleanVar] = np.concatenate((df[cleanVar],vals))
-                else:
-                    df[cleanVar] = vals
+        # First do optimal loop to make input array of arrays
+        for dset in bgdsets+sgdsets:
+            iVar = 0
+            templists = [[] for var in self.config["trainVars"]]
+            for var in self.config["trainVars"]:
+                trainlists[iVar] += dset[var].tolist()
+                templists[iVar]  += dset[var].tolist()
+                iVar             += 1
+
+            # On the fly zip up results to make an array of inputs per event
+            ziplists += list(map(np.array, zip(*templists)))
+
+        # Calculated the mean and inverse std dev for the input variables
+        self.means  = [np.mean(v) for v in trainlists]
+        self.scales = [1.0 / np.std(v) for v in trainlists]
+
+        df["inputs"] = np.array(ziplists)
+
+        # Now put together arrays of aux vars
+        for var in self.config["auxVars"]:
+            auxlist = []
+            for dset in bgdsets+sgdsets:
+                auxlist += dset[var].tolist()
+            df[var] = np.array(list(itertools.chain(auxlist)))
 
         # Make a mask for any njets events we do not want to use
         combMaskNjets = None
@@ -213,7 +237,6 @@ class DataLoader(K.utils.Sequence):
 
         # Get a dictionary with mass points mapped to number of events
         temp = df[self.config["massLabel"]][combMaskNjets]
-
         unique, counts = np.unique(temp, return_counts=True)
         massDict = dict(zip(unique, counts))
 
@@ -241,13 +264,8 @@ class DataLoader(K.utils.Sequence):
         # JERdown - (add 40)
 
         temp = df[self.config["modelLabel"]][combMaskNjets]
-
         unique, counts = np.unique(temp, return_counts=True)
         procDict = dict(zip(unique, counts))
-
-        # Calculated the mean and inverse std dev for the input variables
-        self.means = [np.mean(v) for k,v in df.items() if k not in self.config["auxVars"]]
-        self.scales = [1.0 / np.std(v) for k,v in df.items() if k not in self.config["auxVars"]]
 
         self.numBkgEvents = df[self.config["massLabel"]][combMaskNjets&(df[self.config["modelLabel"]]<100)].shape[0]
         self.numSigEvents = df[self.config["massLabel"]][combMaskNjets&(df[self.config["modelLabel"]]>=100)].shape[0]
@@ -291,6 +309,22 @@ class DataLoader(K.utils.Sequence):
 
                 for n in np.arange(minNJetBin, self.config["maxNJetBin"]+1, dtype=float):
 
+                    theKey = ""
+                    if   self.config["procCats"]:
+                        theKey += str(process)
+                    else:
+                        theKey += "EVTS"
+                    if self.config["massCats"]:
+                        theKey += "_%d"%(int(shiftedMass))
+                    if self.config["njetsCats"]:
+                        theKey += "_%d"%(int(n))
+
+                    # Get out if key already in data dict
+                    # i.e. don't waste time with all those
+                    # arrays down below
+                    if theKey in self.data:
+                        continue
+
                     ncond = np.ones(df[self.config["modelLabel"]].shape[0]).astype(bool)
 
                     # Depending on how finely we want to categorize and balance events
@@ -303,7 +337,7 @@ class DataLoader(K.utils.Sequence):
 
                     # Aquire all the needed information from the dataframes and store as numpy arrays
                     njets  = df[self.config["domainLabel"]][pcond&mcond&ncond]
-                    inputs = np.array([df[v][pcond&mcond&ncond] for v in self.config["trainVars"]]).T
+                    inputs = df["inputs"][pcond&mcond&ncond]
                     reg    = df[self.config["regressionLabel"]][pcond&mcond&ncond]
                     massp  = df[self.config["massLabel"]][pcond&mcond&ncond]
                     weight = df[self.config["weightLabel"]][pcond&mcond&ncond]*self.config["lumi"]
@@ -323,22 +357,9 @@ class DataLoader(K.utils.Sequence):
     
                     domain[np.arange(njetsTemp.shape[0], dtype=int), njetsTemp.astype(int)] = 1
 
-                    theKey = ""
-                    if   self.config["procCats"]:
-                        theKey += str(process)
-                    else:
-                        theKey += "EVTS"
-                    if self.config["massCats"]:
-                        theKey += "_%d"%(int(shiftedMass))
-                    if self.config["njetsCats"]:
-                        theKey += "_%d"%(int(n))
-
                     perms = np.random.permutation(domain.shape[0])
 
-                    if theKey not in self.data:
-                        self.data[theKey] = {"domain" : domain[perms], "label" : labelDisCo[perms], "inputs" : inputs[perms], "massReg" : reg[perms], "mass" : massp[perms], "model" : model[perms], "weight" : weight[perms], "njets" : njets[perms]}
-                    else:
-                        break
+                    self.data[theKey] = {"domain" : domain[perms], "label" : labelDisCo[perms], "inputs" : inputs[perms], "massReg" : reg[perms], "mass" : massp[perms], "model" : model[perms], "weight" : weight[perms], "njets" : njets[perms]}
 
         evenSplit = 1
         if self.config["procCats"]:
