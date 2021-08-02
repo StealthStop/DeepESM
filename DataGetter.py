@@ -251,9 +251,10 @@ class DataGetter:
         numDomains = maxNJetBin + 1 - minNJetBin
         npyNJet = tempInputDomains.astype(float).values
         tempInputDomains = tempInputDomains - tempInputDomains.min()
-   
+
         #sample weight for background masses
         npyInputDomain = np.zeros((npyInputData.shape[0], numDomains))
+
         npyInputDomain[np.arange(npyInputDomain.shape[0]), tempInputDomains.values.flatten()] = 1
         unique, counts = np.unique(npyMassesFilter, return_counts=True)
 
