@@ -20,6 +20,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(usage)
     parser.add_argument("--outputdir", dest="outputdir", help="Directory to store hadded output",    required=True)
     parser.add_argument("--inputdir",  dest="inputdir",  help="Directory of unhadded input",         required=True)
+    parser.add_argument("--year",      dest="year",      help="Which year to hadd",                  required=True)
     parser.add_argument("--dryrun",    dest="dryrun",    help="Print what will happen, don't do it", action="store_true", default=False)
     args = parser.parse_args()
 
@@ -35,9 +36,9 @@ if __name__ == "__main__":
     # Hadd the background files together
     for bkg in bkgs:
         for split in splits:
-            command = ["hadd", "%s/%s_%s.root"%(args.outputdir,bkg,split)] + glob.glob("%s/*_%s_?_%s.root"%(inputdir,bkg,split)) \
-                                                                           + glob.glob("%s/*_%s_??_%s.root"%(inputdir,bkg,split)) \
-                                                                           + glob.glob("%s/*_%s_???_%s.root"%(inputdir,bkg,split))
+            command = ["hadd", "%s/MyAnalysis_%s_%s_%s.root"%(args.outputdir,args.year,bkg,split)] + glob.glob("%s/%s_%s/*_%s_?_%s.root"%(inputdir,args.year,bkg,bkg,split)) \
+                                                                           + glob.glob("%s/%s_%s/*_%s_??_%s.root"%(inputdir,args.year,bkg,bkg,split)) \
+                                                                           + glob.glob("%s/%s_%s/*_%s_???_%s.root"%(inputdir,args.year,bkg,bkg,split))
 
             print("Executing command: \"%s\""%(" ".join(command)))
             if not args.dryrun:
@@ -48,7 +49,7 @@ if __name__ == "__main__":
         for sigmass in sigmasses:
             for split in splits:
 
-                command = ["hadd", "%s/%s_2t6j_mStop-%s_%s.root"%(args.outputdir,sigmod,sigmass,split)] + glob.glob("%s/*_%s_2t6j_mStop-%s_*_%s.root"%(inputdir,sigmod,sigmass,split))
+                command = ["hadd", "%s/MyAnalysis_%s_%s_2t6j_mStop-%s_%s.root"%(args.outputdir,args.year,sigmod,sigmass,split)] + glob.glob("%s/%s_AllSignal/*_%s_2t6j_mStop-%s_*_%s.root"%(inputdir,args.year,sigmod,sigmass,split))
 
                 print("Executing command: \"%s\""%(" ".join(command)))
                 if not args.dryrun:
