@@ -119,7 +119,7 @@ class DataLoader(K.utils.Sequence):
             max_entries = 1
 
         variations = ["", "JECup", "JECdown", "JERup", "JERdown"]
-        if self.config["debug"]:
+        if self.config["debug"] or not self.config["useJECs"]:
             variations = [""]
 
         for suffix in variations:
@@ -277,6 +277,11 @@ class DataLoader(K.utils.Sequence):
 
             pcond = np.ones(df[self.config["modelLabel"]].shape[0]).astype(bool)
             pcond &= combMaskNjets
+
+            # Tighten or loosen selection on 0L events to train on
+            if "_0l" in self.config["tree"]:
+                pcond &= (df[self.config["ntopsLabel"]]>=1)
+                #pcond &= (df[self.config["dRbjetsLabel"]]>=1.0)
 
             isBackground = (p<100)
 

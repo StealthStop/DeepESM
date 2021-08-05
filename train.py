@@ -25,7 +25,7 @@ from DataLoader import DataLoader
 from Models import main_model
 
 class Train:
-    def __init__(self, USER, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", evalMass=500, evalModel="RPV_SYY_SHH", year = "2016_2017_2018", tree = "myMiniTree", maskNjet = [-1], procCats=False, massCats=False, njetsCats=False):
+    def __init__(self, USER, useJECs, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", evalMass=500, evalModel="RPV_SYY_SHH", year = "2016_2017_2018", tree = "myMiniTree", maskNjet = [-1], procCats=False, massCats=False, njetsCats=False):
 
         host = os.getenv("HOSTNAME")
         atMN = ".umn." in host
@@ -44,6 +44,7 @@ class Train:
         self.config["minStopMass"] = int(minStopMass)
         self.config["maxStopMass"] = int(maxStopMass)
         self.config["doReweight"]  = doReweight
+        self.config["useJECs"]     = useJECs
 
         # Depending on final state, different pt requirements
         # and resultant objects are used
@@ -53,11 +54,13 @@ class Train:
 
         # Labels for extracting relevant information from the
         # dataframes constructed from the inputs ROOT files
-        self.config["massLabel"] = "mass"
-        self.config["domainLabel"] = "NGoodJets_%s_double"%(ptCut)
+        self.config["massLabel"]       = "mass"
+        self.config["domainLabel"]     = "NGoodJets_%s_double"%(ptCut)
         self.config["regressionLabel"] = "stop1_ptrank_mass"
-        self.config["modelLabel"] = "model"
-        self.config["weightLabel"] = "Weight"
+        self.config["modelLabel"]      = "model"
+        self.config["weightLabel"]     = "Weight"
+        self.config["ntopsLabel"]      = "ntops"
+        self.config["dRbjetsLabel"]    = "dR_bjets"
 
         self.doQuickVal           = doQuickVal
         self.saveAndPrint         = saveAndPrint
@@ -206,7 +209,7 @@ class Train:
         self.config["signal"]        = Signal
         self.config["signalEval"]    = SignalEval
         self.config["bkgdShift"]     = ("TT", TT_2016)
-        self.config["dataSet"]       = "2016_NN_inputs_20210722/"
+        self.config["dataSet"]       = "2016_NN_inputs_20210802/"
         self.config["doBgWeight"]    = True
         self.config["doSgWeight"]    = True
         self.config["class_weight"]  = None
@@ -385,6 +388,7 @@ class Train:
         stop2OldSeed    = ["Stop2_mass_cm_OldSeed", "Stop2_pt_cm_OldSeed", "Stop2_phi_cm_OldSeed", "Stop2_eta_cm_OldSeed"]
         stop1TopSeed    = ["Stop1_mass_cm_TopSeed", "Stop1_pt_cm_TopSeed", "Stop1_phi_cm_TopSeed", "Stop1_eta_cm_TopSeed"]
         stop2TopSeed    = ["Stop2_mass_cm_TopSeed", "Stop2_pt_cm_TopSeed", "Stop2_phi_cm_TopSeed", "Stop2_eta_cm_TopSeed"]
+        dRbjets         = ["dR_bjets"]
         drOldSeed       = ["dR_Stop1Stop2_cm_OldSeed"]
         drTopSeed       = ["dR_Stop1Stop2_cm_TopSeed"]
         dphiOldSeed     = ["dPhi_Stop1Stop2_cm_OldSeed"]
@@ -401,7 +405,7 @@ class Train:
         if "0l" in self.config["tree"]:
             nJets = 6
             label = "_0l"
-            theVars = j4Vec + jFlavVec + htVec_0l + fwmVec_0l + jmtVec_0l + stop1OldSeed + stop2OldSeed
+            theVars = j4Vec + jFlavVec + htVec_0l + fwmVec_0l + jmtVec_0l + dRbjest + stop1OldSeed + stop2OldSeed
 
         else:
             nJets = 7
@@ -431,6 +435,10 @@ class Train:
         auxVars.append(self.config["regressionLabel"])
         auxVars.append(self.config["massLabel"])
         auxVars.append(self.config["domainLabel"])
+
+        if "0l" in self.config["tree"]:
+            auxVars.append(self.config["ntopsLabel"])
+            auxVars.append(self.config["dRbjetsLabel"])
        
         self.config["auxVars"] = auxVars
 
@@ -553,6 +561,7 @@ if __name__ == '__main__':
     parser.add_argument("--saveAndPrint", dest="saveAndPrint", help="Save pb and print model",        action="store_true", default=False)
     parser.add_argument("--seed",         dest="seed",         help="Use specific seed",              type=int, default=-1              )
     parser.add_argument("--debug",        dest="debug",        help="Do some debugging",              action="store_true", default=False)
+    parser.add_argument("--useJECs",      dest="useJECs",      help="Use JEC/JER variations",         action="store_true", default=False)
     parser.add_argument("--maskNjet",     dest="maskNjet",     help="mask Njet bin/bins in training", default=[-1], nargs="+", type=int )
     parser.add_argument("--procCats",     dest="procCats",     help="Balance batches bkg/sig",        default=False, action="store_true")
     parser.add_argument("--massCats",     dest="massCats",     help="Balance batches among masses",   default=False, action="store_true")
@@ -588,9 +597,9 @@ if __name__ == '__main__':
         with open(str(args.json), "r") as f:
             hyperconfig = json.load(f)
     else: 
-        hyperconfig = {"atag" : "test2_vpow", "disc_lambda": 2.0, "bkg_disco_lambda": 1000.0, "sig_disco_lambda" : 0.0, "mass_reg_lambda": 0.0001, "abcd_close_lambda" : 2.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs":10, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 100.0}
+        hyperconfig = {"atag" : "test2_vpow_20210802", "disc_lambda": 30.0, "bkg_disco_lambda": 2000.0, "sig_disco_lambda" : 0.0, "mass_reg_lambda": 0.0001, "abcd_close_lambda" : 30.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs":10, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 0.5}
 
-    t = Train(USER, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.model, evalMass=args.evalMass, evalModel=args.evalModel, year=args.year, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
+    t = Train(USER, args.useJECs, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.model, evalMass=args.evalMass, evalModel=args.evalModel, year=args.year, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
 
     if replay: t.replay()
 
@@ -598,7 +607,8 @@ if __name__ == '__main__':
 
         metric = t.train()
 
-        with open(str(args.json), 'w') as f:
+        metricName = args.json.replace(".json", "_metric.json")
+        with open(str(metricName), 'w') as f:
             json.dump(metric, f)
     else:
         t.train()

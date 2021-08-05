@@ -420,12 +420,12 @@ class Validation:
 
         return bcounts, scounts
 
-    def findDiscCut4SigFrac(self, bcts, scts, minFracBkg = 0.01, minFracSig = 0.1):
+    def findDiscCut4SigFrac(self, bcts, scts, minBkgEvts = 5):
         # Now calculate signal fraction and significance 
         # Pick c1 and c2 that give 30% sig fraction and maximizes significance
         significance = 0.0; finalc1 = -1.0; finalc2 = -1.0; 
         closureErr = 0.0; metric = 999.0
-        invSigns = []; closeErrs = []; c1out = []; c2out = []
+        invSigns = []; closeErrs = []; closeErrsUncs = []; c1out = []; c2out = []
         sFracsA = []; sFracsB = []; sFracsC = []; sFracsD = []
         sTotFracsA = []; sTotFracsB = []; sTotFracsC = []; sTotFracsD = []
         bTotFracsA = []; bTotFracsB = []; bTotFracsC = []; bTotFracsD = []
@@ -434,7 +434,10 @@ class Validation:
             for c2k, temp in c2s.items():
 
                 bA = bcts["A"][c1k][c2k]; bB = bcts["B"][c1k][c2k]; bC = bcts["C"][c1k][c2k]; bD = bcts["D"][c1k][c2k]
+                ba = bcts["a"][c1k][c2k]; bb = bcts["b"][c1k][c2k]; bc = bcts["c"][c1k][c2k]; bd = bcts["d"][c1k][c2k]
                 sA = scts["A"][c1k][c2k]; sB = scts["B"][c1k][c2k]; sC = scts["C"][c1k][c2k]; sD = scts["D"][c1k][c2k]
+
+                bA2 = bcts["A2"][c1k][c2k]; bB2 = bcts["B2"][c1k][c2k]; bC2 = bcts["C2"][c1k][c2k]; bD2 = bcts["D2"][c1k][c2k]
 
                 bTotal = bA + bB + bC + bD
                 sTotal = sA + sB + sC + sD
@@ -453,14 +456,19 @@ class Validation:
                 tempbfracC = bC / bTotal; tempsfracC = sC / sTotal
                 tempbfracD = bD / bTotal; tempsfracD = sD / sTotal
 
-                tempsignificance = 0.0; tempclosureerr = -999.0; tempmetric = 999.0
+                tempsignificance = 0.0; tempclosureerr = -999.0; tempmetric = 999.0; tempclosureerrunc = -999.0
 
-                if bD > 0.0 and bA > 0.0: tempclosureerr = abs(1.0 - (bB * bC) / (bA * bD))
+                if bD > 0.0 and bA > 0.0:
+                    tempclosureerr    = abs(1.0 - (bB * bC) / (bA * bD))
+                    tempclosureerrunc = (((bB2**0.5 * bC)/(bA * bD))**2.0 + \
+                                         ((bB * bC2**0.5)/(bA * bD))**2.0 + \
+                                         ((bB * bC * bA2**0.5)/(bA**2.0 * bD))**2.0 + \
+                                         ((bB * bC * bD2**0.5)/(bA * bD**2.0))**2.0)**0.5
 
                 if bA > 0.0: tempsignificance += (sA / (bA + (0.3*bA)**2.0 + (tempclosureerr*bA)**2.0)**0.5)**2.0
-                if bB > 0.0: tempsignificance += (sB / (bB + (0.3*bB)**2.0 + (tempclosureerr*bB)**2.0)**0.5)**2.0
-                if bC > 0.0: tempsignificance += (sC / (bC + (0.3*bC)**2.0 + (tempclosureerr*bC)**2.0)**0.5)**2.0
-                if bD > 0.0: tempsignificance += (sD / (bD + (0.3*bD)**2.0 + (tempclosureerr*bD)**2.0)**0.5)**2.0
+                #if bB > 0.0: tempsignificance += (sB / (bB + (0.3*bB)**2.0 + (tempclosureerr*bB)**2.0)**0.5)**2.0
+                #if bC > 0.0: tempsignificance += (sC / (bC + (0.3*bC)**2.0 + (tempclosureerr*bC)**2.0)**0.5)**2.0
+                #if bD > 0.0: tempsignificance += (sD / (bD + (0.3*bD)**2.0 + (tempclosureerr*bD)**2.0)**0.5)**2.0
 
                 tempsignificance = tempsignificance**0.5
 
@@ -468,6 +476,7 @@ class Validation:
                     invSigns.append(1.0 / tempsignificance)
 
                     closeErrs.append(abs(tempclosureerr))
+                    closeErrsUncs.append(tempclosureerrunc)
                     c1out.append(float(c1k))
                     c2out.append(float(c2k))
 
@@ -480,12 +489,14 @@ class Validation:
                 # signal fraction in B, C, and D regions is < 10%
                 # total background fraction in A is greater than 5%
 
-                if tempbfracA > minFracBkg and \
-                   tempbfracB > minFracBkg and \
-                   tempbfracC > minFracBkg and \
-                   tempbfracD > minFracBkg:
+                if ba > minBkgEvts and \
+                   bb > minBkgEvts and \
+                   bc > minBkgEvts and \
+                   bd > minBkgEvts:
 
                     tempmetric = tempclosureerr**2.0 + (1.0 / tempsignificance)**2.0
+
+                    #tempmetric = 1.0 / tempsignificance
 
                 if tempmetric < metric:
 
@@ -494,7 +505,7 @@ class Validation:
                     significance = tempsignificance
                     closureErr = tempclosureerr
                 
-        return finalc1, finalc2, significance, closureErr, invSigns, closeErrs, c1out, c2out, sFracsA, sFracsB, sFracsC, sFracsD, sTotFracsA, sTotFracsB, sTotFracsC, sTotFracsD, bTotFracsA, bTotFracsB, bTotFracsC, bTotFracsD
+        return finalc1, finalc2, significance, closureErr, invSigns, closeErrs, closeErrsUncs, c1out, c2out, sFracsA, sFracsB, sFracsC, sFracsD, sTotFracsA, sTotFracsB, sTotFracsC, sTotFracsD, bTotFracsA, bTotFracsB, bTotFracsC, bTotFracsD
 
     # Define closure as how far away prediction for region D is compared to actual 
     def simpleClosureABCD(self, bNA, bNB, bNC, bND, bNAerr, bNBerr, bNCerr, bNDerr):
@@ -538,6 +549,7 @@ class Validation:
             plt.text(0.05, 0.95, r"$\bf{Significance}$ = N/A", fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
         hep.cms.label(data=True, paper=False, year=self.config["year"])
 
+        fig.tight_layout()
         if Njets == -1: fig.savefig(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2.pdf"%(tag,mass), dpi=fig.dpi)
         else:           fig.savefig(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2_Njets%d.pdf"%(tag,mass,Njets), dpi=fig.dpi)
 
@@ -558,6 +570,7 @@ class Validation:
 
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
         ax.add_line(l1); ax.add_line(l2)
+        fig.tight_layout()
 
         if Njets == -1: fig.savefig(self.config["outputDir"]+"/SigFracA_vs_Disc1Disc2.pdf", dpi=fig.dpi)
         else:           fig.savefig(self.config["outputDir"]+"/SigFracA_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
@@ -573,6 +586,7 @@ class Validation:
 
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
         ax.add_line(l1); ax.add_line(l2)
+        fig.tight_layout()
 
         if Njets == -1: fig.savefig(self.config["outputDir"]+"/SigFracB_vs_Disc1Disc2.pdf", dpi=fig.dpi)
         else:           fig.savefig(self.config["outputDir"]+"/SigFracB_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
@@ -588,6 +602,7 @@ class Validation:
 
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
         ax.add_line(l1); ax.add_line(l2)
+        fig.tight_layout()
 
         if Njets == -1: fig.savefig(self.config["outputDir"]+"/SigFracC_vs_Disc1Disc2.pdf", dpi=fig.dpi)
         else:           fig.savefig(self.config["outputDir"]+"/SigFracC_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
@@ -603,6 +618,7 @@ class Validation:
 
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
         ax.add_line(l1); ax.add_line(l2)
+        fig.tight_layout()
 
         if Njets == -1: fig.savefig(self.config["outputDir"]+"/SigFracD_vs_Disc1Disc2.pdf", dpi=fig.dpi)
         else:           fig.savefig(self.config["outputDir"]+"/SigFracD_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
@@ -620,6 +636,7 @@ class Validation:
 
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
         ax.add_line(l1); ax.add_line(l2)
+        fig.tight_layout()
 
         if Njets == -1: fig.savefig(self.config["outputDir"]+"/SigTotFracA_vs_Disc1Disc2.pdf", dpi=fig.dpi)
         else:           fig.savefig(self.config["outputDir"]+"/SigTotFracA_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
@@ -635,6 +652,7 @@ class Validation:
 
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
         ax.add_line(l1); ax.add_line(l2)
+        fig.tight_layout()
 
         if Njets == -1: fig.savefig(self.config["outputDir"]+"/SigTotFracB_vs_Disc1Disc2.pdf", dpi=fig.dpi)
         else:           fig.savefig(self.config["outputDir"]+"/SigTotFracB_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
@@ -650,6 +668,7 @@ class Validation:
 
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
         ax.add_line(l1); ax.add_line(l2)
+        fig.tight_layout()
 
         if Njets == -1: fig.savefig(self.config["outputDir"]+"/SigTotFracC_vs_Disc1Disc2.pdf", dpi=fig.dpi)
         else:           fig.savefig(self.config["outputDir"]+"/SigTotFracC_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
@@ -665,6 +684,7 @@ class Validation:
 
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
         ax.add_line(l1); ax.add_line(l2)
+        fig.tight_layout()
 
         if Njets == -1: fig.savefig(self.config["outputDir"]+"/SigTotFracD_vs_Disc1Disc2.pdf", dpi=fig.dpi)
         else:           fig.savefig(self.config["outputDir"]+"/SigTotFracD_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
@@ -680,6 +700,7 @@ class Validation:
 
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
         ax.add_line(l1); ax.add_line(l2)
+        fig.tight_layout()
 
         if Njets == -1: fig.savefig(self.config["outputDir"]+"/BkgTotFracA_vs_Disc1Disc2.pdf", dpi=fig.dpi)
         else:           fig.savefig(self.config["outputDir"]+"/BkgTotFracA_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
@@ -695,6 +716,7 @@ class Validation:
 
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
         ax.add_line(l1); ax.add_line(l2)
+        fig.tight_layout()
 
         if Njets == -1: fig.savefig(self.config["outputDir"]+"/BkgTotFracB_vs_Disc1Disc2.pdf", dpi=fig.dpi)
         else:           fig.savefig(self.config["outputDir"]+"/BkgTotFracB_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
@@ -710,6 +732,7 @@ class Validation:
 
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
         ax.add_line(l1); ax.add_line(l2)
+        fig.tight_layout()
 
         if Njets == -1: fig.savefig(self.config["outputDir"]+"/BkgTotFracC_vs_Disc1Disc2.pdf", dpi=fig.dpi)
         else:           fig.savefig(self.config["outputDir"]+"/BkgTotFracC_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
@@ -725,13 +748,58 @@ class Validation:
 
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
         ax.add_line(l1); ax.add_line(l2)
+        fig.tight_layout()
 
         if Njets == -1: fig.savefig(self.config["outputDir"]+"/BkgTotFracD_vs_Disc1Disc2.pdf", dpi=fig.dpi)
         else:           fig.savefig(self.config["outputDir"]+"/BkgTotFracD_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
 
         plt.close(fig)
 
-    def plotMetricVsBinEdges(self, invSigns, closureErr, d1edges, d2edges, c1, c2, minEdge, maxEdge, edgeWidth, Njets = -1):
+    def plotClosureVsDisc(self, closeErrs, closeErrsUncs, d1edges, d2edges, edgeWidth, disc = -1, Njets = -1):
+
+       x25     = []; x50     = []; x75     = []
+       close25 = []; close50 = []; close75 = []
+
+       close25unc = []; close50unc = []; close75unc = []
+
+       edges = (d1edges, d2edges)
+
+       for i in range(0, len(closeErrs)):
+           if   edges[disc-1][i] == 0.24: 
+               x25.append(edges[3-disc-1][i])
+               close25.append(closeErrs[i])
+               close25unc.append(closeErrsUncs[i])
+           elif edges[disc-1][i] == 0.50: 
+               x50.append(edges[3-disc-1][i])
+               close50.append(closeErrs[i])
+               close50unc.append(closeErrsUncs[i])
+           elif edges[disc-1][i] == 0.76: 
+               x75.append(edges[3-disc-1][i])
+               close75.append(closeErrs[i])
+               close75unc.append(closeErrsUncs[i])
+
+       fig, ax = plt.subplots(figsize=(10, 10))
+
+       xWidths = [edgeWidth for i in range(0, len(x25))]
+
+       ax.errorbar(x25, close25, yerr=close25unc, label="Disc. %d = 0.25"%(disc), xerr=xWidths, fmt='', color="red",   lw=0, elinewidth=2, marker="o", markerfacecolor="red")
+       ax.errorbar(x50, close50, yerr=close50unc, label="Disc. %d = 0.50"%(disc), xerr=xWidths, fmt='', color="blue",  lw=0, elinewidth=2, marker="o", markerfacecolor="blue")
+       ax.errorbar(x75, close75, yerr=close75unc, label="Disc. %d = 0.75"%(disc), xerr=xWidths, fmt='', color="green", lw=0, elinewidth=2, marker="o", markerfacecolor="green")
+
+       ax.set_ylim((0.0, 1.0))
+       ax.set_ylabel("ABCD Closure Error"); ax.set_xlabel("Disc. %d Value"%(3-disc))
+       plt.legend(loc='best')
+
+       hep.cms.label(data=True, paper=False, year=self.config["year"])
+
+       fig.tight_layout()
+
+       if Njets == -1: fig.savefig(self.config["outputDir"]+"/Closure_Slices_Disc%d.pdf"%(disc), dpi=fig.dpi)
+       else:           fig.savefig(self.config["outputDir"]+"/Closure_Slices_Disc%d_Njets%s.pdf"%(disc,Njets), dpi=fig.dpi)
+
+       plt.close(fig)
+
+    def plotMetricVsBinEdges(self, invSigns, closureErr, closureErrUnc, d1edges, d2edges, c1, c2, minEdge, maxEdge, edgeWidth, Njets = -1):
 
         nBins = int((1.0 + edgeWidth)/edgeWidth)
 
@@ -745,6 +813,7 @@ class Validation:
 
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
         ax.add_line(l1); ax.add_line(l2)
+        fig.tight_layout()
 
         if Njets == -1: fig.savefig(self.config["outputDir"]+"/Sign_vs_Disc1Disc2.pdf", dpi=fig.dpi)
         else:           fig.savefig(self.config["outputDir"]+"/Sign_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
@@ -760,9 +829,26 @@ class Validation:
 
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
         ax.add_line(l1); ax.add_line(l2)
+        fig.tight_layout()
 
         if Njets == -1: fig.savefig(self.config["outputDir"]+"/CloseErr_vs_Disc1Disc2.pdf", dpi=fig.dpi)
         else:           fig.savefig(self.config["outputDir"]+"/CloseErr_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
+
+        plt.close(fig)
+
+        fig = plt.figure() 
+        plt.hist2d(d1edges, d2edges, bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=closureErrUnc, cmin=10e-10, cmax=2.5, vmin = 0.0, vmax = 0.5)
+        plt.colorbar()
+        ax = plt.gca()
+        ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
+        hep.cms.label(data=True, paper=False, year=self.config["year"])
+
+        l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
+        ax.add_line(l1); ax.add_line(l2)
+        fig.tight_layout()
+
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/CloseErrUnc_vs_Disc1Disc2.pdf", dpi=fig.dpi)
+        else:           fig.savefig(self.config["outputDir"]+"/CloseErrUnc_vs_Disc1Disc2_Njets%s.pdf"%(Njets), dpi=fig.dpi)
 
         plt.close(fig)
 
@@ -778,8 +864,6 @@ class Validation:
         plt.xlabel('1 / Significance')
         plt.ylabel('|1 - Pred./Obs.|')
         plt.legend(loc='best')
-        #plt.text(0.05, 0.94, r"$\bf{ABCD\;Closure\;Error}$ = %.2f"%(finalClosureErr), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
-        #plt.text(0.05, 0.84, r"$\bf{Significance}$ = %.2f"%(finalSign), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
 
         plt.ylim(bottom=0)
         plt.xlim(left=0)
@@ -788,6 +872,7 @@ class Validation:
 
         plt.text(0.50, 0.85, r"$%.2f < \bf{Disc.\;1\;Edge}$ = %s < %.2f"%(edges[0],d1edge,edges[-1]), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16)
         plt.text(0.50, 0.80, r"$%.2f < \bf{Disc.\;2\;Edge}$ = %s < %.2f"%(edges[0],d2edge,edges[-1]), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16)
+        fig.tight_layout()
 
         if Njets == -1:
             fig.savefig(self.config["outputDir"]+"/InvSign_vs_CloseErr.pdf", dpi=fig.dpi)        
@@ -833,48 +918,6 @@ class Validation:
         plt.close(fig)
 
         return sign
-
-    def plotAveNjetsClosure(self, aves, stds):
-
-        binCenters = []
-        xErr       = []
-
-        Njets = list(range(self.config["minNJetBin"], self.config["maxNJetBin"]+1))
-        if self.config["Mask"]:
-            for i in self.config["Mask_nJet"]:
-                del(Njets[Njets.index(i)])
-
- 
-        for i in range(0, len(Njets)):
-
-            binCenters.append(Njets[i])
-            xErr.append(0.5)
-        
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-       
-        ax.errorbar(binCenters, aves, yerr=stds, label="Closure Fractional Error",  xerr=xErr, fmt='', color="red",   lw=0, elinewidth=2, marker="o", markerfacecolor="red")
-        
-        lowerNjets = Njets[0] 
-
-        ax.set_xlim([lowerNjets-0.5,self.config["maxNJetBin"]+0.5])
-
-        plt.xticks(Njets)
-        
-        ax.axhline(y=0.0, color="black", linestyle="dashed", lw=2)
-        ax.grid(color="black", which="both", axis="y")
-
-        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
-        
-        ax.set_xlabel('Number of jets')
-        ax.set_ylabel('|1 - Pred./Obs.|', fontsize="small")
-        ax.legend(loc='best')
-        
-        ax.set_ylim([-0.4, 1.6])
-        
-        fig.savefig(self.config["outputDir"]+"/Njets_Closure_Robustness.pdf")
-        
-        plt.close(fig)
 
     def plotNjetsClosure(self, bkgd, bkgdUnc, bkgdPred, bkgdPredUnc, bkgdSign):
 
@@ -1216,10 +1259,7 @@ class Validation:
             bkgdNjetsErr = {"A" : [], "B" : [], "C" : [], "D" : [], "a" : [], "b" : [], "c" : [], "d" : []}; sigNjetsErr = {"A" : [], "B" : [], "C" : [], "D" : [], "a" : [], "b" : [], "c" : [], "d" : []}
             bkgdNjetsAPred = {"val" : [], "err" : []}
             bkgdNjetsSign = []
-            bkgdCorrs = []
             
-            aveClosure = []; stdClosure = []
-
             for NJets in NJetsRange:
            
                 njets = float(NJets)
@@ -1235,19 +1275,16 @@ class Validation:
 
                 # Get number of background and signal counts for each A, B, C, D region for every possible combination of cuts on disc 1 and disc 2
                 bc, sc = self.cutAndCount(c1s, c2s, y_eval_bg_disc1[bkgFullMaskEval], y_eval_bg_disc2[bkgFullMaskEval], evalBkg["weight"][bkgFullMaskEval], y_eval_sg_disc1[sigFullMaskEval], y_eval_sg_disc2[sigFullMaskEval], evalSig["weight"][sigFullMaskEval])
-                c1, c2, significance, closureErr, invSigns, closeErrs, d1edges, d2edges, sFracsA, sFracsB, sFracsC, sFracsD, sTotFracsA, sTotFracsB, sTotFracsC, sTotFracsD, bTotFracsA, bTotFracsB, bTotFracsC, bTotFracsD = self.findDiscCut4SigFrac(bc, sc)
+                c1, c2, significance, closureErr, invSigns, closeErrs, closeErrsUncs, d1edges, d2edges, sFracsA, sFracsB, sFracsC, sFracsD, sTotFracsA, sTotFracsB, sTotFracsC, sTotFracsD, bTotFracsA, bTotFracsB, bTotFracsC, bTotFracsD = self.findDiscCut4SigFrac(bc, sc)
 
-                self.plotMetricVsBinEdges(invSigns, closeErrs, d1edges, d2edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, int(NJets))
+                self.plotMetricVsBinEdges(invSigns, closeErrs, closeErrsUncs, d1edges, d2edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, int(NJets))
+
+                self.plotClosureVsDisc(closeErrs, closeErrsUncs, d1edges, d2edges, edgeWidth, 1, int(NJets))
+                self.plotClosureVsDisc(closeErrs, closeErrsUncs, d1edges, d2edges, edgeWidth, 2, int(NJets))
 
                 self.plotBkgSigFracVsBinEdges(sFracsA, sFracsB, sFracsC, sFracsD, sTotFracsA, sTotFracsB, sTotFracsC, sTotFracsD, bTotFracsA, bTotFracsB, bTotFracsC, bTotFracsD, d1edges, d2edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, int(NJets))
 
                 tempAveClose, tempStdClose = self.plotBinEdgeMetricComps(significance, closureErr, invSigns, closeErrs, c1s, c1, c2, int(NJets))
-
-                aveClosure.append(tempAveClose)
-                stdClosure.append(tempStdClose)
-
-                self.config["aveClosureNjets%s"%(NJets)] = float(tempAveClose)
-                self.config["stdClosureNjets%s"%(NJets)] = float(tempStdClose)
 
                 bkgdNjetsSign.append(significance)
 
@@ -1321,15 +1358,9 @@ class Validation:
                 bkgdCorr = self.plotDisc1vsDisc2(y_eval_bg_disc1[bkgFullMaskEval], y_eval_bg_disc2[bkgFullMaskEval], evalBkg["weight"][bkgFullMaskEval], float(c1), float(c2), significance, "BG", mass="",   Njets=NJets)
                 self.plotDisc1vsDisc2(y_eval_sg_disc1[sigFullMaskEval], y_eval_sg_disc2[sigFullMaskEval], evalSig["weight"][sigFullMaskEval], float(c1), float(c2), significance, "SG", mass=evalMass, Njets=NJets)
                 self.metric["bkgdCorr_nJet_%s"%(NJets)] = abs(bkgdCorr) 
-                bkgdCorrs.append(bkgdCorr)
 
                 self.plotDisc1vsDisc2(y_val_bg_disc1[bkgFullMaskVal], y_val_bg_disc2[bkgFullMaskVal], valBkg["weight"][bkgFullMaskVal], float(c1), float(c2), significance, "valBG", mass="",   Njets=NJets)
                 self.plotDisc1vsDisc2(y_val_sg_disc1[sigFullMaskVal], y_val_sg_disc2[sigFullMaskVal], valSig["weight"][sigFullMaskVal], float(c1), float(c2), significance, "valSG", mass=valMass, Njets=NJets)
-
-            self.config["bkgdCorrAve"] = float(np.average(np.abs(bkgdCorrs)))
-            self.config["bkgdCorrStd"] = float(np.std(bkgdCorrs))
-
-            self.plotAveNjetsClosure(aveClosure, stdClosure)
 
             signA = self.plotNjets(bkgdNjets["A"], bkgdNjetsErr["A"], sigNjets["A"], sigNjetsErr["A"], "A")
             signB = self.plotNjets(bkgdNjets["B"], bkgdNjetsErr["B"], sigNjets["B"], sigNjetsErr["B"], "B")
