@@ -780,11 +780,13 @@ class Validation:
 
        fig, ax = plt.subplots(figsize=(10, 10))
 
-       xWidths = [edgeWidth for i in range(0, len(x25))]
+       xWidths25 = [edgeWidth for i in range(0, len(x25))]
+       xWidths50 = [edgeWidth for i in range(0, len(x50))]
+       xWidths75 = [edgeWidth for i in range(0, len(x75))]
 
-       ax.errorbar(x25, close25, yerr=close25unc, label="Disc. %d = 0.25"%(disc), xerr=xWidths, fmt='', color="red",   lw=0, elinewidth=2, marker="o", markerfacecolor="red")
-       ax.errorbar(x50, close50, yerr=close50unc, label="Disc. %d = 0.50"%(disc), xerr=xWidths, fmt='', color="blue",  lw=0, elinewidth=2, marker="o", markerfacecolor="blue")
-       ax.errorbar(x75, close75, yerr=close75unc, label="Disc. %d = 0.75"%(disc), xerr=xWidths, fmt='', color="green", lw=0, elinewidth=2, marker="o", markerfacecolor="green")
+       ax.errorbar(x25, close25, yerr=close25unc, label="Disc. %d = 0.25"%(disc), xerr=xWidths25, fmt='', color="red",   lw=0, elinewidth=2, marker="o", markerfacecolor="red")
+       ax.errorbar(x50, close50, yerr=close50unc, label="Disc. %d = 0.50"%(disc), xerr=xWidths50, fmt='', color="blue",  lw=0, elinewidth=2, marker="o", markerfacecolor="blue")
+       ax.errorbar(x75, close75, yerr=close75unc, label="Disc. %d = 0.75"%(disc), xerr=xWidths75, fmt='', color="green", lw=0, elinewidth=2, marker="o", markerfacecolor="green")
 
        ax.set_ylim((0.0, 1.0))
        ax.set_ylabel("ABCD Closure Error"); ax.set_xlabel("Disc. %d Value"%(3-disc))

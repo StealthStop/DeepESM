@@ -280,8 +280,12 @@ class DataLoader(K.utils.Sequence):
 
             # Tighten or loosen selection on 0L events to train on
             if "_0l" in self.config["tree"]:
-                pcond &= (df[self.config["ntopsLabel"]]>=1)
-                #pcond &= (df[self.config["dRbjetsLabel"]]>=1.0)
+                print("Selecting 0L events with >= %d tops"%(self.config["nTops"]))
+                pcond &= (df[self.config["ntopsLabel"]]>=self.config["nTops"])
+    
+                if self.config["dRbjets"]:
+                    print("Selecting 0L events with dR(b1, b2) >= 1.0")
+                    pcond &= (df[self.config["dRbjetsLabel"]]>=1.0)
 
             isBackground = (p<100)
 

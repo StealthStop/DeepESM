@@ -26,7 +26,7 @@ from DataLoader import DataLoader
 from Models import main_model
 
 class Train:
-    def __init__(self, USER, useJECs, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", evalMass=500, evalModel="RPV_SYY_SHH", year = "2016_2017_2018", tree = "myMiniTree", maskNjet = [-1], procCats=False, massCats=False, njetsCats=False):
+    def __init__(self, USER, nTops, dRbjets, useJECs, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", evalMass=500, evalModel="RPV_SYY_SHH", year = "2016_2017_2018", tree = "myMiniTree", maskNjet = [-1], procCats=False, massCats=False, njetsCats=False):
 
         proc = subprocess.Popen(["hostname", "-f"], stdout=subprocess.PIPE)
         host = proc.stdout.readlines()[0].rstrip().decode("UTF-8")
@@ -47,6 +47,8 @@ class Train:
         self.config["maxStopMass"] = int(maxStopMass)
         self.config["doReweight"]  = doReweight
         self.config["useJECs"]     = useJECs
+        self.config["nTops"]       = nTops
+        self.config["dRbjets"]     = dRbjets
 
         # Depending on final state, different pt requirements
         # and resultant objects are used
@@ -407,7 +409,7 @@ class Train:
         if "0l" in self.config["tree"]:
             nJets = 6
             label = "_0l"
-            theVars = j4Vec + jFlavVec + htVec_0l + fwmVec_0l + jmtVec_0l + dRbjest + stop1OldSeed + stop2OldSeed
+            theVars = j4Vec + jFlavVec + htVec_0l + fwmVec_0l + jmtVec_0l + dRbjets + stop1OldSeed + stop2OldSeed
 
         else:
             nJets = 7
@@ -562,6 +564,8 @@ if __name__ == '__main__':
     parser.add_argument("--tree",         dest="tree",         help="myMiniTree to train on",         default="myMiniTree"              )
     parser.add_argument("--saveAndPrint", dest="saveAndPrint", help="Save pb and print model",        action="store_true", default=False)
     parser.add_argument("--seed",         dest="seed",         help="Use specific seed",              type=int, default=-1              )
+    parser.add_argument("--nTops",        dest="nTops",        help="Number of tops for 0L",          type=int, default=2               )
+    parser.add_argument("--dRbjets",      dest="dRbjets",      help="Cut on dR for bjets",            action="store_true", default=False)
     parser.add_argument("--debug",        dest="debug",        help="Do some debugging",              action="store_true", default=False)
     parser.add_argument("--useJECs",      dest="useJECs",      help="Use JEC/JER variations",         action="store_true", default=False)
     parser.add_argument("--maskNjet",     dest="maskNjet",     help="mask Njet bin/bins in training", default=[-1], nargs="+", type=int )
@@ -599,9 +603,9 @@ if __name__ == '__main__':
         with open(str(args.json), "r") as f:
             hyperconfig = json.load(f)
     else: 
-        hyperconfig = {"atag" : "test2_vpow_20210802", "disc_lambda": 30.0, "bkg_disco_lambda": 2000.0, "sig_disco_lambda" : 0.0, "mass_reg_lambda": 0.0001, "abcd_close_lambda" : 30.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs":10, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 0.5}
+        hyperconfig = {"atag" : "test2_vpow_20210802", "disc_lambda": 30.0, "bkg_disco_lambda": 2000.0, "sig_disco_lambda" : 0.0, "mass_reg_lambda": 0.0001, "abcd_close_lambda" : 30.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":2000, "epochs":10, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 0.5}
 
-    t = Train(USER, args.useJECs, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.model, evalMass=args.evalMass, evalModel=args.evalModel, year=args.year, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
+    t = Train(USER, args.nTops, args.dRbjets, args.useJECs, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.model, evalMass=args.evalMass, evalModel=args.evalModel, year=args.year, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
 
     if replay: t.replay()
 
