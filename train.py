@@ -5,13 +5,14 @@ import time
 import shutil
 import argparse
 import datetime
+import subprocess
 import numpy as np
 from glob import glob
 import multiprocessing
 import tensorflow as tf
 import tensorflow.keras as K
 
-import sys, ast, os
+import sys, ast
 os.environ['KMP_WARNINGS'] = '0'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -27,7 +28,8 @@ from Models import main_model
 class Train:
     def __init__(self, USER, useJECs, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", evalMass=500, evalModel="RPV_SYY_SHH", year = "2016_2017_2018", tree = "myMiniTree", maskNjet = [-1], procCats=False, massCats=False, njetsCats=False):
 
-        host = os.getenv("HOSTNAME")
+        proc = subprocess.Popen(["hostname", "-f"], stdout=subprocess.PIPE)
+        host = proc.stdout.readlines()[0].rstrip().decode("UTF-8")
         atMN = ".umn." in host
 
         self.user                  = USER
