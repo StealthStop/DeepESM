@@ -409,7 +409,10 @@ class Train:
         if "0l" in self.config["tree"]:
             nJets = 6
             label = "_0l"
-            theVars = j4Vec + jFlavVec + htVec_0l + fwmVec_0l + jmtVec_0l + dRbjets + stop1OldSeed + stop2OldSeed
+
+            theVars = j4Vec + jFlavVec + htVec_0l + fwmVec_0l + jmtVec_0l + stop1OldSeed + stop2OldSeed
+            if not self.config["dRbjets"]:
+                theVars += dRbjets
 
         else:
             nJets = 7
