@@ -521,7 +521,6 @@ class Train:
                 self.plot_model(model)
             except Exception as e:
                 print("WARNING: Could not print model !", e)
-                continue
 
             # Save trainig model as a protocol buffers file
             print("\n----------------Saving model------------------")
