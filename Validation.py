@@ -1281,8 +1281,8 @@ class Validation:
 
                 self.plotMetricVsBinEdges(invSigns, closeErrs, closeErrsUncs, d1edges, d2edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, int(NJets))
 
-                self.plotClosureVsDisc(closeErrs, closeErrsUncs, d1edges, d2edges, edgeWidth, 1, int(NJets))
-                self.plotClosureVsDisc(closeErrs, closeErrsUncs, d1edges, d2edges, edgeWidth, 2, int(NJets))
+                self.plotClosureVsDisc(closeErrs, closeErrsUncs, d1edges, d2edges, edgeWidth/2.0, 1, int(NJets))
+                self.plotClosureVsDisc(closeErrs, closeErrsUncs, d1edges, d2edges, edgeWidth/2.0, 2, int(NJets))
 
                 self.plotBkgSigFracVsBinEdges(sFracsA, sFracsB, sFracsC, sFracsD, sTotFracsA, sTotFracsB, sTotFracsC, sTotFracsD, bTotFracsA, bTotFracsB, bTotFracsC, bTotFracsD, d1edges, d2edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, int(NJets))
 
