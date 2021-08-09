@@ -420,12 +420,17 @@ class Validation:
 
         return bcounts, scounts
 
-    def findDiscCut4SigFrac(self, bcts, scts, minBkgEvts = 5):
+    def findDiscCut4SigFrac(self, bcts, scts, bkgNormUnc = 0.3, minBkgEvts = 5):
         # Now calculate signal fraction and significance 
         # Pick c1 and c2 that give 30% sig fraction and maximizes significance
         significance = 0.0; finalc1 = -1.0; finalc2 = -1.0; 
         closureErr = 0.0; metric = 999.0
         invSigns = []; closeErrs = []; closeErrsUncs = []; c1out = []; c2out = []
+        signUncs = []
+        wBkgA  = [];  wBkgAunc = []
+        uwBkgA = []; uwBkgAunc = []
+        wSigA  = [];  wSigAunc = []
+        uwSigA = []; uwSigAunc = []
         sFracsA = []; sFracsB = []; sFracsC = []; sFracsD = []
         sTotFracsA = []; sTotFracsB = []; sTotFracsC = []; sTotFracsD = []
         bTotFracsA = []; bTotFracsB = []; bTotFracsC = []; bTotFracsD = []
@@ -436,8 +441,10 @@ class Validation:
                 bA = bcts["A"][c1k][c2k]; bB = bcts["B"][c1k][c2k]; bC = bcts["C"][c1k][c2k]; bD = bcts["D"][c1k][c2k]
                 ba = bcts["a"][c1k][c2k]; bb = bcts["b"][c1k][c2k]; bc = bcts["c"][c1k][c2k]; bd = bcts["d"][c1k][c2k]
                 sA = scts["A"][c1k][c2k]; sB = scts["B"][c1k][c2k]; sC = scts["C"][c1k][c2k]; sD = scts["D"][c1k][c2k]
+                sa = scts["a"][c1k][c2k]; sb = scts["b"][c1k][c2k]; sc = scts["c"][c1k][c2k]; sd = scts["d"][c1k][c2k]
 
                 bA2 = bcts["A2"][c1k][c2k]; bB2 = bcts["B2"][c1k][c2k]; bC2 = bcts["C2"][c1k][c2k]; bD2 = bcts["D2"][c1k][c2k]
+                sA2 = scts["A2"][c1k][c2k]; sB2 = scts["B2"][c1k][c2k]; sC2 = scts["C2"][c1k][c2k]; sD2 = scts["D2"][c1k][c2k]
 
                 bTotal = bA + bB + bC + bD
                 sTotal = sA + sB + sC + sD
@@ -456,7 +463,7 @@ class Validation:
                 tempbfracC = bC / bTotal; tempsfracC = sC / sTotal
                 tempbfracD = bD / bTotal; tempsfracD = sD / sTotal
 
-                tempsignificance = 0.0; tempclosureerr = -999.0; tempmetric = 999.0; tempclosureerrunc = -999.0
+                tempsignificance = 0.0; tempclosureerr = -999.0; tempmetric = 999.0; tempclosureerrunc = -999.0; tempsignunc = 0.0
 
                 if bD > 0.0 and bA > 0.0:
                     tempclosureerr    = abs(1.0 - (bB * bC) / (bA * bD))
@@ -465,20 +472,25 @@ class Validation:
                                          ((bB * bC * bA2**0.5)/(bA**2.0 * bD))**2.0 + \
                                          ((bB * bC * bD2**0.5)/(bA * bD**2.0))**2.0)**0.5
 
-                if bA > 0.0: tempsignificance += (sA / (bA + (0.3*bA)**2.0 + (tempclosureerr*bA)**2.0)**0.5)**2.0
-                #if bB > 0.0: tempsignificance += (sB / (bB + (0.3*bB)**2.0 + (tempclosureerr*bB)**2.0)**0.5)**2.0
-                #if bC > 0.0: tempsignificance += (sC / (bC + (0.3*bC)**2.0 + (tempclosureerr*bC)**2.0)**0.5)**2.0
-                #if bD > 0.0: tempsignificance += (sD / (bD + (0.3*bD)**2.0 + (tempclosureerr*bD)**2.0)**0.5)**2.0
-
-                tempsignificance = tempsignificance**0.5
-
+                if bA > 0.0:
+                    tempsignificance += (sA / (bA + (bkgNormUnc*bA)**2.0 + (tempclosureerr*bA)**2.0)**0.5)
+                    tempsignunc      += ((sA2**0.5 / (bA + (bkgNormUnc*bA)**2.0 + (tempclosureerr*bA)**2.0)**0.5)**2.0 + \
+                                         ((sA * bA2**0.5 * (2.0 * bA * tempclosureerr**2.0 + 2.0 * bkgNormUnc**2.0 * bA + 1)) / (bA + (bkgNormUnc*bA)**2.0 + (tempclosureerr*bA)**2.0)**1.5)**2.0 + \
+                                         ((bA**2.0 * tempclosureerr * sA * tempclosureerrunc) / (bA * (bA * (tempclosureerr**2.0 + bkgNormUnc**2.0) + 1))**1.5)**2.0)**0.5
+                                       
                 if tempsignificance > 0.0 and tempclosureerr > 0.0:
                     invSigns.append(1.0 / tempsignificance)
 
                     closeErrs.append(abs(tempclosureerr))
                     closeErrsUncs.append(tempclosureerrunc)
+                    signUncs.append(tempsignunc)
                     c1out.append(float(c1k))
                     c2out.append(float(c2k))
+
+                    wBkgA.append(bA);  wBkgAunc.append(bA2**0.5)
+                    uwBkgA.append(ba); uwBkgAunc.append(ba**0.5)
+                    wSigA.append(sA);  wSigAunc.append(sA2**0.5)
+                    uwSigA.append(sa); uwSigAunc.append(sa**0.5)
 
                     sFracsA.append(float(tempsbfracA)); sTotFracsA.append(float(tempsfracA)); bTotFracsA.append(float(tempbfracA))
                     sFracsB.append(float(tempsbfracB)); sTotFracsB.append(float(tempsfracB)); bTotFracsB.append(float(tempbfracB))
@@ -505,7 +517,7 @@ class Validation:
                     significance = tempsignificance
                     closureErr = tempclosureerr
                 
-        return finalc1, finalc2, significance, closureErr, invSigns, closeErrs, closeErrsUncs, c1out, c2out, sFracsA, sFracsB, sFracsC, sFracsD, sTotFracsA, sTotFracsB, sTotFracsC, sTotFracsD, bTotFracsA, bTotFracsB, bTotFracsC, bTotFracsD
+        return finalc1, finalc2, significance, closureErr, invSigns, signUncs, closeErrs, closeErrsUncs, c1out, c2out, sFracsA, sFracsB, sFracsC, sFracsD, sTotFracsA, sTotFracsB, sTotFracsC, sTotFracsD, bTotFracsA, bTotFracsB, bTotFracsC, bTotFracsD, wBkgA, wBkgAunc, uwBkgA, uwBkgAunc, wSigA, wSigAunc, uwSigA, uwSigAunc
 
     # Define closure as how far away prediction for region D is compared to actual 
     def simpleClosureABCD(self, bNA, bNB, bNC, bND, bNAerr, bNBerr, bNCerr, bNDerr):
@@ -755,49 +767,58 @@ class Validation:
 
         plt.close(fig)
 
-    def plotClosureVsDisc(self, closeErrs, closeErrsUncs, d1edges, d2edges, edgeWidth, disc = -1, Njets = -1):
+    def plotVarVsDisc(self, var, varUncs, d1edges, d2edges, edgeWidth, ylim = -1.0, ylabel = "", tag = "", disc = -1, Njets = -1):
 
-       x25     = []; x50     = []; x75     = []
-       close25 = []; close50 = []; close75 = []
+       x25   = []; x50   = []; x75   = []; xDiag   = []
+       var25 = []; var50 = []; var75 = []; varDiag = []
 
-       close25unc = []; close50unc = []; close75unc = []
+       var25unc = []; var50unc = []; var75unc = []; varDiagUnc = []
 
        edges = (d1edges, d2edges)
 
-       for i in range(0, len(closeErrs)):
+       for i in range(0, len(var)):
            if   edges[disc-1][i] == 0.24: 
-               x25.append(edges[3-disc-1][i])
-               close25.append(closeErrs[i])
-               close25unc.append(closeErrsUncs[i])
+               x25.append(edges[2-disc][i])
+               var25.append(var[i])
+               var25unc.append(varUncs[i])
            elif edges[disc-1][i] == 0.50: 
-               x50.append(edges[3-disc-1][i])
-               close50.append(closeErrs[i])
-               close50unc.append(closeErrsUncs[i])
+               x50.append(edges[2-disc][i])
+               var50.append(var[i])
+               var50unc.append(varUncs[i])
            elif edges[disc-1][i] == 0.76: 
-               x75.append(edges[3-disc-1][i])
-               close75.append(closeErrs[i])
-               close75unc.append(closeErrsUncs[i])
+               x75.append(edges[2-disc][i])
+               var75.append(var[i])
+               var75unc.append(varUncs[i])
+
+           if edges[0][i] == edges[1][i]: 
+               xDiag.append(edges[2-disc][i])
+               varDiag.append(var[i])
+               varDiagUnc.append(varUncs[i])
 
        fig, ax = plt.subplots(figsize=(10, 10))
 
-       xWidths25 = [edgeWidth for i in range(0, len(x25))]
-       xWidths50 = [edgeWidth for i in range(0, len(x50))]
-       xWidths75 = [edgeWidth for i in range(0, len(x75))]
+       xWidths25   = [edgeWidth for i in range(0, len(x25))]
+       xWidths50   = [edgeWidth for i in range(0, len(x50))]
+       xWidths75   = [edgeWidth for i in range(0, len(x75))]
+       xWidthsDiag = [edgeWidth for i in range(0, len(xDiag))]
 
-       ax.errorbar(x25, close25, yerr=close25unc, label="Disc. %d = 0.25"%(disc), xerr=xWidths25, fmt='', color="red",   lw=0, elinewidth=2, marker="o", markerfacecolor="red")
-       ax.errorbar(x50, close50, yerr=close50unc, label="Disc. %d = 0.50"%(disc), xerr=xWidths50, fmt='', color="blue",  lw=0, elinewidth=2, marker="o", markerfacecolor="blue")
-       ax.errorbar(x75, close75, yerr=close75unc, label="Disc. %d = 0.75"%(disc), xerr=xWidths75, fmt='', color="green", lw=0, elinewidth=2, marker="o", markerfacecolor="green")
+       ax.errorbar(x25, var25, yerr=var25unc, label="Disc. %d = 0.25"%(disc), xerr=xWidths25, fmt='', color="red",   lw=0, elinewidth=2, marker="o", markerfacecolor="red")
+       ax.errorbar(x50, var50, yerr=var50unc, label="Disc. %d = 0.50"%(disc), xerr=xWidths50, fmt='', color="blue",  lw=0, elinewidth=2, marker="o", markerfacecolor="blue")
+       ax.errorbar(x75, var75, yerr=var75unc, label="Disc. %d = 0.75"%(disc), xerr=xWidths75, fmt='', color="green", lw=0, elinewidth=2, marker="o", markerfacecolor="green")
+       ax.errorbar(xDiag, varDiag, yerr=varDiagUnc, label="Disc. %d = Disc. %d"%(disc,3-disc), xerr=xWidthsDiag, fmt='', color="purple", lw=0, elinewidth=2, marker="o", markerfacecolor="purple")
 
-       ax.set_ylim((0.0, 1.0))
-       ax.set_ylabel("ABCD Closure Error"); ax.set_xlabel("Disc. %d Value"%(3-disc))
+       if ylim != -1.0:
+            ax.set_ylim((0.0, ylim))
+
+       ax.set_ylabel(ylabel); ax.set_xlabel("Disc. %d Value"%(3-disc))
        plt.legend(loc='best')
 
        hep.cms.label(data=True, paper=False, year=self.config["year"])
 
        fig.tight_layout()
 
-       if Njets == -1: fig.savefig(self.config["outputDir"]+"/Closure_Slices_Disc%d.pdf"%(disc), dpi=fig.dpi)
-       else:           fig.savefig(self.config["outputDir"]+"/Closure_Slices_Disc%d_Njets%s.pdf"%(disc,Njets), dpi=fig.dpi)
+       if Njets == -1: fig.savefig(self.config["outputDir"]+"/%s_Slices_Disc%d.pdf"%(tag,disc), dpi=fig.dpi)
+       else:           fig.savefig(self.config["outputDir"]+"/%s_Slices_Disc%d_Njets%s.pdf"%(tag,disc,Njets), dpi=fig.dpi)
 
        plt.close(fig)
 
@@ -1277,12 +1298,27 @@ class Validation:
 
                 # Get number of background and signal counts for each A, B, C, D region for every possible combination of cuts on disc 1 and disc 2
                 bc, sc = self.cutAndCount(c1s, c2s, y_eval_bg_disc1[bkgFullMaskEval], y_eval_bg_disc2[bkgFullMaskEval], evalBkg["weight"][bkgFullMaskEval], y_eval_sg_disc1[sigFullMaskEval], y_eval_sg_disc2[sigFullMaskEval], evalSig["weight"][sigFullMaskEval])
-                c1, c2, significance, closureErr, invSigns, closeErrs, closeErrsUncs, d1edges, d2edges, sFracsA, sFracsB, sFracsC, sFracsD, sTotFracsA, sTotFracsB, sTotFracsC, sTotFracsD, bTotFracsA, bTotFracsB, bTotFracsC, bTotFracsD = self.findDiscCut4SigFrac(bc, sc)
+                c1, c2, significance, closureErr, invSigns, signUnc, closeErrs, closeErrsUncs, d1edges, d2edges, sFracsA, sFracsB, sFracsC, sFracsD, sTotFracsA, sTotFracsB, sTotFracsC, sTotFracsD, bTotFracsA, bTotFracsB, bTotFracsC, bTotFracsD, wBkgA, wBkgAunc, uwBkgA, uwBkgAunc, wSigA, wSigAunc, uwSigA, uwSigAunc = self.findDiscCut4SigFrac(bc, sc)
 
                 self.plotMetricVsBinEdges(invSigns, closeErrs, closeErrsUncs, d1edges, d2edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, int(NJets))
 
-                self.plotClosureVsDisc(closeErrs, closeErrsUncs, d1edges, d2edges, edgeWidth/2.0, 1, int(NJets))
-                self.plotClosureVsDisc(closeErrs, closeErrsUncs, d1edges, d2edges, edgeWidth/2.0, 2, int(NJets))
+                self.plotVarVsDisc(closeErrs, closeErrsUncs, d1edges, d2edges, edgeWidth/2.0, 1.0, "ABCD Closure", "Closure", 1, int(NJets))
+                self.plotVarVsDisc(closeErrs, closeErrsUncs, d1edges, d2edges, edgeWidth/2.0, 1.0, "ABCD Closure", "Closure", 2, int(NJets))
+
+                self.plotVarVsDisc(np.reciprocal(invSigns), signUnc, d1edges, d2edges, edgeWidth/2.0, 5.0, "Significance", "Significance", 1, int(NJets))
+                self.plotVarVsDisc(np.reciprocal(invSigns), signUnc, d1edges, d2edges, edgeWidth/2.0, 5.0, "Significance", "Significance", 2, int(NJets))
+
+                self.plotVarVsDisc(wBkgA, wBkgAunc, d1edges, d2edges, edgeWidth/2.0, -1.0, "Weighted Background Events", "wBkgEvts", 1, int(NJets))
+                self.plotVarVsDisc(wSigA, wSigAunc, d1edges, d2edges, edgeWidth/2.0, -1.0, "Weighted Signal Events",     "wSigEvts", 1, int(NJets))
+
+                self.plotVarVsDisc(wBkgA, wBkgAunc, d1edges, d2edges, edgeWidth/2.0, -1.0, "Weighted Background Events", "wBkgEvts", 2, int(NJets))
+                self.plotVarVsDisc(wSigA, wSigAunc, d1edges, d2edges, edgeWidth/2.0, -1.0, "Weighted Signal Events",     "wSigEvts", 2, int(NJets))
+
+                self.plotVarVsDisc(uwBkgA, uwBkgAunc, d1edges, d2edges, edgeWidth/2.0, -1.0, "Background MC Counts", "uwBkgCnts", 1, int(NJets))
+                self.plotVarVsDisc(uwSigA, uwSigAunc, d1edges, d2edges, edgeWidth/2.0, -1.0, "Signal MC Counts",     "uwSigCnts", 1, int(NJets))
+
+                self.plotVarVsDisc(uwBkgA, uwBkgAunc, d1edges, d2edges, edgeWidth/2.0, -1.0, "Background MC Counts", "uwBkgCnts", 2, int(NJets))
+                self.plotVarVsDisc(uwSigA, uwSigAunc, d1edges, d2edges, edgeWidth/2.0, -1.0, "Signal MC Counts",     "uwSigCnts", 2, int(NJets))
 
                 self.plotBkgSigFracVsBinEdges(sFracsA, sFracsB, sFracsC, sFracsD, sTotFracsA, sTotFracsB, sTotFracsC, sTotFracsD, bTotFracsA, bTotFracsB, bTotFracsC, bTotFracsD, d1edges, d2edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, int(NJets))
 

@@ -606,7 +606,7 @@ if __name__ == '__main__':
         with open(str(args.json), "r") as f:
             hyperconfig = json.load(f)
     else: 
-        hyperconfig = {"atag" : "test2_vpow_20210802", "disc_lambda": 30.0, "bkg_disco_lambda": 2000.0, "sig_disco_lambda" : 0.0, "mass_reg_lambda": 0.0001, "abcd_close_lambda" : 30.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":2000, "epochs":10, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 0.5}
+        hyperconfig = {"atag" : "test2_vpow_20210802", "disc_lambda": 30.0, "bkg_disco_lambda": 2000.0, "sig_disco_lambda" : 0.0, "mass_reg_lambda": 0.0001, "abcd_close_lambda" : 30.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":10000, "epochs":10, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 0.5}
 
     t = Train(USER, args.nTops, args.dRbjets, args.useJECs, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.model, evalMass=args.evalMass, evalModel=args.evalModel, year=args.year, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
 
