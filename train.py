@@ -517,11 +517,18 @@ class Train:
         if self.saveAndPrint:
             # Model Visualization
             print("\n----------------Printed model layout------------------")
-            self.plot_model(model)
-            
+            try:
+                self.plot_model(model)
+            except Exception as e:
+                print("WARNING: Could not print model !", e)
+                continue
+
             # Save trainig model as a protocol buffers file
             print("\n----------------Saving model------------------")
-            self.save_model_pb(model)
+            try:
+                self.save_model_pb(model)
+            except Exception as e:
+                print("ERROR: Could not save model pb !", e)
        
         #Plot results
         print("\n----------------Validation of training------------------")
