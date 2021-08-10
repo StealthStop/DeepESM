@@ -124,11 +124,21 @@ class DataLoader(K.utils.Sequence):
 
         for suffix in variations:
             theVars = [v+suffix if v not in ["mass", "model", "Weight"] else v for v in self.variables]
+
+            selection = None
+            if "_0l" in self.config["tree"]:
+                print("Selecting 0L events with >= %d tops"%(self.config["nTops"]))
+                selection = "%s>=%s"%(self.config["ntopsLabel"],self.config["nTops"])
+    
+                if self.config["dRbjets"]:
+                    print("Selecting 0L events with dR(b1, b2) >= 1.0")
+                    selection += " & " + "%s>=1.0"%(self.config["dRbjetsLabel"])
+
             for filename in self.datasets[process]:
             
                 try:
                     f = uproot.open(filename)
-                    tempnpf = f[self.config["tree"]+suffix].arrays(expressions=theVars, library="np", entry_stop=max_entries)
+                    tempnpf = f[self.config["tree"]+suffix].arrays(expressions=theVars, cut=selection, library="np", entry_stop=max_entries)
                     tempVars = list(tempnpf.keys())
                     npf = {}
                     for var in tempVars:
@@ -277,15 +287,6 @@ class DataLoader(K.utils.Sequence):
 
             pcond = np.ones(df[self.config["modelLabel"]].shape[0]).astype(bool)
             pcond &= combMaskNjets
-
-            # Tighten or loosen selection on 0L events to train on
-            if "_0l" in self.config["tree"]:
-                print("Selecting 0L events with >= %d tops"%(self.config["nTops"]))
-                pcond &= (df[self.config["ntopsLabel"]]>=self.config["nTops"])
-    
-                if self.config["dRbjets"]:
-                    print("Selecting 0L events with dR(b1, b2) >= 1.0")
-                    pcond &= (df[self.config["dRbjetsLabel"]]>=1.0)
 
             isBackground = (p<100)
 
