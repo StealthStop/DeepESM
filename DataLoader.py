@@ -128,11 +128,11 @@ class DataLoader(K.utils.Sequence):
             selection = None
             if "_0l" in self.config["tree"]:
                 print("Selecting 0L events with >= %d tops"%(self.config["nTops"]))
-                selection = "%s>=%s"%(self.config["ntopsLabel"],self.config["nTops"])
+                selection = "(%s>=%s)"%(self.config["ntopsLabel"],self.config["nTops"])
     
                 if self.config["dRbjets"]:
                     print("Selecting 0L events with dR(b1, b2) >= 1.0")
-                    selection += " & " + "%s>=1.0"%(self.config["dRbjetsLabel"])
+                    selection += " & " + "(%s>=1.0)"%(self.config["dRbjetsLabel"])
 
             for filename in self.datasets[process]:
             
