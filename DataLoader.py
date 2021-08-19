@@ -116,7 +116,7 @@ class DataLoader(K.utils.Sequence):
 
         max_entries = None
         if self.config["debug"]:
-            max_entries = 1
+            max_entries = 100
 
         variations = ["", "JECup", "JECdown", "JERup", "JERdown"]
         if self.config["debug"] or not self.config["useJECs"]:
