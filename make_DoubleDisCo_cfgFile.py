@@ -7,7 +7,7 @@ debug = True
 def print_db(input):
 
     if (debug):
-        print input
+        print(input)
 
 def main():
 
@@ -18,15 +18,21 @@ def main():
     # ----------------------------------------- 
     usage  = "usage: %prog [options]"
     parser = argparse.ArgumentParser(usage)
-    parser.add_argument("--year", dest="year", help="which year",            required=True)
-    parser.add_argument("--path", dest="path", help="Input dir with histos", required=True)
-    parser.add_argument("--case", dest="case", help="0l, 1l, 2l",            required=True)
+    parser.add_argument("--year",  dest="year",  help="which year",             required=True)
+    parser.add_argument("--path",  dest="path",  help="Input dir with histos",  required=True)
+    parser.add_argument("--model", dest="model", help="for which signal model", required=True)
+    parser.add_argument("--case",  dest="case",  help="0l, 1l, 2l",             required=True)
+    parser.add_argument("--qcdcr", dest="qcdcr", help="Make config for QCD CR", action="store_true", default=False)
     args = parser.parse_args()
 
     # ------------------------------------------
     # create a separate folder for each cfg file
     # ------------------------------------------
-    release = "DoubleDisCo_Reg" + args.case + "_" + args.year + "_" + args.path.split("atag_")[-1].split("_batch_size_")[0] 
+    qcdCRtag = ""
+    if args.qcdcr:
+        qcdCRtag = "_NonIsoMuon_"
+
+    release = "DoubleDisCo_Reg" + "_" + args.case + "_" + args.model + "_" + args.year + "_" + args.path.split("atag_")[-1].split("_batch_size_")[0]
     if not os.path.exists(release):
         os.makedirs(release)
 
@@ -47,12 +53,12 @@ def main():
         cfg        = json.load(c)
         minNjet    = cfg["minNJetBin"]
         maxNjet    = cfg["maxNJetBin"]
-        allVars    = cfg["allVars"]
+        trainVars  = cfg["trainVars"]
         mask       = cfg["Mask"]
         mask_njet  = cfg["Mask_nJet"]
 
     #with open ("DoubleDisCo" + args.case + "_" + args.year + ".cfg", "w") as f:
-    with open ("%s/DoubleDisCo_Reg.cfg"%(release), "w") as f:   
+    with open ("%s/DoubleDisCo_Reg%s.cfg"%(release,qcdCRtag[:-1]), "w") as f:   
         f.write("//Comment\n")
         f.write("/*another comment*/\n")
         f.write("\n")
@@ -63,16 +69,20 @@ def main():
         f.write("   modelFile = \"keras_frozen.pb\"\n")
         f.write("   inputOp = \"x\"\n")
         f.write("   outputOpVec[0] = \"Identity\"\n")
-        f.write("   outputOpVec[1] = \"Identity_3\"\n")
+        f.write("   outputOpVec[1] = \"Identity_2\"\n")
         f.write("   outputCmVec[0] = 4\n")
         f.write("   outputCmVec[1] = 1\n")
         f.write("   year = \"%s\"\n" %(args.year))
-        f.write("   name = \"%s\"\n" %(args.case[1:]))
+        f.write("   name = \"%s%s_%s\"\n" %(qcdCRtag[1:],args.case,args.model))
 
-        if (args.case == "_0l"):
-            f.write("   nJetVar = \"NGoodJets_pt45\"\n")
+        goodStr = "Good"
+        if args.qcdcr:
+            goodStr = ""
+
+        if (args.case == "0l"):
+            f.write("   nJetVar = \"N%s%sJets_pt45\"\n"%(qcdCRtag[1:-1],goodStr))
         else:
-            f.write("   nJetVar = \"NGoodJets_pt30\"\n")
+            f.write("   nJetVar = \"N%s%sJets_pt30\"\n"%(qcdCRtag[1:-1],goodStr))
 
         # Find the highest Njet bin that was masked from the list
         # If the highest masked Njet is higher than minNjet
@@ -101,7 +111,14 @@ def main():
             i += 1
 
         i = 0
-        for var in allVars:
+        for var in trainVars:
+
+            if args.qcdcr:
+                var = var.replace("Jet",       "Jet%ss"%(qcdCRtag[1:-1]))
+                var = var.replace("fwm",       "%ss_fwm"%(qcdCRtag[1:-1]))
+                var = var.replace("jmt",       "%ss_jmt"%(qcdCRtag[1:-1]))
+                var = var.replace("cm_",       "cm_%s"%(qcdCRtag[1:]))
+                var = var.replace("trigger",   "%s"%(qcdCRtag[1:-1]))
 
             f.write("   mvaVar[%d] = \"%s\" \n" %(i,var))
             i += 1
@@ -111,6 +128,3 @@ def main():
                     
 if __name__ == '__main__':
     main()
-
-
-
