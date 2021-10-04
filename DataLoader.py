@@ -126,13 +126,17 @@ class DataLoader(K.utils.Sequence):
             theVars = [v+suffix if v not in ["mass", "model", "Weight"] else v for v in self.variables]
 
             selection = None
-            if "_0l" in self.config["tree"]:
-                print("Selecting 0L events with >= %d tops"%(self.config["nTops"]))
-                selection = "(%s>=%s)"%(self.config["ntopsLabel"]+suffix,self.config["nTops"])
+            #if "_0l" in self.config["tree"]:
+            #    print("Selecting 0L events with >= %d tops"%(self.config["nTops"]))
+            #    selection = "(%s>=%s)"%(self.config["ntopsLabel"]+suffix,self.config["nTops"])
     
-                if self.config["dRbjets"]:
-                    print("Selecting 0L events with dR(b1, b2) >= 1.0")
-                    selection += " & " + "(%s>=1.0)"%(self.config["dRbjetsLabel"]+suffix)
+            #    if self.config["dRbjets"]:
+            #        print("Selecting 0L events with dR(b1, b2) >= 1.0")
+            #        selection += " & " + "(%s>=1.0)"%(self.config["dRbjetsLabel"]+suffix)
+
+            if "_1l" in self.config["tree"]:
+                print("Selecting 1L events with >= %d jets"%(self.config["nJets"]))
+                selection = "(%s>=%s)"%(self.config["domainLabel"]+suffix,self.config["nJets"])
 
             for filename in self.datasets[process]:
             
