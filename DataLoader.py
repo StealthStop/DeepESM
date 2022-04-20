@@ -116,25 +116,32 @@ class DataLoader(K.utils.Sequence):
 
         max_entries = None
         if self.config["debug"]:
-            max_entries = 1
+            max_entries = 100
 
         variations = ["", "JECup", "JECdown", "JERup", "JERdown"]
-        if self.config["debug"]:
+        if self.config["debug"] or not self.config["useJECs"]:
             variations = [""]
 
         for suffix in variations:
             theVars = [v+suffix if v not in ["mass", "model", "Weight"] else v for v in self.variables]
+
+            selection = None
+            if "_1l" in self.config["tree"] or "_0l" in self.config["tree"]:
+                print("Selecting 1L events with >= %d jets"%(self.config["nJets"]))
+                selection = "(%s>=%s)"%(self.config["domainLabel"]+suffix,self.config["nJets"])
+
             for filename in self.datasets[process]:
             
                 try:
                     f = uproot.open(filename)
-                    tempnpf = f[self.config["tree"]+suffix].arrays(expressions=theVars, library="np", entry_stop=max_entries)
+                    tempnpf = f[self.config["tree"]+suffix].arrays(expressions=theVars, cut=selection, library="np", entry_stop=max_entries)
                     tempVars = list(tempnpf.keys())
                     npf = {}
                     for var in tempVars:
                         newVar = var.replace("JERup", "").replace("JECup", "").replace("JERdown", "").replace("JECdown", "")
+
                         if newVar == var:
-                            npf[newVar] = tempnpf[var]
+                            npf[newVar] = tempnpf[var] 
                         else:
                             npf[newVar] = tempnpf.pop(var)
 
