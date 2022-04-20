@@ -522,7 +522,8 @@ class Validation:
 
                     #tempmetric = 1.0 / tempsignificance
 
-                if tempmetric < metric:
+                #if tempmetric < metric:
+                if c1k == "0.60" and c2k == "0.60":
 
                     finalc1 = c1k; finalc2 = c2k
                     metric = tempmetric
@@ -674,9 +675,9 @@ class Validation:
         fig.tight_layout()
 
         if Njets == -1:
-            fig.savefig(self.config["outputDir"]+"/InvSign_vs_CloseErr.pdf", dpi=fig.dpi)        
+            fig.savefig(self.config["outputDir"]+"/InvSign_vs_NonClosure.pdf", dpi=fig.dpi)        
         else:
-            fig.savefig(self.config["outputDir"]+"/InvSign_vs_CloseErr_Njets%d.pdf"%(Njets), dpi=fig.dpi)        
+            fig.savefig(self.config["outputDir"]+"/InvSign_vs_NonClosure_Njets%d.pdf"%(Njets), dpi=fig.dpi)        
 
         plt.close(fig)
 
@@ -702,7 +703,7 @@ class Validation:
 
         hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
 
-        plt.xlabel('N_{jets}')
+        plt.xlabel('$N_{jets}$')
         plt.ylabel('Events')
         plt.legend(loc='best')
         plt.text(0.05, 0.94, r"Significance = %.2f"%(sign), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
@@ -783,12 +784,12 @@ class Validation:
 
         hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax1)
         
-        ax2.set_xlabel('N_{jets}')
+        ax2.set_xlabel('$N_{jets}$')
         ax2.set_ylabel('1 - Pred./Obs.', fontsize="small")
         ax1.set_ylabel('Weighted Events')
         ax1.legend(loc='best')
         
-        ax2.set_ylim([-1.6, 1.6])
+        ax2.set_ylim([-0.6, 0.6])
         
         if tag != "":
             fig.savefig(self.config["outputDir"]+"/Njets_Region_A_PredVsActual_%s.pdf"%(tag))
@@ -854,8 +855,13 @@ class Validation:
                 evalSig[key]  = np.concatenate((trainSigTmp[key],  valSigTmp[key], testSigTmp[key]),  axis=0)
                 evalBkg[key]  = np.concatenate((trainBkgTmp[key],  valBkgTmp[key], testBkgTmp[key]),  axis=0)
         
-        massMaskEval = evalSig["mass"] == float(evalMass)
-        massMaskVal  = valSig["mass"]  == float(valMass)
+        massMaskEval     = evalSig["mass"] == float(evalMass)
+        massMaskVal      = valSig["mass"]  == float(valMass)
+
+        massMaskDataEval = evalData["mass"]==float(evalMass)
+        massMaskDataEval |= evalData["mass"]==float(173.0)
+        massMaskDataVal  = valData["mass"]==float(valMass)
+        massMaskDataVal |= valData["mass"]==float(173.0)
 
         # Make signal model mask for signal training dataset
         rpvMaskEval = evalSig["model"]==self.sample["RPV"]
@@ -1096,15 +1102,16 @@ class Validation:
                 self.plotVarVsBinEdges(signs[:,0], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 20.0, 5.0, "Sign",    int(NJets))
                 self.plotVarVsBinEdges(signs[:,1], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 20.0, 0.5, "SignUnc", int(NJets))
 
-                self.plotVarVsBinEdges(closeErrs[:,0], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 20.0, 0.3, "ClosureErr",    int(NJets))
-                self.plotVarVsBinEdges(closeErrs[:,1], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 20.0, 1.0, "ClosureErrUnc", int(NJets))
+                self.plotVarVsBinEdges(closeErrs[:,0], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 20.0, 0.5, "NonClosure",    int(NJets))
+                self.plotVarVsBinEdges(closeErrs[:,1], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 20.0, 0.5, "NonClosureUnc", int(NJets))
 
-                self.plotVarVsDisc(closeErrs, edges, edgeWidth/2.0, 1.0, False, "ABCD Closure", "Closure", 1, int(NJets))
-                self.plotVarVsDisc(closeErrs, edges, edgeWidth/2.0, 1.0, False, "ABCD Closure", "Closure", 2, int(NJets))
+                #self.plotVarVsDisc(closeErrs, edges, edgeWidth/2.0, 1.0, False, "ABCD Closure", "Closure", 1, int(NJets))
+                #self.plotVarVsDisc(closeErrs, edges, edgeWidth/2.0, 1.0, False, "ABCD Closure", "Closure", 2, int(NJets))
 
-                self.plotVarVsDisc(signs, edges, edgeWidth/2.0, 5.0, False, "Significance", "Significance", 1, int(NJets))
-                self.plotVarVsDisc(signs, edges, edgeWidth/2.0, 5.0, False, "Significance", "Significance", 2, int(NJets))
+                #self.plotVarVsDisc(signs, edges, edgeWidth/2.0, 5.0, False, "Significance", "Significance", 1, int(NJets))
+                #self.plotVarVsDisc(signs, edges, edgeWidth/2.0, 5.0, False, "Significance", "Significance", 2, int(NJets))
 
+                """
                 for region in ["A", "B", "C", "D"]:
                     self.plotVarVsDisc(wBkg[region], edges, edgeWidth/2.0, -1.0, True, "Weighted Background Events", "wBkgEvts%s"%(region), 1, int(NJets))
                     self.plotVarVsDisc(wSig[region], edges, edgeWidth/2.0, -1.0, True, "Weighted Signal Events",     "wSigEvts%s"%(region), 1, int(NJets))
@@ -1123,6 +1130,7 @@ class Validation:
 
                     self.plotVarVsBinEdges(sFracs[region][:,0], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 10.0, 0.8, "sigCont%s"%(region), int(NJets))
                     self.plotVarVsBinEdges(sFracs[region][:,1], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 10.0, 0.8, "sigCont%sunc"%(region), int(NJets))
+                """
 
                 tempAveClose, tempStdClose = self.plotBinEdgeMetricComps(significance, closureErr, signs, closeErrs, c1s, c1, c2, int(NJets))
 
@@ -1235,14 +1243,14 @@ class Validation:
             else: self.metric["InvTotalSignificance"] = 999.0
 
         # Plot validation roc curve
-        fpr_val_disc1, tpr_val_disc1, thresholds_val_disc1    = roc_curve(valData["label"][:,0][sigMaskDataVal],   y_val_disc1[sigMaskDataVal],   sample_weight=valData["weight"][sigMaskDataVal])
-        fpr_val_disc2, tpr_val_disc2, thresholds_val_disc2    = roc_curve(valData["label"][:,0][sigMaskDataVal],   y_val_disc2[sigMaskDataVal],   sample_weight=valData["weight"][sigMaskDataVal])
-        fpr_eval_disc1, tpr_eval_disc1, thresholds_eval_disc1 = roc_curve(evalData["label"][:,0][sigMaskDataEval], y_eval_disc1[sigMaskDataEval], sample_weight=evalData["weight"][sigMaskDataEval])
-        fpr_eval_disc2, tpr_eval_disc2, thresholds_eval_disc2 = roc_curve(evalData["label"][:,0][sigMaskDataEval], y_eval_disc2[sigMaskDataEval], sample_weight=evalData["weight"][sigMaskDataEval])
-        auc_val_disc1  = roc_auc_score(valData["label"][:,0][sigMaskDataVal],   y_val_disc1[sigMaskDataVal])
-        auc_val_disc2  = roc_auc_score(valData["label"][:,0][sigMaskDataVal],   y_val_disc2[sigMaskDataVal])
-        auc_eval_disc1 = roc_auc_score(evalData["label"][:,0][sigMaskDataEval], y_eval_disc1[sigMaskDataEval])
-        auc_eval_disc2 = roc_auc_score(evalData["label"][:,0][sigMaskDataEval], y_eval_disc2[sigMaskDataEval])
+        fpr_val_disc1, tpr_val_disc1, thresholds_val_disc1    = roc_curve(valData["label"][:,0][massMaskDataVal&sigMaskDataVal],   y_val_disc1[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
+        fpr_val_disc2, tpr_val_disc2, thresholds_val_disc2    = roc_curve(valData["label"][:,0][massMaskDataVal&sigMaskDataVal],   y_val_disc2[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
+        fpr_eval_disc1, tpr_eval_disc1, thresholds_eval_disc1 = roc_curve(evalData["label"][:,0][massMaskDataEval&sigMaskDataEval], y_eval_disc1[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
+        fpr_eval_disc2, tpr_eval_disc2, thresholds_eval_disc2 = roc_curve(evalData["label"][:,0][massMaskDataEval&sigMaskDataEval], y_eval_disc2[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
+        auc_val_disc1  = roc_auc_score(valData["label"][:,0][massMaskDataVal&sigMaskDataVal],   y_val_disc1[massMaskDataVal&sigMaskDataVal])
+        auc_val_disc2  = roc_auc_score(valData["label"][:,0][massMaskDataVal&sigMaskDataVal],   y_val_disc2[massMaskDataVal&sigMaskDataVal])
+        auc_eval_disc1 = roc_auc_score(evalData["label"][:,0][massMaskDataEval&sigMaskDataEval], y_eval_disc1[massMaskDataEval&sigMaskDataEval])
+        auc_eval_disc2 = roc_auc_score(evalData["label"][:,0][massMaskDataEval&sigMaskDataEval], y_eval_disc2[massMaskDataEval&sigMaskDataEval])
 
         # Define metrics for the training
         self.metric["OverTrain_Disc1"]   = abs(auc_val_disc1 - auc_eval_disc1)
@@ -1253,12 +1261,12 @@ class Validation:
         # Plot some ROC curves
         self.plotROC(None, None, "_Disc1", None, None, None, None, fpr_eval_disc1, fpr_val_disc1, tpr_eval_disc1, tpr_val_disc1, auc_eval_disc1, auc_val_disc1)
         self.plotROC(None, None, "_Disc2", None, None, None, None, fpr_eval_disc2, fpr_val_disc2, tpr_eval_disc2, tpr_val_disc2, auc_eval_disc2, auc_val_disc2)
-        self.plotROC(sigMaskDataEval, sigMaskDataVal, "_"+self.config["bkgd"][0]+"_nJet_disc1", y_eval_disc1, y_val_disc1, evalData, valData)
-        self.plotROC(sigMaskDataEval, sigMaskDataVal, "_"+self.config["bkgd"][0]+"_nJet_disc2", y_eval_disc2, y_val_disc2, evalData, valData)
+        self.plotROC(massMaskDataEval&sigMaskDataEval, massMaskDataVal&sigMaskDataVal, "_"+self.config["bkgd"][0]+"_nJet_disc1", y_eval_disc1, y_val_disc1, evalData, valData)
+        self.plotROC(massMaskDataEval&sigMaskDataEval, massMaskDataVal&sigMaskDataVal, "_"+self.config["bkgd"][0]+"_nJet_disc2", y_eval_disc2, y_val_disc2, evalData, valData)
         
         # Plot validation precision recall
-        precision_val_disc1,  recall_val_disc1,  _ = precision_recall_curve(valData["label"][:,0][sigMaskDataVal],   y_val_disc1[sigMaskDataVal],   sample_weight=valData["weight"][sigMaskDataVal])
-        precision_eval_disc1, recall_eval_disc1, _ = precision_recall_curve(evalData["label"][:,0][sigMaskDataEval], y_eval_disc1[sigMaskDataEval], sample_weight=evalData["weight"][sigMaskDataEval])
+        precision_val_disc1,  recall_val_disc1,  _ = precision_recall_curve(valData["label"][:,0][massMaskDataVal&sigMaskDataVal],   y_val_disc1[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
+        precision_eval_disc1, recall_eval_disc1, _ = precision_recall_curve(evalData["label"][:,0][massMaskDataEval&sigMaskDataEval], y_eval_disc1[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
         ap_val_disc1  = average_precision_score(valData["label"][:,0],  y_val_disc1,  sample_weight=valData["weight"])
         ap_eval_disc1 = average_precision_score(evalData["label"][:,0], y_eval_disc1, sample_weight=evalData["weight"])
         
