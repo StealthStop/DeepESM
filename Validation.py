@@ -559,12 +559,6 @@ class Validation:
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="red", linewidth=2); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="red", linewidth=2)
         ax.add_line(l1); ax.add_line(l2)
         ax.set_ylabel("Disc. 2"); ax.set_xlabel("Disc. 1")
-        #plt.text(0.05, 0.90, r"$\bf{CC}$ = %.3f"%(corr), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
-
-        #if significance > 0.0:
-        #    plt.text(0.05, 0.95, r"$\bf{Significance}$ = %.3f"%(significance), fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
-        #else:
-        #    plt.text(0.05, 0.95, r"$\bf{Significance}$ = N/A", fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
         hep.cms.label(data=True, paper=False, year=self.config["year"])
 
         fig.tight_layout()
