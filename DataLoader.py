@@ -126,15 +126,7 @@ class DataLoader(K.utils.Sequence):
             theVars = [v+suffix if v not in ["mass", "model", "Weight"] else v for v in self.variables]
 
             selection = None
-            #if "_0l" in self.config["tree"]:
-            #    print("Selecting 0L events with >= %d tops"%(self.config["nTops"]))
-            #    selection = "(%s>=%s)"%(self.config["ntopsLabel"]+suffix,self.config["nTops"])
-    
-            #    if self.config["dRbjets"]:
-            #        print("Selecting 0L events with dR(b1, b2) >= 1.0")
-            #        selection += " & " + "(%s>=1.0)"%(self.config["dRbjetsLabel"]+suffix)
-
-            if "_1l" in self.config["tree"]:
+            if "_1l" in self.config["tree"] or "_0l" in self.config["tree"]:
                 print("Selecting 1L events with >= %d jets"%(self.config["nJets"]))
                 selection = "(%s>=%s)"%(self.config["domainLabel"]+suffix,self.config["nJets"])
 
@@ -147,8 +139,9 @@ class DataLoader(K.utils.Sequence):
                     npf = {}
                     for var in tempVars:
                         newVar = var.replace("JERup", "").replace("JECup", "").replace("JERdown", "").replace("JECdown", "")
+
                         if newVar == var:
-                            npf[newVar] = tempnpf[var]
+                            npf[newVar] = tempnpf[var] 
                         else:
                             npf[newVar] = tempnpf.pop(var)
 
