@@ -408,11 +408,11 @@ class Train:
 
         if "0l" in self.config["tree"]:
             label = "_0l"
-            theVars = j4VecNew + jFlavVec + htVec + fwmVec_0l + jmtVec_0l + stop1TopSeed + stop2TopSeed
+            theVars = j4Vec + jFlavVec + htVec + fwmVec_0l + jmtVec_0l + stop1TopSeed + stop2TopSeed
 
         else:
             label = "_1l"
-            theVars = j4VecNew + jFlavVec + htVec + fwmVec_1l + jmtVec_1l + stop1OldSeed + stop2OldSeed
+            theVars = j4Vec + jFlavVec + htVec + fwmVec_1l + jmtVec_1l + stop1OldSeed + stop2OldSeed
 
         newVars = []; auxVars = []
         for var in theVars:
