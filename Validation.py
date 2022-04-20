@@ -1099,33 +1099,6 @@ class Validation:
                 self.plotVarVsBinEdges(closeErrs[:,0], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 20.0, 0.5, "NonClosure",    int(NJets))
                 self.plotVarVsBinEdges(closeErrs[:,1], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 20.0, 0.5, "NonClosureUnc", int(NJets))
 
-                #self.plotVarVsDisc(closeErrs, edges, edgeWidth/2.0, 1.0, False, "ABCD Closure", "Closure", 1, int(NJets))
-                #self.plotVarVsDisc(closeErrs, edges, edgeWidth/2.0, 1.0, False, "ABCD Closure", "Closure", 2, int(NJets))
-
-                #self.plotVarVsDisc(signs, edges, edgeWidth/2.0, 5.0, False, "Significance", "Significance", 1, int(NJets))
-                #self.plotVarVsDisc(signs, edges, edgeWidth/2.0, 5.0, False, "Significance", "Significance", 2, int(NJets))
-
-                """
-                for region in ["A", "B", "C", "D"]:
-                    self.plotVarVsDisc(wBkg[region], edges, edgeWidth/2.0, -1.0, True, "Weighted Background Events", "wBkgEvts%s"%(region), 1, int(NJets))
-                    self.plotVarVsDisc(wSig[region], edges, edgeWidth/2.0, -1.0, True, "Weighted Signal Events",     "wSigEvts%s"%(region), 1, int(NJets))
-
-                    self.plotVarVsDisc(wBkg[region], edges, edgeWidth/2.0, -1.0, True, "Weighted Background Events", "wBkgEvts%s"%(region), 2, int(NJets))
-                    self.plotVarVsDisc(wSig[region], edges, edgeWidth/2.0, -1.0, True, "Weighted Signal Events",     "wSigEvts%s"%(region), 2, int(NJets))
-
-                    self.plotVarVsDisc(uwBkg[region], edges, edgeWidth/2.0, -1.0, True, "Background MC Counts", "uwBkgCnts%s"%(region), 1, int(NJets))
-                    self.plotVarVsDisc(uwSig[region], edges, edgeWidth/2.0, -1.0, True, "Signal MC Counts",     "uwSigCnts%s"%(region), 1, int(NJets))
-
-                    self.plotVarVsDisc(uwBkg[region], edges, edgeWidth/2.0, -1.0, True, "Background MC Counts", "uwBkgCnts%s"%(region), 2, int(NJets))
-                    self.plotVarVsDisc(uwSig[region], edges, edgeWidth/2.0, -1.0, True, "Signal MC Counts",     "uwSigCnts%s"%(region), 2, int(NJets))
-
-                    self.plotVarVsDisc(sFracs[region], edges, edgeWidth/2.0, -1.0, False, "Signal Contamination", "sigCont%s"%(region), 1, int(NJets))
-                    self.plotVarVsDisc(sFracs[region], edges, edgeWidth/2.0, -1.0, False, "Signal Contamination", "sigCont%s"%(region), 2, int(NJets))
-
-                    self.plotVarVsBinEdges(sFracs[region][:,0], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 10.0, 0.8, "sigCont%s"%(region), int(NJets))
-                    self.plotVarVsBinEdges(sFracs[region][:,1], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 10.0, 0.8, "sigCont%sunc"%(region), int(NJets))
-                """
-
                 tempAveClose, tempStdClose = self.plotBinEdgeMetricComps(significance, closureErr, signs, closeErrs, c1s, c1, c2, int(NJets))
 
                 bkgdNjetsSign.append(significance)
