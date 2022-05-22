@@ -1,14 +1,24 @@
-import time
+import gc
+import sys
 import math
-import itertools
 import numpy as np
 import tensorflow as tf
 import uproot4 as uproot
 import tensorflow.keras as K
 
+import tracemalloc
+
+import datetime
+import time
+
+def timeStamp():
+    return datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+
 class DataLoader(K.utils.Sequence):
 
     def __init__(self, config, signalDataSet, backgroundDataSet, categorization=0):
+
+        tracemalloc.start()
 
         np.random.seed(config["seed"]) 
 
@@ -27,6 +37,8 @@ class DataLoader(K.utils.Sequence):
         # Will hold per event information for inputs, Njets, regression label, model, etc.
         self.data = {}
 
+        self.df = {}
+
         self.columnHeaders = None
         self.numBkgEvents = 0.0
         self.numSigEvents = 0.0
@@ -43,6 +55,8 @@ class DataLoader(K.utils.Sequence):
         self.numBkgCategories = 1
         self.numSigCategories = 1
 
+        self.batchIndexContainer = None 
+
         # This call performs the entire setup of the DataLoader instance
         self.importData()
 
@@ -50,29 +64,33 @@ class DataLoader(K.utils.Sequence):
     # for use in the Validation part of the framework
     # If a process, mass, and/or Njets category is specified, that combination
     # returned while flattening over the other categories
-    def getFlatData(self, process = None, mass = None, Njets = None):
+    def getFlatData(self, year = None, process = None, mass = None, Njets = None):
         
+        self.data = None
+        gc.collect()
         flatDictionary = {}
-        for key, d in self.data.items():
 
-            mask = (np.ones(d[list(d.keys())[0]].shape[0]))==1
+        mask = (np.ones(self.df[list(self.df.keys())[0]].shape[0]))==1
+        if process != None:
+            mask &= (self.df[self.config["modelLabel"]]==process)
 
-            if process != None:
-                mask &= (d[self.config["modelLabel"]]==process)
+        if mass != None:
+            mask &= (self.df[self.config["massLabel"]]==mass)
 
-            if mass != None:
-                mask &= (d[self.config["massLabel"]]==mass)
+        if Njets != None:
+            mask &= (self.df[self.config["domainLabel"]]==Njets)
 
-            if Njets != None:
-                mask &= (d[self.config["domainLabel"]]==Njets)
+        if year != None:
+            mask &= (self.df["year"]==year)
 
-            for label, data in d.items():
+        flatDictionary["njets"]   = self.df[self.config["domainLabel"]][mask]
+        flatDictionary["inputs"]  = self.df["inputs"][mask]
+        flatDictionary["massReg"] = self.df[self.config["regressionLabel"]][mask]
+        flatDictionary["mass"]    = self.df[self.config["massLabel"]][mask]
+        flatDictionary["weight"]  = self.df[self.config["weightLabel"]][mask]*self.config["lumi"]
+        flatDictionary["model"]   = self.df[self.config["modelLabel"]][mask]
+        flatDictionary["label"]   = (self.df[self.config["modelLabel"]][mask]>=100).astype("float32")
 
-                if label not in flatDictionary:
-                    flatDictionary[label] = data[mask]
-                else:
-                    flatDictionary[label] = np.append(flatDictionary[label], data[mask], axis=0)
-           
         return flatDictionary
 
     def getNumBkgEvents(self):
@@ -111,6 +129,7 @@ class DataLoader(K.utils.Sequence):
             raise IndexError("Must specify to load signal or background")
 
         dsets = []
+        years = []
         if len(self.datasets[process]) == 0:
             raise IndexError("No sample in samplesToRun")
 
@@ -127,66 +146,66 @@ class DataLoader(K.utils.Sequence):
 
             selection = None
             if "_1l" in self.config["tree"] or "_0l" in self.config["tree"]:
-                print("Selecting 1L events with >= %d jets"%(self.config["nJets"]))
+                print("%s [INFO]: Selecting 1L events with >= %d jets"%(timeStamp(), self.config["nJets"]))
                 selection = "(%s>=%s)"%(self.config["domainLabel"]+suffix,self.config["nJets"])
 
             for filename in self.datasets[process]:
             
+                year = filename.split("MyAnalysis_")[-1].split("_")[0]
                 try:
                     f = uproot.open(filename)
                     tempnpf = f[self.config["tree"]+suffix].arrays(expressions=theVars, cut=selection, library="np", entry_stop=max_entries)
+                    f.close()
+
                     tempVars = list(tempnpf.keys())
                     npf = {}
                     for var in tempVars:
                         newVar = var.replace("JERup", "").replace("JECup", "").replace("JERdown", "").replace("JECdown", "")
 
                         if newVar == var:
-                            npf[newVar] = tempnpf[var] 
+                            if "Jet_pt" in newVar:
+                                npf[newVar] = tempnpf[var] / tempnpf["HT_trigger_pt30"]
+                            else:
+                                npf[newVar] = tempnpf[var]
                         else:
-                            npf[newVar] = tempnpf.pop(var)
+                            if "Jet_pt" in newVar:
+                                npf[newVar] = tempnpf.pop(var) / tempnpf["HT_trigger_pt30"]
+                            else:
+                                npf[newVar] = tempnpf.pop(var)
 
-                    print("Loaded \"%s\" from input file \"%s\""%(self.config["tree"]+suffix,filename))
+                    print("%s [INFO]: Loaded \"%s\" from input file \"%s\""%(timeStamp(), self.config["tree"]+suffix,filename))
 
                     dsets.append(npf)
-                    f.close()
+                    years.append(year)
                 except Exception as e:
-                    print("Skipping tree \"%s\" in file \"%s\" !" %(self.config["tree"]+suffix, filename) , e)
+                    print("%s [WARNING]: Skipping tree \"%s\" in file \"%s\" !" %(timeStamp(), self.config["tree"]+suffix, filename) , e)
                     continue
-        return dsets
+
+        return dsets, years
 
     # This special function is called per-batch and constructs the batch
     # Based on how many background and signal events should appear as well as the 
     # different categories specified.
     def __getitem__(self, index):
 
-        batchInputs   = np.empty([1,1]) 
-        batchMassReg  = np.empty([1,1]) 
-        batchModel    = np.empty([1,1])
+        batchInputs   = None 
+        batchMassReg  = None 
 
-        initialized = False
-        for mnjet, data in self.data.items():
+        offset = 0
+        for mnjet, maskDict in self.data.items():
             
-            batchIndices = None; factor = -1
-            if "BKG" in mnjet or ("EVTS" in mnjet and "_0" in mnjet):
-                factor = self.bkgSampleFactor
-            else:
-                factor = self.sigSampleFactor
+            mixer = np.random.default_rng().choice(maskDict["mask"].shape[0], size=maskDict["factor"], replace=False)
+            self.batchIndexContainer[offset:offset+maskDict["factor"]] = maskDict["mask"][mixer]
+            offset += maskDict["factor"]
 
-            # Determine and get random indices to grab events for the batch
-            if factor > data["domain"].shape[0]:
-                factor = data["domain"].shape[0]
-            batchIndices = np.random.choice(data["inputs"].shape[0], size=factor, replace=False)
+        batchInputs  = self.df["inputs"][self.batchIndexContainer]
+        batchMassReg = self.df[self.config["regressionLabel"]][self.batchIndexContainer]
 
-            if not initialized:
-                batchInputs  = data["inputs"][batchIndices]
-                batchMassReg = data["massReg"][batchIndices]
-                batchDisCo   = data["label"][batchIndices]
-                initialized = True
-            else:
-                batchInputs  = np.append(batchInputs,  data["inputs"][batchIndices],  axis=0)
-                batchMassReg = np.append(batchMassReg, data["massReg"][batchIndices], axis=0)
-                batchDisCo   = np.append(batchDisCo,   data["label"][batchIndices],   axis=0)
-
+        model      = self.df[self.config["modelLabel"]][self.batchIndexContainer]
+        labelSig   = (model>=100).astype("float32")
+        labelBkg   = (model<100).astype("float32")
+        batchDisCo = np.vstack((labelSig, labelBkg, labelSig, labelBkg)).T
+    
         return batchInputs, tuple((batchDisCo, batchDisCo, batchMassReg))
 
     # Required function that tells tensorflow how many batches per epoch
@@ -199,51 +218,82 @@ class DataLoader(K.utils.Sequence):
         # and store them in numpy dataframes
         self.getColumnHeaders()
 
-        df = {} 
+        # Hold numpy array of vars loaded from ROOT files
+        # for each process/model/variation
+        dsets = []
+        years = []
+        temp1, temp2 = self.getDataSets(0)
+        dsets += temp1; years += temp2
+        temp1, temp2 = self.getDataSets(1)
+        dsets += temp1; years += temp2
+       
+        # Mix the events around when formatting inputs
+        # to be read in while training
+        mixer = list(range(0, len(dsets)))
+        np.random.shuffle(mixer)
 
-        bgdsets = self.getDataSets(0)
-        sgdsets = self.getDataSets(1)
-        trainlists = [[] for var in self.config["trainVars"]]
-        ziplists   = []
+        # Set up a list to hold the mean and std dev for each input variable
+        self.means  = [None for var in self.config["trainVars"]]
+        self.scales = [None for var in self.config["trainVars"]]
 
-        # First do optimal loop to make input array of arrays
-        for dset in bgdsets+sgdsets:
-            iVar = 0
-            templists = [[] for var in self.config["trainVars"]]
-            for var in self.config["trainVars"]:
-                trainlists[iVar] += dset[var].tolist()
-                templists[iVar]  += dset[var].tolist()
-                iVar             += 1
+        # Here determine the total number of events from all data sets
+        # Then pre allocate numpy arrays to hold the variables and avoid
+        # excessive copying
+        totalNevts = 0
+        for dset in dsets:
+            totalNevts += len(dset[self.config["trainVars"][0]])
 
-            # On the fly zip up results to make an array of inputs per event
-            ziplists += list(map(np.array, zip(*templists)))
+        nVars = len(self.config["trainVars"])
+
+        # Allocate array for inputs and labels
+        self.df["inputs"] = np.zeros((totalNevts, nVars), dtype="float32")
+        for var in self.config["auxVars"]:
+            self.df[var] = np.zeros(totalNevts, dtype="float32")
+
+        self.df["year"] = np.empty(totalNevts, dtype="U11")
+
+        # Use an offset to move the "pointer" were we write in values
+        # to the preallocated arrays
+        offset = 0
+
+        # Start with a loop over the data sets that are mixed up
+        for iMix in mixer:
+
+            # Total number of events from current data set
+            nEvents = len(dsets[iMix][self.config["trainVars"][0]])
+
+            # Fill in the array holding info on all events 
+            self.df["inputs"][offset:offset+nEvents,:] = np.vstack([dsets[iMix][var] for var in self.config["trainVars"]]).T
+            for var in self.config["auxVars"]:
+                self.df[var][offset:offset+nEvents] = dsets[iMix][var]
+
+            self.df["year"][offset:offset+nEvents] = [years[iMix]]*nEvents
+
+            # Remove dataset and release memory as soon as possible
+            dsets[iMix] = None
+            gc.collect()
+
+            # Move pointer before filling with next data set
+            offset += nEvents
 
         # Calculated the mean and inverse std dev for the input variables
-        self.means  = [np.mean(v) for v in trainlists]
-        self.scales = [1.0 / np.std(v) for v in trainlists]
-
-        df["inputs"] = np.array(ziplists)
-
-        # Now put together arrays of aux vars
-        for var in self.config["auxVars"]:
-            auxlist = []
-            for dset in bgdsets+sgdsets:
-                auxlist += dset[var].tolist()
-            df[var] = np.array(list(itertools.chain(auxlist)))
+        for iVar in range(0, len(self.config["trainVars"])):
+            self.means[iVar]  = np.mean(self.df["inputs"][iVar,:])
+            self.scales[iVar] = 1.0 / np.std(self.df["inputs"][iVar,:])
 
         # Make a mask for any njets events we do not want to use
         combMaskNjets = None
         if self.config["Mask"]:
             for njets in self.config["Mask_nJet"]:
                 if combMaskNjets == None:
-                    combMaskNjets = (df[self.config["domainLabel"]] != njets)
+                    combMaskNjets = (self.df[self.config["domainLabel"]] != njets)
                 else:
-                    combMaskNjets &= (df[self.config["domainLabel"]] != njets)
+                    combMaskNjets &= (self.df[self.config["domainLabel"]] != njets)
         else:
-            combMaskNjets = (df[self.config["domainLabel"]] != -1)
+            combMaskNjets = (self.df[self.config["domainLabel"]] != -1)
 
         # Get a dictionary with mass points mapped to number of events
-        temp = df[self.config["massLabel"]][combMaskNjets]
+        temp = self.df[self.config["massLabel"]][combMaskNjets]
         unique, counts = np.unique(temp, return_counts=True)
         massDict = dict(zip(unique, counts))
 
@@ -270,19 +320,37 @@ class DataLoader(K.utils.Sequence):
         # JERup   - (add 30)
         # JERdown - (add 40)
 
-        temp = df[self.config["modelLabel"]][combMaskNjets]
+        temp = self.df[self.config["modelLabel"]][combMaskNjets]
         unique, counts = np.unique(temp, return_counts=True)
         procDict = dict(zip(unique, counts))
 
-        self.numBkgEvents = df[self.config["massLabel"]][combMaskNjets&(df[self.config["modelLabel"]]<100)].shape[0]
-        self.numSigEvents = df[self.config["massLabel"]][combMaskNjets&(df[self.config["modelLabel"]]>=100)].shape[0]
+        self.numBkgEvents = self.df[self.config["massLabel"]][combMaskNjets&(self.df[self.config["modelLabel"]]<100)].shape[0]
+        self.numSigEvents = self.df[self.config["massLabel"]][combMaskNjets&(self.df[self.config["modelLabel"]]>=100)].shape[0]
 
-        minNJetBin = df[self.config["domainLabel"]][combMaskNjets].min()
+        minNJetBin = self.df[self.config["domainLabel"]][combMaskNjets].min()
         numDomains = int(self.config["maxNJetBin"] + 1 - minNJetBin)
 
+        evenSplit = 1
+        if self.config["procCats"]:
+            self.numBkgCategories = 1
+            self.numSigCategories = 1
+        if self.config["massCats"]:
+            # Exclude bkg mass point from list
+            self.numSigCategories *= len(massDict.keys())-1
+        if self.config["njetsCats"]:
+            self.numSigCategories *= numDomains
+            self.numBkgCategories *= numDomains
+
+        if self.config["procCats"] or self.config["massCats"] or self.config["njetsCats"]:
+            evenSplit = 2
+
+        self.sigSampleFactor = int(int(self.config["batch"]/evenSplit) / self.numSigCategories)
+        self.bkgSampleFactor = int(int(self.config["batch"]/evenSplit) / self.numBkgCategories) 
+
+        trueBatchSize = 0
         for p in procDict.keys(): 
 
-            pcond = np.ones(df[self.config["modelLabel"]].shape[0]).astype(bool)
+            pcond = np.ones(self.df[self.config["modelLabel"]].shape[0]).astype(bool)
             pcond &= combMaskNjets
 
             isBackground = (p<100)
@@ -290,14 +358,14 @@ class DataLoader(K.utils.Sequence):
             process = None
             if not self.config["procCats"]:
                 process = "EVTS"
-                pcond &= (df[self.config["modelLabel"]]>=0)
+                pcond &= (self.df[self.config["modelLabel"]]>=0)
             else:
                 if isBackground:
                     process = "BKG"
-                    pcond &= (df[self.config["modelLabel"]]<100)
+                    pcond &= (self.df[self.config["modelLabel"]]<100)
                 else:
                     process = "SIG"
-                    pcond &= (df[self.config["modelLabel"]]>=100)
+                    pcond &= (self.df[self.config["modelLabel"]]>=100)
 
             for m in massDict.keys():
 
@@ -305,17 +373,18 @@ class DataLoader(K.utils.Sequence):
                 if (m != 173.0 and isBackground) or (m == 173.0 and not isBackground):
                     continue
 
-                mcond = np.ones(df[self.config["modelLabel"]].shape[0]).astype(bool)
+                mcond = np.ones(self.df[self.config["modelLabel"]].shape[0]).astype(bool)
 
                 # Shift ttbar mass to 0 just for internal simplicity
                 shiftedMass = 0
                 if self.config["massCats"]:
-                    mcond &= (df[self.config["massLabel"]]==m)
+                    mcond &= (self.df[self.config["massLabel"]]==m)
                     if not isBackground: 
                         shiftedMass = int(m)
 
-                for n in np.arange(minNJetBin, self.config["maxNJetBin"]+1, dtype=float):
+                for n in np.arange(minNJetBin, self.config["maxNJetBin"]+1, dtype="float32"):
 
+                    gc.collect()
                     theKey = ""
                     if   self.config["procCats"]:
                         theKey += str(process)
@@ -332,58 +401,36 @@ class DataLoader(K.utils.Sequence):
                     if theKey in self.data:
                         continue
 
-                    ncond = np.ones(df[self.config["modelLabel"]].shape[0]).astype(bool)
+                    ncond = np.ones(self.df[self.config["modelLabel"]].shape[0]).astype(bool)
 
                     # Depending on how finely we want to categorize and balance events
                     # The mask to pick out the correct events is defined accordingly
                     if self.config["njetsCats"]:
                         if n == float(self.config["maxNJetBin"]):
-                            ncond &= ((df[self.config["domainLabel"]]>=n))
+                            ncond &= ((self.df[self.config["domainLabel"]]>=n))
                         else:
-                            ncond &= ((df[self.config["domainLabel"]]==n))
+                            ncond &= ((self.df[self.config["domainLabel"]]==n))
 
-                    # Aquire all the needed information from the dataframes and store as numpy arrays
-                    njets  = df[self.config["domainLabel"]][pcond&mcond&ncond]
-                    inputs = df["inputs"][pcond&mcond&ncond]
-                    reg    = df[self.config["regressionLabel"]][pcond&mcond&ncond]
-                    massp  = df[self.config["massLabel"]][pcond&mcond&ncond]
-                    weight = df[self.config["weightLabel"]][pcond&mcond&ncond]*self.config["lumi"]
-                    model  = df[self.config["modelLabel"]][pcond&mcond&ncond]
+                    mask = np.where(pcond&mcond&ncond)[0]
 
-                    labelSig   = (model>=100).astype(float)
-                    labelBkg   = (model<100).astype(float)
-                    labelTemp  = np.vstack((labelSig, labelBkg)).T
-                    labelDisCo = np.concatenate((labelTemp, labelTemp), axis=1)
+                    factor = -1
+                    maskSize = mask.shape[0]
+                    if "BKG" in theKey or ("EVTS" in theKey and "_0" in theKey):
+                        factor = self.bkgSampleFactor
+                    else:
+                        factor = self.sigSampleFactor
 
-                    #setup and get domains
-                    njetsTemp = njets
-                    domain = np.zeros((njets.shape[0], numDomains))
+                    # Determine and get random indices to grab events for the batch
+                    if factor > maskSize:
+                        factor = maskSize
 
-                    njetsTemp[njetsTemp>self.config["maxNJetBin"]] = self.config["maxNJetBin"]
-                    njetsTemp = njetsTemp - minNJetBin
-    
-                    domain[np.arange(njetsTemp.shape[0], dtype=int), njetsTemp.astype(int)] = 1
+                    trueBatchSize += factor
 
-                    perms = np.random.permutation(domain.shape[0])
+                    # Store a mask of indices for all events of a given category
+                    self.data[theKey] = {"mask" : mask, "factor" : factor}
 
-                    self.data[theKey] = {"domain" : domain[perms], "label" : labelDisCo[perms], "inputs" : inputs[perms], "massReg" : reg[perms], "mass" : massp[perms], "model" : model[perms], "weight" : weight[perms], "njets" : njets[perms]}
+        self.batchIndexContainer = np.zeros((trueBatchSize), dtype="int32")
 
-        evenSplit = 1
-        if self.config["procCats"]:
-            self.numBkgCategories = 1
-            self.numSigCategories = 1
-        if self.config["massCats"]:
-            self.numSigCategories *= len(massDict.keys())
-        if self.config["njetsCats"]:
-            self.numSigCategories *= numDomains
-            self.numBkgCategories *= numDomains
-
-        if self.config["procCats"] or self.config["massCats"] or self.config["njetsCats"]:
-            evenSplit = 2
-
-        self.sigSampleFactor = int(int(self.config["batch"]/evenSplit) / self.numSigCategories)
-        self.bkgSampleFactor = int(int(self.config["batch"]/evenSplit) / self.numBkgCategories) 
-
-        print("Bkg (sig) categories: %d (%d)"%(self.numBkgCategories, self.numSigCategories))    
-        print("Bkg (sig) sample factor: %d (%d)"%(self.bkgSampleFactor, self.sigSampleFactor))
-        print("Loading %d background and %d signal events"%(self.numBkgEvents, self.numSigEvents))
+        print("%s [INFO]: Bkg (sig) categories: %d (%d)"%(timeStamp(), self.numBkgCategories, self.numSigCategories))    
+        print("%s [INFO]: Bkg (sig) sample factor: %d (%d)"%(timeStamp(), self.bkgSampleFactor, self.sigSampleFactor))
+        print("%s [INFO]: Loading %d background and %d signal events"%(timeStamp(), self.numBkgEvents, self.numSigEvents))

@@ -1,7 +1,7 @@
 from DataLoader import DataLoader
 from Correlation import Correlation as cor
 
-import os
+import gc
 import json
 import logging
 import numpy as np
@@ -23,7 +23,13 @@ plt.style.use({'legend.frameon':False,'legend.fontsize':16,'legend.edgecolor':'b
 
 from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score, roc_auc_score
 
+import tracemalloc
+
+import datetime
 plt.rcParams['pdf.fonttype'] = 42
+
+def timeStamp():
+    return datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
 
 class Validation:
 
@@ -260,7 +266,7 @@ class Validation:
                     if self.config["Mask"] and (int(NJets) in self.config["Mask_nJet"]): continue
 
                     dataNjetsMaskEval = evalData["njets"]==njets
-                    labels            = evalData["label"][:,0][dataMaskEval&dataNjetsMaskEval]
+                    labels            = evalData["label"][dataMaskEval&dataNjetsMaskEval]
                     weights           = evalData["weight"][dataMaskEval&dataNjetsMaskEval]
 
                     y = y_eval[dataMaskEval&dataNjetsMaskEval]
@@ -284,7 +290,7 @@ class Validation:
                     if self.config["Mask"] and (int(NJets) in self.config["Mask_nJet"]): continue
 
                     dataNjetsMaskVal = valData["njets"] == njets
-                    valLabels        = valData["label"][:,0][dataMaskVal&dataNjetsMaskVal]
+                    valLabels        = valData["label"][dataMaskVal&dataNjetsMaskVal]
                     valWeights       = valData["weight"][dataMaskVal&dataNjetsMaskVal]
 
                     yVal = y_val[dataMaskVal&dataNjetsMaskVal]
@@ -825,30 +831,41 @@ class Validation:
         # If there is a xvalLoader that means we are evaluating the network
         # on events it has not seen and are not in the train+val+test sets
         if self.evalLoader != None:
-            evalData = self.evalLoader.getFlatData()
-            evalSig  = self.evalLoader.getFlatData(process=self.sample[evalModel]) 
-            evalBkg  = self.evalLoader.getFlatData(process=self.config["evalBkg"])
+            evalData = self.evalLoader.getFlatData(year=self.config["evalYear"])
+            evalSig  = self.evalLoader.getFlatData(year=self.config["evalYear"],process=self.sample[evalModel]) 
+            evalBkg  = self.evalLoader.getFlatData(year=self.config["evalYear"],process=self.config["evalBkg"])
+
+            self.evalLoader = None
+            gc.collect()
         
         # Making it to the else means the events we want to evaluate
         # are contained within the train+val+test sets
         else:
-            trainDataTmp = self.loader.getFlatData()
-            testDataTmp  = self.testLoader.getFlatData()
+            trainDataTmp = self.loader.getFlatData(year=self.config["evalYear"])
+            trainSigTmp  = self.loader.getFlatData(year=self.config["evalYear"],process=self.sample[evalModel]) 
+            trainBkgTmp  = self.loader.getFlatData(year=self.config["evalYear"],process=self.config["evalBkg"])      
 
-            trainSigTmp = self.loader.getFlatData(process=self.sample[evalModel]) 
-            trainBkgTmp = self.loader.getFlatData(process=self.config["evalBkg"])      
+            self.loader = None
+            gc.collect()
 
-            valSigTmp = self.valLoader.getFlatData(process=self.sample[evalModel]) 
-            valBkgTmp = self.valLoader.getFlatData(process=self.config["evalBkg"])
+            valSigTmp = self.valLoader.getFlatData(year=self.config["evalYear"],process=self.sample[evalModel]) 
+            valBkgTmp = self.valLoader.getFlatData(year=self.config["evalYear"],process=self.config["evalBkg"])
 
-            testSigTmp = self.testLoader.getFlatData(process=self.sample[evalModel])
-            testBkgTmp = self.testLoader.getFlatData(process=self.config["evalBkg"])
+            self.valLoader = None
+            gc.collect()
+
+            testDataTmp = self.testLoader.getFlatData(year=self.config["evalYear"])
+            testSigTmp  = self.testLoader.getFlatData(year=self.config["evalYear"],process=self.sample[evalModel])
+            testBkgTmp  = self.testLoader.getFlatData(year=self.config["evalYear"],process=self.config["evalBkg"])
+            
+            self.testLoader = None
+            gc.collect()
 
             for key in trainDataTmp.keys():
                 evalData[key] = np.concatenate((trainDataTmp[key], valData[key],   testDataTmp[key]), axis=0)
                 evalSig[key]  = np.concatenate((trainSigTmp[key],  valSigTmp[key], testSigTmp[key]),  axis=0)
                 evalBkg[key]  = np.concatenate((trainBkgTmp[key],  valBkgTmp[key], testBkgTmp[key]),  axis=0)
-        
+       
         massMaskEval     = evalSig["mass"] == float(evalMass)
         massMaskVal      = valSig["mass"]  == float(valMass)
 
@@ -878,6 +895,7 @@ class Validation:
         syyMaskDataVal = valData["model"]==self.sample["SYY"]
         shhMaskDataVal = valData["model"]==self.sample["SHH"]
         bkgMaskDataVal = valData["model"]==0
+        print("10. CURRENT MEM MAKS: ", tracemalloc.get_traced_memory()[0]/1e9)
 
         sigMaskEval = None; sigMaskDataEval = bkgMaskDataEval; sigMaskVal = None; sigMaskDataVal = bkgMaskDataVal
         if   "RPV" in evalModel:
@@ -948,6 +966,8 @@ class Validation:
 
         # Part of the training samples that were not used for training
         output_val, output_val_sg, output_val_bg = self.getOutput(self.model, valData["inputs"], valSig["inputs"], valBkg["inputs"])
+        del valData["inputs"]; del valSig["inputs"]; del valBkg["inputs"]
+        gc.collect()
 
         y_val_disc1,  y_val_sg_disc1,  y_val_bg_disc1  = self.getResults(output_val,   output_val_sg,  output_val_bg,  outputNum=0, columnNum=0)
         y_val_disc2,  y_val_sg_disc2,  y_val_bg_disc2  = self.getResults(output_val,   output_val_sg,  output_val_bg,  outputNum=0, columnNum=2)
@@ -955,6 +975,8 @@ class Validation:
 
         # Separately loaded samples that can have nothing to do with the what was loaded for training
         output_train, output_eval_sg, output_eval_bg = self.getOutput(self.model, evalData["inputs"], evalSig["inputs"], evalBkg["inputs"])
+        del evalData["inputs"]; del evalSig["inputs"]; del evalBkg["inputs"]
+        gc.collect()
 
         y_eval_disc1, y_eval_sg_disc1, y_eval_bg_disc1 = self.getResults(output_train, output_eval_sg, output_eval_bg, outputNum=0, columnNum=0)
         y_eval_disc2, y_eval_sg_disc2, y_eval_bg_disc2 = self.getResults(output_train, output_eval_sg, output_eval_bg, outputNum=0, columnNum=2)
@@ -1200,24 +1222,18 @@ class Validation:
             self.config["Dsignificance"] = float(signD)
             self.config["TotalSignificance"] = (signA**2.0 + signB**2.0 + signC**2.0 + signD**2.0)**0.5
 
-            print("A SIGNIFICANCE: %3.2f"%(signA))
-            print("B SIGNIFICANCE: %3.2f"%(signB))
-            print("C SIGNIFICANCE: %3.2f"%(signC))
-            print("D SIGNIFICANCE: %3.2f"%(signD))
-            print("TOTAL SIGNIFICANCE: %3.2f"%((signA**2.0 + signB**2.0 + signC**2.0 + signD**2.0)**0.5))
-  
             if    self.config["TotalSignificance"] > 0.0: self.metric["InvTotalSignificance"] = 1.0/self.config["TotalSignificance"]
             else: self.metric["InvTotalSignificance"] = 999.0
 
         # Plot validation roc curve
-        fpr_val_disc1, tpr_val_disc1, thresholds_val_disc1    = roc_curve(valData["label"][:,0][massMaskDataVal&sigMaskDataVal],   y_val_disc1[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
-        fpr_val_disc2, tpr_val_disc2, thresholds_val_disc2    = roc_curve(valData["label"][:,0][massMaskDataVal&sigMaskDataVal],   y_val_disc2[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
-        fpr_eval_disc1, tpr_eval_disc1, thresholds_eval_disc1 = roc_curve(evalData["label"][:,0][massMaskDataEval&sigMaskDataEval], y_eval_disc1[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
-        fpr_eval_disc2, tpr_eval_disc2, thresholds_eval_disc2 = roc_curve(evalData["label"][:,0][massMaskDataEval&sigMaskDataEval], y_eval_disc2[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
-        auc_val_disc1  = roc_auc_score(valData["label"][:,0][massMaskDataVal&sigMaskDataVal],   y_val_disc1[massMaskDataVal&sigMaskDataVal])
-        auc_val_disc2  = roc_auc_score(valData["label"][:,0][massMaskDataVal&sigMaskDataVal],   y_val_disc2[massMaskDataVal&sigMaskDataVal])
-        auc_eval_disc1 = roc_auc_score(evalData["label"][:,0][massMaskDataEval&sigMaskDataEval], y_eval_disc1[massMaskDataEval&sigMaskDataEval])
-        auc_eval_disc2 = roc_auc_score(evalData["label"][:,0][massMaskDataEval&sigMaskDataEval], y_eval_disc2[massMaskDataEval&sigMaskDataEval])
+        fpr_val_disc1, tpr_val_disc1, thresholds_val_disc1    = roc_curve(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_disc1[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
+        fpr_val_disc2, tpr_val_disc2, thresholds_val_disc2    = roc_curve(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_disc2[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
+        fpr_eval_disc1, tpr_eval_disc1, thresholds_eval_disc1 = roc_curve(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_disc1[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
+        fpr_eval_disc2, tpr_eval_disc2, thresholds_eval_disc2 = roc_curve(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_disc2[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
+        auc_val_disc1  = roc_auc_score(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_disc1[massMaskDataVal&sigMaskDataVal])
+        auc_val_disc2  = roc_auc_score(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_disc2[massMaskDataVal&sigMaskDataVal])
+        auc_eval_disc1 = roc_auc_score(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_disc1[massMaskDataEval&sigMaskDataEval])
+        auc_eval_disc2 = roc_auc_score(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_disc2[massMaskDataEval&sigMaskDataEval])
 
         # Define metrics for the training
         self.metric["OverTrain_Disc1"]   = abs(auc_val_disc1 - auc_eval_disc1)
@@ -1232,10 +1248,10 @@ class Validation:
         self.plotROC(massMaskDataEval&sigMaskDataEval, massMaskDataVal&sigMaskDataVal, "_"+self.config["bkgd"][0]+"_nJet_disc2", y_eval_disc2, y_val_disc2, evalData, valData)
         
         # Plot validation precision recall
-        precision_val_disc1,  recall_val_disc1,  _ = precision_recall_curve(valData["label"][:,0][massMaskDataVal&sigMaskDataVal],   y_val_disc1[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
-        precision_eval_disc1, recall_eval_disc1, _ = precision_recall_curve(evalData["label"][:,0][massMaskDataEval&sigMaskDataEval], y_eval_disc1[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
-        ap_val_disc1  = average_precision_score(valData["label"][:,0],  y_val_disc1,  sample_weight=valData["weight"])
-        ap_eval_disc1 = average_precision_score(evalData["label"][:,0], y_eval_disc1, sample_weight=evalData["weight"])
+        precision_val_disc1,  recall_val_disc1,  _ = precision_recall_curve(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_disc1[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
+        precision_eval_disc1, recall_eval_disc1, _ = precision_recall_curve(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_disc1[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
+        ap_val_disc1  = average_precision_score(valData["label"],  y_val_disc1,  sample_weight=valData["weight"])
+        ap_eval_disc1 = average_precision_score(evalData["label"], y_eval_disc1, sample_weight=evalData["weight"])
         
         self.plotPandR(precision_val_disc1, recall_val_disc1, precision_eval_disc1, recall_eval_disc1, ap_val_disc1, ap_eval_disc1)
         
