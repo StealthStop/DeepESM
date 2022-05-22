@@ -119,57 +119,57 @@ class Train:
 
         TT_2016preVFP  = ["2016preVFP_TT%s*"%(channel)]
         TT_2016postVFP = ["2016postVFP_TT%s*"%(channel)]
-        TT_2017     = ["2017_TT%s*"%(channel)]
-        TT_2018     = ["2018_TT%s*"%(channel)]
+        TT_2017        = ["2017_TT%s*"%(channel)]
+        TT_2018        = ["2018_TT%s*"%(channel)]
 
         ################### Samples to validate on #####################
         if "vpow" in hyperconfig["atag"]:
             TT_2016preVFP_eval  = ["2016preVFP_TT%s*[cu]%s[!u]*"%(channel,extra)]
             TT_2016postVFP_eval = ["2016postVFP_TT%s*[cu]%s[!u]*"%(channel,extra)]
-            TT_2017_eval     = ["2017_TT%s*[cu]%s[!u]*"%(channel,extra)]
-            TT_2018_eval     = ["2018_TT%s*[cu]%s[!u]*"%(channel,extra)]
+            TT_2017_eval        = ["2017_TT%s*[cu]%s[!u]*"%(channel,extra)]
+            TT_2018_eval        = ["2018_TT%s*[cu]%s[!u]*"%(channel,extra)]
             self.config["evalBkg"] = 0
 
         elif "vmad" in hyperconfig["atag"]:
             TT_2016preVFP_eval  = ["2016preVFP_TT%sJets%s*"%(channel,extra)]
             TT_2016postVFP_eval = ["2016postVFP_TT%sJets%s*"%(channel,extra)]
-            TT_2017_eval     = ["2017_TT%sJets%s*"%(channel,extra)]
-            TT_2018_eval     = ["2018_TT%sJets%s*"%(channel,extra)]
+            TT_2017_eval        = ["2017_TT%sJets%s*"%(channel,extra)]
+            TT_2018_eval        = ["2018_TT%sJets%s*"%(channel,extra)]
             self.config["evalBkg"] = 1
 
         elif "verd" in hyperconfig["atag"]:
             TT_2016preVFP_eval  = ["2016preVFP_TT%s*erdON%s*"%(channel,extra)]
             TT_2016postVFP_eval = ["2016postVFP_TT%s*erdON%s*"%(channel,extra)]
-            TT_2017_eval     = ["2017_TT%s*erdON%s*"%(channel,extra)]
-            TT_2018_eval     = ["2018_TT%s*erdON%s*"%(channel,extra)]
+            TT_2017_eval        = ["2017_TT%s*erdON%s*"%(channel,extra)]
+            TT_2018_eval        = ["2018_TT%s*erdON%s*"%(channel,extra)]
             self.config["evalBkg"] = 2
 
         elif "vhdampu" in hyperconfig["atag"]:
             TT_2016preVFP_eval  = ["2016preVFP_TT%s*hdampUP%s*"%(channel,extra)]
             TT_2016postVFP_eval = ["2016postVFP_TT%s*hdampUP%s*"%(channel,extra)]
-            TT_2017_eval     = ["2017_TT%s*hdampUP%s*"%(channel,extra)]
-            TT_2018_eval     = ["2018_TT%s*hdampUP%s*"%(channel,extra)]
+            TT_2017_eval        = ["2017_TT%s*hdampUP%s*"%(channel,extra)]
+            TT_2018_eval        = ["2018_TT%s*hdampUP%s*"%(channel,extra)]
             self.config["evalBkg"] = 3
 
         elif "vhdampd" in hyperconfig["atag"]:
             TT_2016preVFP_eval  = ["2016preVFP_TT%s*hdampDOWN%s*"%(channel,extra)]
             TT_2016postVFP_eval = ["2016postVFP_TT%s*hdampDOWN%s*"%(channel,extra)]
-            TT_2017_eval     = ["2017_TT%s*hdampDOWN%s*"%(channel,extra)]
-            TT_2018_eval     = ["2018_TT%s*hdampDOWN%s*"%(channel,extra)]
+            TT_2017_eval        = ["2017_TT%s*hdampDOWN%s*"%(channel,extra)]
+            TT_2018_eval        = ["2018_TT%s*hdampDOWN%s*"%(channel,extra)]
             self.config["evalBkg"] = 4
 
         elif "vueu" in hyperconfig["atag"]:
             TT_2016preVFP_eval  = ["2016preVFP_TT%s*TuneCP5up%s*"%(channel,extra)]
             TT_2016postVFP_eval = ["2016postVFP_TT%s*TuneCP5up%s*"%(channel,extra)]
-            TT_2017_eval     = ["2017_TT%s*TuneCP5up%s*"%(channel,extra)]
-            TT_2018_eval     = ["2018_TT%s*TuneCP5up%s*"%(channel,extra)]
+            TT_2017_eval        = ["2017_TT%s*TuneCP5up%s*"%(channel,extra)]
+            TT_2018_eval        = ["2018_TT%s*TuneCP5up%s*"%(channel,extra)]
             self.config["evalBkg"] = 5
 
         elif "vued" in hyperconfig["atag"]:
             TT_2016preVFP_eval  = ["2016preVFP_TT%s*TuneCP5down%s*"%(channel,extra)]
             TT_2016postVFP_eval = ["2016postVFP_TT%s*TuneCP5down%s*"%(channel,extra)]
-            TT_2017_eval     = ["2017_TT%s*TuneCP5down%s*"%(channel,extra)]
-            TT_2018_eval     = ["2018_TT%s*TuneCP5down%s*"%(channel,extra)]
+            TT_2017_eval        = ["2017_TT%s*TuneCP5down%s*"%(channel,extra)]
+            TT_2018_eval        = ["2018_TT%s*TuneCP5down%s*"%(channel,extra)]
             self.config["evalBkg"] = 6
 
         if "vjcu" in hyperconfig["atag"]:
@@ -576,6 +576,9 @@ class Train:
         del val
 
 if __name__ == '__main__':
+
+    tracemalloc.start()
+
     usage = "usage: %prog [options]"
     parser = argparse.ArgumentParser(usage)
     parser.add_argument("--quickVal",     dest="quickVal",     help="Do quick validation",            action="store_true", default=False                       ) 
@@ -632,7 +635,7 @@ if __name__ == '__main__':
         with open(str(args.json), "r") as f:
             hyperconfig = json.load(f)
     else: 
-        hyperconfig = {"atag" : "Perfect", "disc_lambda": 5.0, "bkg_disco_lambda": 1000.0, "mass_reg_lambda": 0.0001, "abcd_close_lambda" : 2.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs":20, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 1.0}
+        hyperconfig = {"atag" : "Perfect_vpow", "disc_lambda": 5.0, "bkg_disco_lambda": 1000.0, "mass_reg_lambda": 0.0001, "abcd_close_lambda" : 2.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs":1, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 1.0}
 
     t = Train(USER, args.inputs, args.outputDir, args.nJets, args.useJECs, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.model, evalMass=args.evalMass, evalModel=args.evalModel, evalYear=args.evalYear, year=args.year, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
 

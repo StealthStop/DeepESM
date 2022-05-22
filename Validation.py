@@ -895,7 +895,6 @@ class Validation:
         syyMaskDataVal = valData["model"]==self.sample["SYY"]
         shhMaskDataVal = valData["model"]==self.sample["SHH"]
         bkgMaskDataVal = valData["model"]==0
-        print("10. CURRENT MEM MAKS: ", tracemalloc.get_traced_memory()[0]/1e9)
 
         sigMaskEval = None; sigMaskDataEval = bkgMaskDataEval; sigMaskVal = None; sigMaskDataVal = bkgMaskDataVal
         if   "RPV" in evalModel:
