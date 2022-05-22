@@ -6,8 +6,6 @@ import tensorflow as tf
 import uproot4 as uproot
 import tensorflow.keras as K
 
-import tracemalloc
-
 import datetime
 import time
 
@@ -17,8 +15,6 @@ def timeStamp():
 class DataLoader(K.utils.Sequence):
 
     def __init__(self, config, signalDataSet, backgroundDataSet, categorization=0):
-
-        tracemalloc.start()
 
         np.random.seed(config["seed"]) 
 
