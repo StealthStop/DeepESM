@@ -189,13 +189,13 @@ class Train:
                 Signal_2016preVFP_eval.append("2016preVFP*%s*mStop-%s"%(model,mass))
                 Signal_2016postVFP_eval.append("2016postVFP*%s*mStop-%s"%(model,mass))
                 Signal_2017_eval.append("2017*%s*mStop-%s"%(model,mass))
-                #Signal_2018_eval.append("2018*%s*mStop-%s"%(model,mass))
+                Signal_2018_eval.append("2018*%s*mStop-%s"%(model,mass))
 
         for model in trainModel.split("_"):
             Signal_2016preVFP  += list("2016preVFP*%s*mStop-"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
             Signal_2016postVFP += list("2016postVFP*%s*mStop-"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
-            Signal_2017     += list("2017*%s*mStop-"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
-            #Signal_2018     += list("2018*%s*mStop-"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
+            Signal_2017        += list("2017*%s*mStop-"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
+            Signal_2018        += list("2018*%s*mStop-"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
 
         TT = []; TTeval = []; Signal = []; SignalEval = []; self.config["lumi"] = 0
         if "2016preVFP" in self.config["year"]: 
