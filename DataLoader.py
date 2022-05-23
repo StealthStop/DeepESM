@@ -159,7 +159,7 @@ class DataLoader(K.utils.Sequence):
                         newVar = var.replace("JERup", "").replace("JECup", "").replace("JERdown", "").replace("JECdown", "")
 
                         if "Jet_pt" in newVar and self.config["scaleJetPt"]:
-                            npf[newVar] = tempnpf[var] / tempnpf["HT_trigger_pt30"]
+                            npf[newVar] = tempnpf[var] /tempnpf["HT_trigger_pt30"+suffix]
                         else:
                             npf[newVar] = tempnpf[var]
 

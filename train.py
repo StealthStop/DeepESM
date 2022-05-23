@@ -30,7 +30,7 @@ def timeStamp():
     return datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
 
 class Train:
-    def __init__(self, USER, inputs, outputDir, nJets, useJECs, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, scaleJetPt=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", evalMass=500, evalModel="RPV_SYY_SHH", evalYear = "2016preVFP", year = "2016preVFP_2016postVFP_2017_2018", tree = "myMiniTree", maskNjet = [-1], procCats=False, massCats=False, njetsCats=False):
+    def __init__(self, USER, inputs, outputDir, nJets, useJECs, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, scaleJetPt=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", evalMass=500, evalModel="RPV_SYY_SHH", evalYear = "2016preVFP", trainYear = "2016preVFP_2016postVFP_2017_2018", tree = "myMiniTree", maskNjet = [-1], procCats=False, massCats=False, njetsCats=False):
 
         print("%s [INFO]: Creating instance of Train."%(timeStamp()))
 
@@ -72,7 +72,7 @@ class Train:
         self.config["trainModel"] = trainModel
         self.config["evalMass"]   = evalMass
         self.config["evalModel"]  = evalModel
-        self.config["year"]       = year
+        self.config["trainYear"]  = trainYear
         self.config["evalYear"]   = evalYear
         self.config["tree"]       = tree
 
@@ -196,19 +196,19 @@ class Train:
             Signal_2018        += list("2018*%s*mStop-"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
 
         TT = []; TTeval = []; Signal = []; SignalEval = []; self.config["lumi"] = 0
-        if "2016preVFP" in self.config["year"]: 
+        if "2016preVFP" in self.config["trainYear"] or "Run2" in self.config["trainYear"]: 
             TT                  += TT_2016preVFP
             Signal              += Signal_2016preVFP
             self.config["lumi"] += 19520 
-        if "2016postVFP" in self.config["year"]: 
+        if "2016postVFP" in self.config["trainYear"] or "Run2" in self.config["trainYear"]: 
             TT                  += TT_2016postVFP
             Signal              += Signal_2016postVFP
             self.config["lumi"] += 16810
-        if "2017" in self.config["year"]:
+        if "2017" in self.config["trainYear"] or "Run2" in self.config["trainYear"]:
             TT                  += TT_2017
             Signal              += Signal_2017
             self.config["lumi"] += 41500
-        if "2018" in self.config["year"]:
+        if "2018" in self.config["trainYear"] or "Run2" in self.config["trainYear"]:
             TT                  += TT_2018
             Signal              += Signal_2018
             self.config["lumi"] += 59800
@@ -427,11 +427,20 @@ class Train:
 
         nJets = int(self.config["nJets"]); theVars = None
 
-        if "0l" in self.config["tree"]:
-            theVars = j4Vec + jFlavVec + fwmVec + jmtVec + stop1TopSeed + stop2TopSeed
+        theVars = j4Vec + jFlavVec 
 
+        if not self.config["scaleJetPt"]:
+            theVars += htVec
+
+        theVars += fwmVec
+        theVars += jmtVec
+
+        if "0l" in self.config["tree"]:
+            theVars += stop1TopSeed 
+            theVars += stop2TopSeed
         else:
-            theVars = j4Vec + jFlavVec + fwmVec + jmtVec + stop1OldSeed + stop2OldSeed
+            theVars += stop1OldSeed 
+            theVars += stop2OldSeed
 
         newVars = []; auxVars = []
         for var in theVars:
@@ -583,9 +592,9 @@ if __name__ == '__main__':
     parser.add_argument("--evalMass",     dest="evalMass",     help="Stop mass to evaluate on",       default=500                                              ) 
     parser.add_argument("--evalModel",    dest="evalModel",    help="Signal model to evaluate on",    default="RPV"                                            ) 
     parser.add_argument("--evalYear",     dest="evalYear",     help="Year(s) to eval on",             type=str, default="2016preVFP"                           ) 
-    parser.add_argument("--model",        dest="model",        help="Signal model to train on",       type=str, default="RPV"                                  ) 
+    parser.add_argument("--trainModel",   dest="trainModel",   help="Signal model to train on",       type=str, default="RPV"                                  ) 
     parser.add_argument("--replay",       dest="replay",       help="Replay saved model",             action="store_true", default=False                       ) 
-    parser.add_argument("--year",         dest="year",         help="Year(s) to train on",            type=str, default="2016preVFP_2016postVFP_2017_2018"     ) 
+    parser.add_argument("--trainYear",    dest="trainYear",    help="Year(s) to train on",            type=str, default="2016preVFP_2016postVFP_2017_2018"     ) 
     parser.add_argument("--inputs",       dest="inputs",       help="Path to inputs",                 type=str, default="NN_inputs/"                           ) 
     parser.add_argument("--tree",         dest="tree",         help="myMiniTree to train on",         default="myMiniTree"                                     )
     parser.add_argument("--saveAndPrint", dest="saveAndPrint", help="Save pb and print model",        action="store_true", default=False                       )
@@ -632,7 +641,7 @@ if __name__ == '__main__':
     else: 
         hyperconfig = {"atag" : "Perfect_vpow", "disc_lambda": 5.0, "bkg_disco_lambda": 1000.0, "mass_reg_lambda": 0.0001, "abcd_close_lambda" : 2.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs":1, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 1.0}
 
-    t = Train(USER, args.inputs, args.outputDir, args.nJets, args.useJECs, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.scaleJetPt, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.model, evalMass=args.evalMass, evalModel=args.evalModel, evalYear=args.evalYear, year=args.year, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
+    t = Train(USER, args.inputs, args.outputDir, args.nJets, args.useJECs, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.scaleJetPt, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.trainModel, evalMass=args.evalMass, evalModel=args.evalModel, evalYear=args.evalYear, trainYear=args.trainYear, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
 
     if replay: t.replay()
 
