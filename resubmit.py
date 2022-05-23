@@ -24,6 +24,8 @@ def generate_qsub_config(taskPath, workPath, resubs, cluster, walltime, memory):
             f.write("#SBATCH --gres=gpu:%s:1\n"%(cluster.partition("-")[0]))
         elif "-p " in line and cluster != "NULL":
             f.write("#SBATCH -p %s\n"%(cluster))
+        elif "mem" in line and memory != "NULL":
+            f.write("#SBATCH --mem=%s"%(memory))
         elif "array" in line:
             f.write("#SBATCH --array=%s\n"%(resubStr))
         else:
@@ -34,7 +36,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--jobDir",   dest="jobDir",   help="Directory where jobs submitted from",  default="RPV",  type=str)
-    parser.add_argument("--cluster",  dest="cluster",  help="which cluster run on",                 default="NULL", type=str)
+    parser.add_argument("--cluster",  dest="cluster",  help="which cluster to run on",              default="NULL", type=str)
     parser.add_argument("--memory",   dest="memory",   help="how much mem to request",              default="NULL", type=str)
     parser.add_argument("--walltime", dest="walltime", help="how much time to request",             default="NULL", type=str)
     args = parser.parse_args()
