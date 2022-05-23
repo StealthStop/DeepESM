@@ -30,7 +30,7 @@ def timeStamp():
     return datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
 
 class Train:
-    def __init__(self, USER, inputs, outputDir, nJets, useJECs, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", evalMass=500, evalModel="RPV_SYY_SHH", evalYear = "2016preVFP", year = "2016preVFP_2016postVFP_2017_2018", tree = "myMiniTree", maskNjet = [-1], procCats=False, massCats=False, njetsCats=False):
+    def __init__(self, USER, inputs, outputDir, nJets, useJECs, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, scaleJetPt=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", evalMass=500, evalModel="RPV_SYY_SHH", evalYear = "2016preVFP", year = "2016preVFP_2016postVFP_2017_2018", tree = "myMiniTree", maskNjet = [-1], procCats=False, massCats=False, njetsCats=False):
 
         print("%s [INFO]: Creating instance of Train."%(timeStamp()))
 
@@ -51,15 +51,13 @@ class Train:
         self.config["debug"]       = debug
         self.config["minStopMass"] = int(minStopMass)
         self.config["maxStopMass"] = int(maxStopMass)
-        self.config["doReweight"]  = doReweight
         self.config["useJECs"]     = useJECs
+        self.config["scaleJetPt"]  = scaleJetPt
         self.config["nJets"]       = float(nJets)
 
         # Depending on final state, different pt requirements
         # and resultant objects are used
         ptCut = "pt30"
-        #if "0l" in tree:
-        #    ptCut = "pt45"
 
         # Labels for extracting relevant information from the
         # dataframes constructed from the inputs ROOT files
@@ -408,13 +406,10 @@ class Train:
         nJets           = ["NGoodJets_pt30_double"]
         fwmVec          = ["fwm2_top6",    "fwm3_top6",    "fwm4_top6",   "fwm5_top6"]
         jmtVec          = ["jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
-        fwmVec          = ["fwm2_top6",    "fwm3_top6",    "fwm4_top6",   "fwm5_top6"]
-        jmtVec          = ["jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
         j4Vec           = ["Jet_pt_", "Jet_eta_", "Jet_m_", "Jet_phi_"]
         jFlavVec        = ["Jet_flavb_", "Jet_flavc_", "Jet_flavuds_", "Jet_flavq_", "Jet_flavg_"]
         jCombVec        = ["combined7thToLastJet_pt_cm", "combined7thToLastJet_eta_cm", "combined7thToLastJet_m_cm", "combined7thToLastJet_phi_cm"]
         jqgDiscVec      = ["Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_"]
-        jpfVec          = ["Jet_nEF_", "Jet_cEF_", "Jet_nHF_", "Jet_cHF_", "Jet_multiplicity_"]
         stop1OldSeed    = ["Stop1_mass_cm_OldSeed", "Stop1_pt_cm_OldSeed", "Stop1_phi_cm_OldSeed", "Stop1_eta_cm_OldSeed"]
         stop2OldSeed    = ["Stop2_mass_cm_OldSeed", "Stop2_pt_cm_OldSeed", "Stop2_phi_cm_OldSeed", "Stop2_eta_cm_OldSeed"]
         stop1TopSeed    = ["Stop1_mass_cm_TopSeed", "Stop1_pt_cm_TopSeed", "Stop1_phi_cm_TopSeed", "Stop1_eta_cm_TopSeed"]
@@ -582,22 +577,22 @@ if __name__ == '__main__':
     usage = "usage: %prog [options]"
     parser = argparse.ArgumentParser(usage)
     parser.add_argument("--quickVal",     dest="quickVal",     help="Do quick validation",            action="store_true", default=False                       ) 
-    parser.add_argument("--reweight",     dest="reweight",     help="Do event reweighting",           action="store_true", default=False                       ) 
     parser.add_argument("--json",         dest="json",         help="JSON config file",               default="NULL"                                           ) 
     parser.add_argument("--minMass",      dest="minMass",      help="Minimum stop mass to train on",  default=300                                              )
     parser.add_argument("--maxMass",      dest="maxMass",      help="Maximum stop mass to train on",  default=1400                                             ) 
     parser.add_argument("--evalMass",     dest="evalMass",     help="Stop mass to evaluate on",       default=500                                              ) 
     parser.add_argument("--evalModel",    dest="evalModel",    help="Signal model to evaluate on",    default="RPV"                                            ) 
+    parser.add_argument("--evalYear",     dest="evalYear",     help="Year(s) to eval on",             type=str, default="2016preVFP"                           ) 
     parser.add_argument("--model",        dest="model",        help="Signal model to train on",       type=str, default="RPV"                                  ) 
     parser.add_argument("--replay",       dest="replay",       help="Replay saved model",             action="store_true", default=False                       ) 
     parser.add_argument("--year",         dest="year",         help="Year(s) to train on",            type=str, default="2016preVFP_2016postVFP_2017_2018"     ) 
-    parser.add_argument("--evalYear",     dest="evalYear",     help="Year(s) to eval on",             type=str, default="2016preVFP"                           ) 
     parser.add_argument("--inputs",       dest="inputs",       help="Path to inputs",                 type=str, default="NN_inputs/"                           ) 
     parser.add_argument("--tree",         dest="tree",         help="myMiniTree to train on",         default="myMiniTree"                                     )
     parser.add_argument("--saveAndPrint", dest="saveAndPrint", help="Save pb and print model",        action="store_true", default=False                       )
     parser.add_argument("--seed",         dest="seed",         help="Use specific seed",              type=int, default=-1                                     )
     parser.add_argument("--nJets",        dest="nJets",        help="Number of jets for 1L",          type=int, default=7                                      )
     parser.add_argument("--debug",        dest="debug",        help="Do some debugging",              action="store_true", default=False                       )
+    parser.add_argument("--scaleJetPt",   dest="scaleJetPt",   help="Scale Jet pt by HT",             default=False, action="store_true"                       )
     parser.add_argument("--useJECs",      dest="useJECs",      help="Use JEC/JER variations",         action="store_true", default=False                       )
     parser.add_argument("--maskNjet",     dest="maskNjet",     help="mask Njet bin/bins in training", default=[-1], nargs="+", type=int                        )
     parser.add_argument("--procCats",     dest="procCats",     help="Balance batches bkg/sig",        default=False, action="store_true"                       )
@@ -637,7 +632,7 @@ if __name__ == '__main__':
     else: 
         hyperconfig = {"atag" : "Perfect_vpow", "disc_lambda": 5.0, "bkg_disco_lambda": 1000.0, "mass_reg_lambda": 0.0001, "abcd_close_lambda" : 2.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs":1, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 1.0}
 
-    t = Train(USER, args.inputs, args.outputDir, args.nJets, args.useJECs, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.model, evalMass=args.evalMass, evalModel=args.evalModel, evalYear=args.evalYear, year=args.year, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
+    t = Train(USER, args.inputs, args.outputDir, args.nJets, args.useJECs, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.scaleJetPt, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.model, evalMass=args.evalMass, evalModel=args.evalModel, evalYear=args.evalYear, year=args.year, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
 
     if replay: t.replay()
 

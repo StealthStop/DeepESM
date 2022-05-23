@@ -158,16 +158,10 @@ class DataLoader(K.utils.Sequence):
                     for var in tempVars:
                         newVar = var.replace("JERup", "").replace("JECup", "").replace("JERdown", "").replace("JECdown", "")
 
-                        if newVar == var:
-                            if "Jet_pt" in newVar:
-                                npf[newVar] = tempnpf[var] / tempnpf["HT_trigger_pt30"]
-                            else:
-                                npf[newVar] = tempnpf[var]
+                        if "Jet_pt" in newVar and self.config["scaleJetPt"]:
+                            npf[newVar] = tempnpf[var] / tempnpf["HT_trigger_pt30"]
                         else:
-                            if "Jet_pt" in newVar:
-                                npf[newVar] = tempnpf.pop(var) / tempnpf["HT_trigger_pt30"]
-                            else:
-                                npf[newVar] = tempnpf.pop(var)
+                            npf[newVar] = tempnpf[var]
 
                     print("%s [INFO]: Loaded \"%s\" from input file \"%s\""%(timeStamp(), self.config["tree"]+suffix,filename))
 
