@@ -1,43 +1,12 @@
-# DeepESM
-Produces the DeepESM training model
+# The Neural Network Framework
 
-## Python packages needed (As far as I can tell)
+## Running at the Minnesota Supercomputing Institute
 
-```
-python 
-dask   
-h5py   
-Keras  
-matplotlib 
-numpy      
-pandas     
-pip        
-protobuf   
-scikit-learn
-tensorboard 
-tensorflow  
-```
-Install using pip
-```
-pip install <Package Name>
-```
-or
-```
-sudo pip install <Package Name>
-```
-
-This package is not manditory, but is highly recomended to isolate all the packages you will install from your main python installation
-```
-virtualenv
-```
-https://virtualenv.pypa.io/en/stable/
-
-# Running at the Minnesota Supercomputing Institute
-
+All running is done at the Minnesota Supercomputing Institute (MSI).
 Connect to the Mangi (V100 nodes) or Agate (A100 nodes) cluster.
 Please visit https://www.msi.umn.edu/ for more information on connecting.
 
-## Setting Up the Working Area
+### Setting Up the Working Area
 ```
 mkdir -p Train
 
@@ -61,7 +30,7 @@ pip install pypi
 pip install matplotlib==3.3.0
 ```
 
-Get the analysis code from GitHub and rsync over the ROOT file NN inputs from the LPC
+Get the analysis code from GitHub and `rsync` over the ROOT file NN inputs from the LPC
 
 ```
 cd Train
@@ -70,10 +39,12 @@ git clone git@github.com:StealthStop/DeepESM.git
 cd DeepESM
 
 rsync -r <lpcuser>@cmslpc120.fnal.gov:/uscmst1b_scratch/lpc1/3DayLifetime/<some path> .
+
+# Sets environment parameters 
 source deepenv.sh
 ```
 
-## Running Interactively
+### Running Interactively
 
 On the MSI system, one can run interactive jobs, which run on GPU nodes and whose output is returned to the user's terminal.
 Most use cases are for debugging the code and testing purposes.
@@ -89,9 +60,9 @@ srun -u \
      --mem-per-cpu=30G 
      python train.py --saveAndPrint --procCats --njetsCats --massCats --minMass 350 --maxMass 1150 --evalMass 550 --trainModel RPV --evalModel RPV --year 2016preVFP --seed 527725 --tree myMiniTree_1l --nJets 7 --inputs UL_NN_inputs/
 ```
-where 40 minutes of GPU time is requested on an interactive GPU node in the Mangi cluster (k40, for Agate cluster one would use a40) and 30 GB of RAM for loading events from disk.
+where 40 minutes of GPU time is requested on an interactive GPU node in the Mangi cluster (`k40`, for Agate cluster one would use `a40`) and 30 GB of RAM for loading events from disk.
 Finally, the last argument provided is the entire `python` call to the executable to run, in this case `train.py`.
-These `train.py` arguments are detailed below.
+The `train.py` arguments are detailed below.
 ```
 usage: usage: %prog [options] [-h] [--quickVal] [--json JSON]
                               [--minMass MINMASS] [--maxMass MAXMASS]
@@ -137,10 +108,10 @@ optional arguments:
                         Output directory path
 ```
 
-##
+### Submitting Jobs to a Cluster
 
 The most powerful use case is submitting NN training jobs in batch to the Mangi or Agate GPU clusters.
-This is acheived using the `boboTrain.py` script, whose arguments are detailed:
+This is acheived using the `boboTrain.py` script, whose arguments are detailed as follows:
 ```
 usage: boboTrain.py [-h] [--trainBkgd TRAINBKGD [TRAINBKGD ...]]
                     [--trainModel TRAINMODEL]
@@ -239,12 +210,12 @@ python boboTrain.py --saveAndPrint \
                     --noSubmit
 ```
 
-Running this command will generate a `Run2_RPV_<unique_timestamp>` in `./batch`.
+Running this command will generate a `Run2_RPV_<unique_timestamp>` folder in `./batch`.
 No jobs have been submitted yet, but that is acheived by going to `./batch/Run2_RPV_<unique_timestamp` and running `qsub job_submit.pbs`.
 The status of jobs can be checked using the command `qstat -a -f -M -u $USER`.
 
-## Resubmitting Jobs
-Occaisionally, some jobs may encounter a segmentation violation and crash.
+### Resubmitting Jobs
+Occaisionally, some jobs may encounter a segmentation violation or problem (insufficient resource allocation) and stop running.
 A `resubmit.py` script has been provided to generate a new `.pbs` submission file with just the jobs that did not complete successfully.
 The arguments are detailed below:
 ```
@@ -259,20 +230,17 @@ optional arguments:
   --walltime WALLTIME  how much time to request
 ```
 
-The user may also request a different cluster, or different amount of memory or RAM when doing the resubmission.
+At this juncture, the user may also request a different cluster, or different amount of memory or RAM when doing the resubmission.
 
-An example call would be of the form
+An example call would be of the form:
 ```
-python resubmit.py --jobDir Run2_RPV_<unique_timestamp> --memory 75GB
+python resubmit.py --jobDir Run2_RPV_<unique_timestamp> --memory 75gb
 ```
-where the user is resubmitting jobs for the job dir used above and is requesting a new memory of 35gb.
+where the user is resubmitting jobs for the job dir used above and is requesting a new memory of 75gb.
 
-Again, jobs have not been submitted, so the user can navigate to the respective job dir and call:
-```
-qsub job_resubmit.pbs
-```
+Again, jobs have not been submitted, so the user can navigate to the respective job dir and call `qsub job_resubmit.pbs`
 
-# Plotting Input Variables
+### Plotting Input Variables
 
 A plotting script is provided to make pretty plots of NN inputs from the ntuple files.
 
