@@ -86,7 +86,7 @@ class Validation:
     def plotDisc(self, hists, colors, labels, weights, name, xlab, ylab, bins=100, arange=(0,1), doLog=False):
         # Plot predicted mass
         fig, ax = plt.subplots(figsize=(10, 10))
-        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"], ax=ax)
         ax.set_ylabel(xlab); ax.set_xlabel(ylab)
 
         for i in range(0, len(hists)): 
@@ -131,7 +131,7 @@ class Validation:
         ax = hep.histplot(h=bwnewBinned, bins=binEdges, w2=bw2newBinned, density=True, histtype="step", label="Background", alpha=0.9, lw=2)
         ax = hep.histplot(h=swnewBinned, bins=binEdges, w2=sw2newBinned, density=True, histtype="step", label="Signal (mass = %s GeV)"%(mass), alpha=0.9, lw=2, ax=ax)
 
-        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"], ax=ax)
         ax.set_ylabel('A.U.'); ax.set_xlabel('Disc. %s'%(tag1))
 
         plt.text(0.05, 0.85, r"$\bf{Disc. %s}$ > %.3f"%(tag2,c), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
@@ -174,7 +174,7 @@ class Validation:
         ax = hep.histplot(h=dwgtBinned, bins=binEdges, w2=dw2gtBinned, density=True, histtype="step", label="Disc. %s > %.2f"%(tag2,c), alpha=0.9, lw=2)
         ax = hep.histplot(h=dwltBinned, bins=binEdges, w2=dw2ltBinned, density=True, histtype="step", label="Disc. %s < %.2f"%(tag2,c), alpha=0.9, lw=2, ax=ax)
 
-        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"], ax=ax)
         ax.set_ylabel('A.U.'); ax.set_xlabel('Disc. %s'%(tag1))
 
         # Stupid nonsense to remove duplicate entries in legend
@@ -189,7 +189,7 @@ class Validation:
     # Plot loss of training vs test
     def plotAccVsEpoch(self, h1, h2, title, name):
         fig = plt.figure()
-        hep.cms.label(data=True, paper=False, year=self.config["year"])
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
         plt.plot(self.result_log.history[h1])
         plt.plot(self.result_log.history[h2])
         plt.title(title, pad=45.0)
@@ -201,7 +201,7 @@ class Validation:
 
     def plotAccVsEpochAll(self, h, n, val, title, name):
         fig = plt.figure()
-        hep.cms.label(data=True, paper=False, year=self.config["year"])
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
         plt.title(title, pad=45.0)
         plt.ylabel('loss')
         plt.xlabel('epoch')
@@ -222,7 +222,7 @@ class Validation:
             weights = samples[sample][2] 
             bins = np.linspace(0, 1, nBins)
             fig, ax = plt.subplots(figsize=(10, 10))
-            hep.cms.label(data=True, paper=False, year=self.config["year"])
+            hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
             ax.set_ylabel('Norm Events')
             ax.set_xlabel('Discriminator')
             for key in sorted(trainSample.keys()):
@@ -246,7 +246,7 @@ class Validation:
         if extra not in self.config: self.config[extra] = {"eval_auc" : {}, "val_auc" : {}}
 
         fig = plt.figure()
-        hep.cms.label(data=True, paper=False, year=self.config["year"])
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
         plt.plot([0, 1], [0, 1], 'k--')
         plt.xlabel('False positive rate')
         plt.ylabel('True positive rate')
@@ -315,7 +315,7 @@ class Validation:
     def plotD1VsD2SigVsBkgd(self, b1, b2, s1, s2, mass, Njets=-1):
         fig = plt.figure()
         ax1 = fig.add_subplot(111)
-        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax1)
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"], ax=ax1)
         ax1.scatter(b1, b2, s=10, c='b', marker="s", label='background')
         ax1.scatter(s1, s2, s=10, c='r', marker="o", label='signal (mass = %s GeV)'%(mass))
         ax1.set_xlim([0, 1])
@@ -329,7 +329,7 @@ class Validation:
 
     def plotPandR(self, pval, rval, ptrain, rtrain, valLab, trainLab):
         fig = plt.figure()
-        hep.cms.label(data=True, paper=False, year=self.config["year"])
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
         plt.ylim(0,1)
         plt.xlim(0,1)
         plt.plot(pval, rval, color='xkcd:black', label='Val (AP = {:.3f})'.format(valLab))
@@ -565,7 +565,7 @@ class Validation:
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="red", linewidth=2); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="red", linewidth=2)
         ax.add_line(l1); ax.add_line(l2)
         ax.set_ylabel("Disc. 2"); ax.set_xlabel("Disc. 1")
-        hep.cms.label(data=True, paper=False, year=self.config["year"])
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
 
         fig.tight_layout()
         if Njets == -1: fig.savefig(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2.pdf"%(tag,mass), dpi=fig.dpi)
@@ -584,7 +584,7 @@ class Validation:
         plt.colorbar()
         ax = plt.gca()
         ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
-        hep.cms.label(data=True, paper=False, year=self.config["year"])
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
 
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
         ax.add_line(l1); ax.add_line(l2)
@@ -643,7 +643,7 @@ class Validation:
 
        plt.legend(loc='best')
 
-       hep.cms.label(data=True, paper=False, year=self.config["year"])
+       hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
 
        fig.tight_layout()
 
@@ -655,7 +655,7 @@ class Validation:
     def plotBinEdgeMetricComps(self, finalSign, finalClosureErr, sign, closeErr, edges, d1edge, d2edge, Njets = -1):
 
         fig = plt.figure()
-        hep.cms.label(data=True, paper=False, year=self.config["year"])
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
         ax = plt.gca()
         plt.scatter(np.reciprocal(sign[0]), closeErr[0], color='xkcd:silver', marker="o", label="1 - Pred./Obs. vs 1 / Significance")
 
@@ -701,7 +701,7 @@ class Validation:
         ax.errorbar(binCenters, bkgd[:,0], yerr=bkgd[:,1], label="Background", xerr=xErr, fmt='', color="black",   lw=0, elinewidth=2, marker="o", markerfacecolor="black")
         ax.errorbar(binCenters, sig[:,0],  yerr=sig[:,1],  label="Signal",     xerr=xErr, fmt='', color="red",     lw=0, elinewidth=2, marker="o", markerfacecolor="red")
 
-        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"], ax=ax)
 
         plt.xlabel('$N_{jets}$')
         plt.ylabel('Events')
@@ -782,7 +782,7 @@ class Validation:
         ax2.axhline(y=0.0, color="black", linestyle="dashed", lw=1)
         ax2.grid(color="black", which="both", axis="y")
 
-        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax1)
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"], ax=ax1)
         
         ax2.set_xlabel('$N_{jets}$')
         ax2.set_ylabel('1 - Pred./Obs.', fontsize="small")
