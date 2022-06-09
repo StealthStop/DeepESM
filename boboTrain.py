@@ -67,7 +67,7 @@ if __name__ == '__main__':
     parser.add_argument("--massCats",     dest="massCats",     help="Balance batches among masses",                  default=False, action="store_true" )
     parser.add_argument("--njetsCats",    dest="njetsCats",    help="Balance batches among njets",                   default=False, action="store_true" )
     parser.add_argument("--saveAndPrint", dest="saveAndPrint", help="Save model peanut butter",                      action="store_true", default=False)
-    parser.add_argument("--inputs",       dest="inputs",       help="which inputs files to use",                     default="NN_inputs", type=str)
+    parser.add_argument("--inputs",       dest="inputs",       help="which inputs files to use",                     default="UL_NN_inputs", type=str)
     args = parser.parse_args()
 
 
@@ -142,7 +142,7 @@ if __name__ == '__main__':
 
     USER = os.getenv("USER")
 
-    os.system("ln -s /home/nstrobbe/%s/Train/DeepESM/%s %s/NN_inputs"%(USER, args.inputs, taskPath))
+    os.system("ln -s /home/nstrobbe/shared/%s %s/NN_inputs"%(args.inputs, taskPath))
 
     if not args.noSubmit:
         subprocess.call(["qsub", pbsPath])
