@@ -1,7 +1,7 @@
 from DataLoader import DataLoader
 from Correlation import Correlation as cor
 
-import os
+import gc
 import json
 import logging
 import numpy as np
@@ -23,7 +23,13 @@ plt.style.use({'legend.frameon':False,'legend.fontsize':16,'legend.edgecolor':'b
 
 from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score, roc_auc_score
 
+import tracemalloc
+
+import datetime
 plt.rcParams['pdf.fonttype'] = 42
+
+def timeStamp():
+    return datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
 
 class Validation:
 
@@ -80,7 +86,7 @@ class Validation:
     def plotDisc(self, hists, colors, labels, weights, name, xlab, ylab, bins=100, arange=(0,1), doLog=False):
         # Plot predicted mass
         fig, ax = plt.subplots(figsize=(10, 10))
-        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"], ax=ax)
         ax.set_ylabel(xlab); ax.set_xlabel(ylab)
 
         for i in range(0, len(hists)): 
@@ -125,7 +131,7 @@ class Validation:
         ax = hep.histplot(h=bwnewBinned, bins=binEdges, w2=bw2newBinned, density=True, histtype="step", label="Background", alpha=0.9, lw=2)
         ax = hep.histplot(h=swnewBinned, bins=binEdges, w2=sw2newBinned, density=True, histtype="step", label="Signal (mass = %s GeV)"%(mass), alpha=0.9, lw=2, ax=ax)
 
-        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"], ax=ax)
         ax.set_ylabel('A.U.'); ax.set_xlabel('Disc. %s'%(tag1))
 
         plt.text(0.05, 0.85, r"$\bf{Disc. %s}$ > %.3f"%(tag2,c), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
@@ -168,7 +174,7 @@ class Validation:
         ax = hep.histplot(h=dwgtBinned, bins=binEdges, w2=dw2gtBinned, density=True, histtype="step", label="Disc. %s > %.2f"%(tag2,c), alpha=0.9, lw=2)
         ax = hep.histplot(h=dwltBinned, bins=binEdges, w2=dw2ltBinned, density=True, histtype="step", label="Disc. %s < %.2f"%(tag2,c), alpha=0.9, lw=2, ax=ax)
 
-        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"], ax=ax)
         ax.set_ylabel('A.U.'); ax.set_xlabel('Disc. %s'%(tag1))
 
         # Stupid nonsense to remove duplicate entries in legend
@@ -183,7 +189,7 @@ class Validation:
     # Plot loss of training vs test
     def plotAccVsEpoch(self, h1, h2, title, name):
         fig = plt.figure()
-        hep.cms.label(data=True, paper=False, year=self.config["year"])
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
         plt.plot(self.result_log.history[h1])
         plt.plot(self.result_log.history[h2])
         plt.title(title, pad=45.0)
@@ -195,7 +201,7 @@ class Validation:
 
     def plotAccVsEpochAll(self, h, n, val, title, name):
         fig = plt.figure()
-        hep.cms.label(data=True, paper=False, year=self.config["year"])
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
         plt.title(title, pad=45.0)
         plt.ylabel('loss')
         plt.xlabel('epoch')
@@ -216,7 +222,7 @@ class Validation:
             weights = samples[sample][2] 
             bins = np.linspace(0, 1, nBins)
             fig, ax = plt.subplots(figsize=(10, 10))
-            hep.cms.label(data=True, paper=False, year=self.config["year"])
+            hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
             ax.set_ylabel('Norm Events')
             ax.set_xlabel('Discriminator')
             for key in sorted(trainSample.keys()):
@@ -240,7 +246,7 @@ class Validation:
         if extra not in self.config: self.config[extra] = {"eval_auc" : {}, "val_auc" : {}}
 
         fig = plt.figure()
-        hep.cms.label(data=True, paper=False, year=self.config["year"])
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
         plt.plot([0, 1], [0, 1], 'k--')
         plt.xlabel('False positive rate')
         plt.ylabel('True positive rate')
@@ -260,7 +266,7 @@ class Validation:
                     if self.config["Mask"] and (int(NJets) in self.config["Mask_nJet"]): continue
 
                     dataNjetsMaskEval = evalData["njets"]==njets
-                    labels            = evalData["label"][:,0][dataMaskEval&dataNjetsMaskEval]
+                    labels            = evalData["label"][dataMaskEval&dataNjetsMaskEval]
                     weights           = evalData["weight"][dataMaskEval&dataNjetsMaskEval]
 
                     y = y_eval[dataMaskEval&dataNjetsMaskEval]
@@ -284,7 +290,7 @@ class Validation:
                     if self.config["Mask"] and (int(NJets) in self.config["Mask_nJet"]): continue
 
                     dataNjetsMaskVal = valData["njets"] == njets
-                    valLabels        = valData["label"][:,0][dataMaskVal&dataNjetsMaskVal]
+                    valLabels        = valData["label"][dataMaskVal&dataNjetsMaskVal]
                     valWeights       = valData["weight"][dataMaskVal&dataNjetsMaskVal]
 
                     yVal = y_val[dataMaskVal&dataNjetsMaskVal]
@@ -309,7 +315,7 @@ class Validation:
     def plotD1VsD2SigVsBkgd(self, b1, b2, s1, s2, mass, Njets=-1):
         fig = plt.figure()
         ax1 = fig.add_subplot(111)
-        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax1)
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"], ax=ax1)
         ax1.scatter(b1, b2, s=10, c='b', marker="s", label='background')
         ax1.scatter(s1, s2, s=10, c='r', marker="o", label='signal (mass = %s GeV)'%(mass))
         ax1.set_xlim([0, 1])
@@ -323,7 +329,7 @@ class Validation:
 
     def plotPandR(self, pval, rval, ptrain, rtrain, valLab, trainLab):
         fig = plt.figure()
-        hep.cms.label(data=True, paper=False, year=self.config["year"])
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
         plt.ylim(0,1)
         plt.xlim(0,1)
         plt.plot(pval, rval, color='xkcd:black', label='Val (AP = {:.3f})'.format(valLab))
@@ -559,7 +565,7 @@ class Validation:
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="red", linewidth=2); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="red", linewidth=2)
         ax.add_line(l1); ax.add_line(l2)
         ax.set_ylabel("Disc. 2"); ax.set_xlabel("Disc. 1")
-        hep.cms.label(data=True, paper=False, year=self.config["year"])
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
 
         fig.tight_layout()
         if Njets == -1: fig.savefig(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2.pdf"%(tag,mass), dpi=fig.dpi)
@@ -578,7 +584,7 @@ class Validation:
         plt.colorbar()
         ax = plt.gca()
         ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
-        hep.cms.label(data=True, paper=False, year=self.config["year"])
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
 
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
         ax.add_line(l1); ax.add_line(l2)
@@ -637,7 +643,7 @@ class Validation:
 
        plt.legend(loc='best')
 
-       hep.cms.label(data=True, paper=False, year=self.config["year"])
+       hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
 
        fig.tight_layout()
 
@@ -649,7 +655,7 @@ class Validation:
     def plotBinEdgeMetricComps(self, finalSign, finalClosureErr, sign, closeErr, edges, d1edge, d2edge, Njets = -1):
 
         fig = plt.figure()
-        hep.cms.label(data=True, paper=False, year=self.config["year"])
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
         ax = plt.gca()
         plt.scatter(np.reciprocal(sign[0]), closeErr[0], color='xkcd:silver', marker="o", label="1 - Pred./Obs. vs 1 / Significance")
 
@@ -695,7 +701,7 @@ class Validation:
         ax.errorbar(binCenters, bkgd[:,0], yerr=bkgd[:,1], label="Background", xerr=xErr, fmt='', color="black",   lw=0, elinewidth=2, marker="o", markerfacecolor="black")
         ax.errorbar(binCenters, sig[:,0],  yerr=sig[:,1],  label="Signal",     xerr=xErr, fmt='', color="red",     lw=0, elinewidth=2, marker="o", markerfacecolor="red")
 
-        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax)
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"], ax=ax)
 
         plt.xlabel('$N_{jets}$')
         plt.ylabel('Events')
@@ -776,7 +782,7 @@ class Validation:
         ax2.axhline(y=0.0, color="black", linestyle="dashed", lw=1)
         ax2.grid(color="black", which="both", axis="y")
 
-        hep.cms.label(data=True, paper=False, year=self.config["year"], ax=ax1)
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"], ax=ax1)
         
         ax2.set_xlabel('$N_{jets}$')
         ax2.set_ylabel('1 - Pred./Obs.', fontsize="small")
@@ -825,30 +831,41 @@ class Validation:
         # If there is a xvalLoader that means we are evaluating the network
         # on events it has not seen and are not in the train+val+test sets
         if self.evalLoader != None:
-            evalData = self.evalLoader.getFlatData()
-            evalSig  = self.evalLoader.getFlatData(process=self.sample[evalModel]) 
-            evalBkg  = self.evalLoader.getFlatData(process=self.config["evalBkg"])
+            evalData = self.evalLoader.getFlatData(year=self.config["evalYear"])
+            evalSig  = self.evalLoader.getFlatData(year=self.config["evalYear"],process=self.sample[evalModel]) 
+            evalBkg  = self.evalLoader.getFlatData(year=self.config["evalYear"],process=self.config["evalBkg"])
+
+            self.evalLoader = None
+            gc.collect()
         
         # Making it to the else means the events we want to evaluate
         # are contained within the train+val+test sets
         else:
-            trainDataTmp = self.loader.getFlatData()
-            testDataTmp  = self.testLoader.getFlatData()
+            trainDataTmp = self.loader.getFlatData(year=self.config["evalYear"])
+            trainSigTmp  = self.loader.getFlatData(year=self.config["evalYear"],process=self.sample[evalModel]) 
+            trainBkgTmp  = self.loader.getFlatData(year=self.config["evalYear"],process=self.config["evalBkg"])      
 
-            trainSigTmp = self.loader.getFlatData(process=self.sample[evalModel]) 
-            trainBkgTmp = self.loader.getFlatData(process=self.config["evalBkg"])      
+            self.loader = None
+            gc.collect()
 
-            valSigTmp = self.valLoader.getFlatData(process=self.sample[evalModel]) 
-            valBkgTmp = self.valLoader.getFlatData(process=self.config["evalBkg"])
+            valSigTmp = self.valLoader.getFlatData(year=self.config["evalYear"],process=self.sample[evalModel]) 
+            valBkgTmp = self.valLoader.getFlatData(year=self.config["evalYear"],process=self.config["evalBkg"])
 
-            testSigTmp = self.testLoader.getFlatData(process=self.sample[evalModel])
-            testBkgTmp = self.testLoader.getFlatData(process=self.config["evalBkg"])
+            self.valLoader = None
+            gc.collect()
+
+            testDataTmp = self.testLoader.getFlatData(year=self.config["evalYear"])
+            testSigTmp  = self.testLoader.getFlatData(year=self.config["evalYear"],process=self.sample[evalModel])
+            testBkgTmp  = self.testLoader.getFlatData(year=self.config["evalYear"],process=self.config["evalBkg"])
+            
+            self.testLoader = None
+            gc.collect()
 
             for key in trainDataTmp.keys():
                 evalData[key] = np.concatenate((trainDataTmp[key], valData[key],   testDataTmp[key]), axis=0)
                 evalSig[key]  = np.concatenate((trainSigTmp[key],  valSigTmp[key], testSigTmp[key]),  axis=0)
                 evalBkg[key]  = np.concatenate((trainBkgTmp[key],  valBkgTmp[key], testBkgTmp[key]),  axis=0)
-        
+       
         massMaskEval     = evalSig["mass"] == float(evalMass)
         massMaskVal      = valSig["mass"]  == float(valMass)
 
@@ -948,6 +965,8 @@ class Validation:
 
         # Part of the training samples that were not used for training
         output_val, output_val_sg, output_val_bg = self.getOutput(self.model, valData["inputs"], valSig["inputs"], valBkg["inputs"])
+        del valData["inputs"]; del valSig["inputs"]; del valBkg["inputs"]
+        gc.collect()
 
         y_val_disc1,  y_val_sg_disc1,  y_val_bg_disc1  = self.getResults(output_val,   output_val_sg,  output_val_bg,  outputNum=0, columnNum=0)
         y_val_disc2,  y_val_sg_disc2,  y_val_bg_disc2  = self.getResults(output_val,   output_val_sg,  output_val_bg,  outputNum=0, columnNum=2)
@@ -955,6 +974,8 @@ class Validation:
 
         # Separately loaded samples that can have nothing to do with the what was loaded for training
         output_train, output_eval_sg, output_eval_bg = self.getOutput(self.model, evalData["inputs"], evalSig["inputs"], evalBkg["inputs"])
+        del evalData["inputs"]; del evalSig["inputs"]; del evalBkg["inputs"]
+        gc.collect()
 
         y_eval_disc1, y_eval_sg_disc1, y_eval_bg_disc1 = self.getResults(output_train, output_eval_sg, output_eval_bg, outputNum=0, columnNum=0)
         y_eval_disc2, y_eval_sg_disc2, y_eval_bg_disc2 = self.getResults(output_train, output_eval_sg, output_eval_bg, outputNum=0, columnNum=2)
@@ -1200,24 +1221,18 @@ class Validation:
             self.config["Dsignificance"] = float(signD)
             self.config["TotalSignificance"] = (signA**2.0 + signB**2.0 + signC**2.0 + signD**2.0)**0.5
 
-            print("A SIGNIFICANCE: %3.2f"%(signA))
-            print("B SIGNIFICANCE: %3.2f"%(signB))
-            print("C SIGNIFICANCE: %3.2f"%(signC))
-            print("D SIGNIFICANCE: %3.2f"%(signD))
-            print("TOTAL SIGNIFICANCE: %3.2f"%((signA**2.0 + signB**2.0 + signC**2.0 + signD**2.0)**0.5))
-  
             if    self.config["TotalSignificance"] > 0.0: self.metric["InvTotalSignificance"] = 1.0/self.config["TotalSignificance"]
             else: self.metric["InvTotalSignificance"] = 999.0
 
         # Plot validation roc curve
-        fpr_val_disc1, tpr_val_disc1, thresholds_val_disc1    = roc_curve(valData["label"][:,0][massMaskDataVal&sigMaskDataVal],   y_val_disc1[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
-        fpr_val_disc2, tpr_val_disc2, thresholds_val_disc2    = roc_curve(valData["label"][:,0][massMaskDataVal&sigMaskDataVal],   y_val_disc2[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
-        fpr_eval_disc1, tpr_eval_disc1, thresholds_eval_disc1 = roc_curve(evalData["label"][:,0][massMaskDataEval&sigMaskDataEval], y_eval_disc1[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
-        fpr_eval_disc2, tpr_eval_disc2, thresholds_eval_disc2 = roc_curve(evalData["label"][:,0][massMaskDataEval&sigMaskDataEval], y_eval_disc2[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
-        auc_val_disc1  = roc_auc_score(valData["label"][:,0][massMaskDataVal&sigMaskDataVal],   y_val_disc1[massMaskDataVal&sigMaskDataVal])
-        auc_val_disc2  = roc_auc_score(valData["label"][:,0][massMaskDataVal&sigMaskDataVal],   y_val_disc2[massMaskDataVal&sigMaskDataVal])
-        auc_eval_disc1 = roc_auc_score(evalData["label"][:,0][massMaskDataEval&sigMaskDataEval], y_eval_disc1[massMaskDataEval&sigMaskDataEval])
-        auc_eval_disc2 = roc_auc_score(evalData["label"][:,0][massMaskDataEval&sigMaskDataEval], y_eval_disc2[massMaskDataEval&sigMaskDataEval])
+        fpr_val_disc1, tpr_val_disc1, thresholds_val_disc1    = roc_curve(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_disc1[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
+        fpr_val_disc2, tpr_val_disc2, thresholds_val_disc2    = roc_curve(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_disc2[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
+        fpr_eval_disc1, tpr_eval_disc1, thresholds_eval_disc1 = roc_curve(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_disc1[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
+        fpr_eval_disc2, tpr_eval_disc2, thresholds_eval_disc2 = roc_curve(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_disc2[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
+        auc_val_disc1  = roc_auc_score(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_disc1[massMaskDataVal&sigMaskDataVal])
+        auc_val_disc2  = roc_auc_score(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_disc2[massMaskDataVal&sigMaskDataVal])
+        auc_eval_disc1 = roc_auc_score(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_disc1[massMaskDataEval&sigMaskDataEval])
+        auc_eval_disc2 = roc_auc_score(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_disc2[massMaskDataEval&sigMaskDataEval])
 
         # Define metrics for the training
         self.metric["OverTrain_Disc1"]   = abs(auc_val_disc1 - auc_eval_disc1)
@@ -1232,10 +1247,10 @@ class Validation:
         self.plotROC(massMaskDataEval&sigMaskDataEval, massMaskDataVal&sigMaskDataVal, "_"+self.config["bkgd"][0]+"_nJet_disc2", y_eval_disc2, y_val_disc2, evalData, valData)
         
         # Plot validation precision recall
-        precision_val_disc1,  recall_val_disc1,  _ = precision_recall_curve(valData["label"][:,0][massMaskDataVal&sigMaskDataVal],   y_val_disc1[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
-        precision_eval_disc1, recall_eval_disc1, _ = precision_recall_curve(evalData["label"][:,0][massMaskDataEval&sigMaskDataEval], y_eval_disc1[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
-        ap_val_disc1  = average_precision_score(valData["label"][:,0],  y_val_disc1,  sample_weight=valData["weight"])
-        ap_eval_disc1 = average_precision_score(evalData["label"][:,0], y_eval_disc1, sample_weight=evalData["weight"])
+        precision_val_disc1,  recall_val_disc1,  _ = precision_recall_curve(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_disc1[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
+        precision_eval_disc1, recall_eval_disc1, _ = precision_recall_curve(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_disc1[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
+        ap_val_disc1  = average_precision_score(valData["label"],  y_val_disc1,  sample_weight=valData["weight"])
+        ap_eval_disc1 = average_precision_score(evalData["label"], y_eval_disc1, sample_weight=evalData["weight"])
         
         self.plotPandR(precision_val_disc1, recall_val_disc1, precision_eval_disc1, recall_eval_disc1, ap_val_disc1, ap_eval_disc1)
         

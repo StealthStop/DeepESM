@@ -6,6 +6,7 @@ import shutil
 import argparse
 import datetime
 import subprocess
+import tracemalloc
 import numpy as np
 from glob import glob
 import multiprocessing
@@ -25,8 +26,13 @@ from Correlation import Correlation as cor
 from DataLoader import DataLoader
 from Models import main_model
 
+def timeStamp():
+    return datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+
 class Train:
-    def __init__(self, USER, outputDir, nJets, useJECs, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, doReweight=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", evalMass=500, evalModel="RPV_SYY_SHH", year = "2016_2017_2018", tree = "myMiniTree", maskNjet = [-1], procCats=False, massCats=False, njetsCats=False):
+    def __init__(self, USER, inputs, outputDir, nJets, useJECs, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, scaleJetPt=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", evalMass=500, evalModel="RPV_SYY_SHH", evalYear = "2016preVFP", trainYear = "2016preVFP_2016postVFP_2017_2018", tree = "myMiniTree", maskNjet = [-1], procCats=False, massCats=False, njetsCats=False):
+
+        print("%s [INFO]: Creating instance of Train."%(timeStamp()))
 
         proc = subprocess.Popen(["hostname", "-f"], stdout=subprocess.PIPE)
         host = proc.stdout.readlines()[0].rstrip().decode("UTF-8")
@@ -45,15 +51,13 @@ class Train:
         self.config["debug"]       = debug
         self.config["minStopMass"] = int(minStopMass)
         self.config["maxStopMass"] = int(maxStopMass)
-        self.config["doReweight"]  = doReweight
         self.config["useJECs"]     = useJECs
+        self.config["scaleJetPt"]  = scaleJetPt
         self.config["nJets"]       = float(nJets)
 
         # Depending on final state, different pt requirements
         # and resultant objects are used
         ptCut = "pt30"
-        if "0l" in tree:
-            ptCut = "pt45"
 
         # Labels for extracting relevant information from the
         # dataframes constructed from the inputs ROOT files
@@ -68,7 +72,8 @@ class Train:
         self.config["trainModel"] = trainModel
         self.config["evalMass"]   = evalMass
         self.config["evalModel"]  = evalModel
-        self.config["year"]       = year
+        self.config["trainYear"]  = trainYear
+        self.config["evalYear"]   = evalYear
         self.config["tree"]       = tree
 
         self.config["procCats"]   = procCats
@@ -95,63 +100,75 @@ class Train:
         self.evalLoader = None
         self.testLoader = None
 
-        TT_2016      = None; TT_2017      = None; TT_2018      = None
-        TT_2016_eval = None; TT_2017_eval = None; TT_2018_eval = None
+        TT_2016preVFP      = None; TT_2016postVFP      = None; TT_2017      = None; TT_2018      = None
+        TT_2016preVFP_eval = None; TT_2016postVFP_eval = None; TT_2017_eval = None; TT_2018_eval = None
 
-        Signal_2016      = []; Signal_2017      = []; Signal_2018      = []
-        Signal_2016_eval = []; Signal_2017_eval = []; Signal_2018_eval = []
+        Signal_2016preVFP      = []; Signal_2016postVFP      = []; Signal_2017      = []; Signal_2018      = []
+        Signal_2016preVFP_eval = []; Signal_2016postVFP_eval = []; Signal_2017_eval = []; Signal_2018_eval = []
 
         self.config["evalBkg"] = None
 
-        ################### Samples to train on #####################
-        extra = "_[TV]*"
+        channel = "ToSemiLep"
+        if "0l" in tree:
+            channel = "ToHadronic"
 
-        TT_2016 = ["2016_TT*"]
+        ################### Samples to train on #####################
+        extra = "_[TV]"
+
+        TT_2016preVFP  = ["2016preVFP_TT%s*"%(channel)]
+        TT_2016postVFP = ["2016postVFP_TT%s*"%(channel)]
+        TT_2017        = ["2017_TT%s*"%(channel)]
+        TT_2018        = ["2018_TT%s*"%(channel)]
 
         ################### Samples to validate on #####################
         if "vpow" in hyperconfig["atag"]:
-            TT_2016_eval = ["2016_TT%s"%(extra)]
+            TT_2016preVFP_eval  = ["2016preVFP_TT%s*[cu]%s[!u]*"%(channel,extra)]
+            TT_2016postVFP_eval = ["2016postVFP_TT%s*[cu]%s[!u]*"%(channel,extra)]
+            TT_2017_eval        = ["2017_TT%s*[cu]%s[!u]*"%(channel,extra)]
+            TT_2018_eval        = ["2018_TT%s*[cu]%s[!u]*"%(channel,extra)]
             self.config["evalBkg"] = 0
 
         elif "vmad" in hyperconfig["atag"]:
-            TT_2016_eval = ["2016_TTJets%s"%(extra)]
+            TT_2016preVFP_eval  = ["2016preVFP_TT%sJets%s*"%(channel,extra)]
+            TT_2016postVFP_eval = ["2016postVFP_TT%sJets%s*"%(channel,extra)]
+            TT_2017_eval        = ["2017_TT%sJets%s*"%(channel,extra)]
+            TT_2018_eval        = ["2018_TT%sJets%s*"%(channel,extra)]
             self.config["evalBkg"] = 1
 
         elif "verd" in hyperconfig["atag"]:
-            TT_2016_eval = ["2016_TT_erdOn%s"%(extra)]
+            TT_2016preVFP_eval  = ["2016preVFP_TT%s*erdON%s*"%(channel,extra)]
+            TT_2016postVFP_eval = ["2016postVFP_TT%s*erdON%s*"%(channel,extra)]
+            TT_2017_eval        = ["2017_TT%s*erdON%s*"%(channel,extra)]
+            TT_2018_eval        = ["2018_TT%s*erdON%s*"%(channel,extra)]
             self.config["evalBkg"] = 2
 
         elif "vhdampu" in hyperconfig["atag"]:
-            TT_2016_eval = ["2016_TT_hdampUp%s"%(extra)]
+            TT_2016preVFP_eval  = ["2016preVFP_TT%s*hdampUP%s*"%(channel,extra)]
+            TT_2016postVFP_eval = ["2016postVFP_TT%s*hdampUP%s*"%(channel,extra)]
+            TT_2017_eval        = ["2017_TT%s*hdampUP%s*"%(channel,extra)]
+            TT_2018_eval        = ["2018_TT%s*hdampUP%s*"%(channel,extra)]
             self.config["evalBkg"] = 3
 
         elif "vhdampd" in hyperconfig["atag"]:
-            TT_2016_eval = ["2016_TT_hdampDown%s"%(extra)]
+            TT_2016preVFP_eval  = ["2016preVFP_TT%s*hdampDOWN%s*"%(channel,extra)]
+            TT_2016postVFP_eval = ["2016postVFP_TT%s*hdampDOWN%s*"%(channel,extra)]
+            TT_2017_eval        = ["2017_TT%s*hdampDOWN%s*"%(channel,extra)]
+            TT_2018_eval        = ["2018_TT%s*hdampDOWN%s*"%(channel,extra)]
             self.config["evalBkg"] = 4
 
         elif "vueu" in hyperconfig["atag"]:
-            TT_2016_eval = ["2016_TT_underlyingEvtUp%s"%(extra)]
+            TT_2016preVFP_eval  = ["2016preVFP_TT%s*TuneCP5up%s*"%(channel,extra)]
+            TT_2016postVFP_eval = ["2016postVFP_TT%s*TuneCP5up%s*"%(channel,extra)]
+            TT_2017_eval        = ["2017_TT%s*TuneCP5up%s*"%(channel,extra)]
+            TT_2018_eval        = ["2018_TT%s*TuneCP5up%s*"%(channel,extra)]
             self.config["evalBkg"] = 5
 
         elif "vued" in hyperconfig["atag"]:
-            TT_2016_eval = ["2016_TT_underlyingEvtDown%s"%(extra)]
+            TT_2016preVFP_eval  = ["2016preVFP_TT%s*TuneCP5down%s*"%(channel,extra)]
+            TT_2016postVFP_eval = ["2016postVFP_TT%s*TuneCP5down%s*"%(channel,extra)]
+            TT_2017_eval        = ["2017_TT%s*TuneCP5down%s*"%(channel,extra)]
+            TT_2018_eval        = ["2018_TT%s*TuneCP5down%s*"%(channel,extra)]
             self.config["evalBkg"] = 6
-
-        elif "vfsru" in hyperconfig["atag"]:
-            TT_2016_eval = ["2016_TT_fsrUp%s"%(extra)]
-            self.config["evalBkg"] = 7
-
-        elif "vfsrd" in hyperconfig["atag"]:
-            TT_2016_eval = ["2016_TT_fsrDown%s"%(extra)]
-            self.config["evalBkg"] = 8
-
-        elif "visru" in hyperconfig["atag"]:
-            TT_2016_eval = ["2016_TT_isrUp%s"%(extra)]
-            self.config["evalBkg"] = 9
-
-        elif "visrd" in hyperconfig["atag"]:
-            TT_2016_eval = ["2016_TT_isrDown%s"%(extra)]
-            self.config["evalBkg"] = 10
 
         if "vjcu" in hyperconfig["atag"]:
             self.config["evalBkg"] += 10
@@ -167,57 +184,65 @@ class Train:
             evalMasses = {"350", "550", "850", "1150"} 
             evalMasses.add(evalMass)
             for mass in evalMasses:
-                Signal_2016_eval.append("2016*%s*mStop-%s"%(model,mass))
-
-        if "0l" in self.config["tree"]:
-            TT_2017 = ["2017_TTToHadronic"]
-            TT_2018 = ["2018pre_TTToHadronic"]
-        elif "2l" in self.config["tree"]:
-            TT_2017 = ["2017_TTTo2L2Nu"]
-            TT_2018 = ["2018pre_TTTo2L2Nu"]
-        else:
-            TT_2017 = ["2017_TTToSemiLeptonic"]
-            TT_2018 = ["2018pre_TTToSemiLeptonic"]
+                Signal_2016preVFP_eval.append("2016preVFP*%s*mStop-%s"%(model,mass))
+                Signal_2016postVFP_eval.append("2016postVFP*%s*mStop-%s"%(model,mass))
+                Signal_2017_eval.append("2017*%s*mStop-%s"%(model,mass))
+                Signal_2018_eval.append("2018*%s*mStop-%s"%(model,mass))
 
         for model in trainModel.split("_"):
-            Signal_2016 += list("2016*%s*mStop-"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
-            Signal_2017 += list("2017*%s*mStop-"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
-            Signal_2018 += list("2018*%s*mStop-"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
+            Signal_2016preVFP  += list("2016preVFP*%s*mStop-"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
+            Signal_2016postVFP += list("2016postVFP*%s*mStop-"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
+            Signal_2017        += list("2017*%s*mStop-"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
+            Signal_2018        += list("2018*%s*mStop-"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
 
         TT = []; TTeval = []; Signal = []; SignalEval = []; self.config["lumi"] = 0
-        if "2016" in self.config["year"]: 
-            TT                  += TT_2016
-            TTeval              += TT_2016_eval
-            Signal              += Signal_2016
-            SignalEval          += Signal_2016_eval
-            self.config["lumi"] += 35900
-        if "2017" in self.config["year"]:
+        if "2016preVFP" in self.config["trainYear"] or "Run2" in self.config["trainYear"]: 
+            TT                  += TT_2016preVFP
+            Signal              += Signal_2016preVFP
+            self.config["lumi"] += 19520 
+        if "2016postVFP" in self.config["trainYear"] or "Run2" in self.config["trainYear"]: 
+            TT                  += TT_2016postVFP
+            Signal              += Signal_2016postVFP
+            self.config["lumi"] += 16810
+        if "2017" in self.config["trainYear"] or "Run2" in self.config["trainYear"]:
             TT                  += TT_2017
             Signal              += Signal_2017
             self.config["lumi"] += 41500
-        if "2018" in self.config["year"]:
+        if "2018" in self.config["trainYear"] or "Run2" in self.config["trainYear"]:
             TT                  += TT_2018
             Signal              += Signal_2018
             self.config["lumi"] += 59800
+
+        if "2016preVFP" in self.config["evalYear"]: 
+            TTeval              += TT_2016preVFP_eval
+            SignalEval          += Signal_2016preVFP_eval
+        if "2016postVFP" in self.config["evalYear"]: 
+            TTeval              += TT_2016postVFP_eval
+            SignalEval          += Signal_2016postVFP_eval
+        if "2017" in self.config["evalYear"]:
+            TTeval              += TT_2017_eval
+            SignalEval          += Signal_2017_eval
+        if "2018" in self.config["evalYear"]:
+            TTeval              += TT_2018_eval
+            SignalEval          += Signal_2018_eval
 
         self.config["bkgd"]          = ("TT", TT)
         self.config["bkgdEval"]      = ("TTeval", TTeval)
         self.config["signal"]        = Signal
         self.config["signalEval"]    = SignalEval
-        self.config["bkgdShift"]     = ("TT", TT_2016)
-        self.config["dataSet"]       = "NN_inputs/"
+        self.config["bkgdShift"]     = ("TT", TT)
+        self.config["dataSet"]       = inputs
         self.config["doBgWeight"]    = True
         self.config["doSgWeight"]    = True
         self.config["class_weight"]  = None
         self.config["sample_weight"] = None
         self.config["metrics"]       = ['accuracy']
-        print("Using "+self.config["dataSet"]+" data set\n")
-        print("Training on signal: ",       self.config["signal"], "\n")
-        print("Training on background: ",   self.config["bkgd"][1], "\n")
-        print("Validating on signal: ",     self.config["signalEval"], "\n")
-        print("Validating on background: ", self.config["bkgdEval"][1], "\n")
+        print("%s [INFO]: Using "%(timeStamp())+self.config["dataSet"]+" data set")
+        print("%s [INFO]: Training on signal: "%(timeStamp()),       self.config["signal"])
+        print("%s [INFO]: Training on background: "%(timeStamp()),   self.config["bkgd"][1])
+        print("%s [INFO]: Validating on signal: "%(timeStamp()),     self.config["signalEval"])
+        print("%s [INFO]: Validating on background: "%(timeStamp()), self.config["bkgdEval"][1])
 
-        print(outputDir)
         # Define ouputDir based on input config
         self.makeOutputDir(hyperconfig, outputDir, replay)
         self.config.update(hyperconfig)
@@ -245,11 +270,6 @@ class Train:
 
             normedweight_bg = tf.boolean_mask(normedweight, mask_sg)
 
-            mask_bg = tf.reshape(y_mask[:, 0:1], [-1])
-            val_1_sg = tf.boolean_mask(val_1, mask_bg)
-            val_2_sg = tf.boolean_mask(val_2, mask_bg)
-            normedweight_sg = tf.boolean_mask(normedweight, mask_bg)
-
             d1 = g.uniform(shape=(), minval=0.0, maxval=1.0)
             d2 = g.uniform(shape=(), minval=0.0, maxval=1.0)
         
@@ -257,7 +277,6 @@ class Train:
             dval2 = d2 / 2.0
 
             nbTot = 2.0*tf.reduce_sum(tf.sigmoid(0.0*val_1_bg))
-            nsTot = 2.0*tf.reduce_sum(tf.sigmoid(0.0*val_1_sg))
 
             # Calculate non-closure in full ABCD region defined by (d1, d2) edges
             nbA = tf.reduce_sum(tf.sigmoid(10e1*(val_1_bg-d1))*tf.sigmoid(10e1*(val_2_bg-d2)))
@@ -289,6 +308,9 @@ class Train:
         return loss_model_disc
 
     def make_model(self, scales, means, regShape, discoShape, inputShape):
+
+        print("%s [INFO]: Constructing model."%(timeStamp()))
+
         model, optimizer = main_model(self.config, scales, means, regShape, discoShape, inputShape)
         g = tf.random.Generator.from_seed(self.config["seed"]) 
         model.compile(loss=[self.loss_disc(c=self.config["disc_lambda"]), self.loss_disco(c1=self.config["bkg_disco_lambda"], c2=self.config["abcd_close_lambda"], g=g), self.loss_mass_reg(c=self.config["mass_reg_lambda"])], optimizer=optimizer, metrics=self.config["metrics"])
@@ -318,7 +340,7 @@ class Train:
                 for gpu in gpus:
                     tf.config.experimental.set_memory_growth(gpu, True)
             except RuntimeError as e:
-                print("Error: gpu_mem_grow failed: ",e)
+                print("%s [ERROR]: gpu_mem_grow failed: "%(timeStamp()),e)
 
     def save_model_pb(self, model):
         #https://github.com/leimao/Frozen_Graph_TensorFlow/tree/master/TensorFlow_v2
@@ -342,7 +364,7 @@ class Train:
         try:
             K.utils.plot_model(model, to_file=self.config["outputDir"]+"/model.png", show_shapes=True)
         except AttributeError as e:
-            print("Error: plot_model failed: ",e)
+            print("%s [ERROR]: plot_model failed: "%(timeStamp()),e)
 
     def makeOutputDir(self,d,outputDirStub,replay):
         outputDir = "%s/Output/%s__"%(outputDirStub, d["atag"])
@@ -370,7 +392,7 @@ class Train:
         self.config["outputDir"] = outputDir + hyperStr + "_" + nodesStr + "_" + layersStr + "_" + learningStr + "_" + otherStr
         self.config["outputDir"] = self.config["outputDir"][:-1]
         if os.path.exists(self.config["outputDir"]) and not replay:
-            print("Removing old training files: ", self.config["outputDir"] + "\n")
+            print("%s [INFO]: Removing old training files: "%(timeStamp()), self.config["outputDir"])
             shutil.rmtree(self.config["outputDir"])
 
         if not replay: os.makedirs(self.config["outputDir"]+"/log_graph")    
@@ -378,17 +400,16 @@ class Train:
 
     def defineVars(self):
 
+        print("%s [INFO]: Defining input variables."%(timeStamp()))
+
         htVec           = ["HT_trigger_pt30"]
         nJets           = ["NGoodJets_pt30_double"]
-        fwmVec_0l       = ["fwm2_top6_0l",    "fwm3_top6_0l",    "fwm4_top6_0l",   "fwm5_top6_0l"]
-        jmtVec_0l       = ["jmt_ev0_top6_0l", "jmt_ev1_top6_0l", "jmt_ev2_top6_0l"]
-        fwmVec_1l       = ["fwm2_top6_1l",    "fwm3_top6_1l",    "fwm4_top6_1l",   "fwm5_top6_1l"]
-        jmtVec_1l       = ["jmt_ev0_top6_1l", "jmt_ev1_top6_1l", "jmt_ev2_top6_1l"]
+        fwmVec          = ["fwm2_top6",    "fwm3_top6",    "fwm4_top6",   "fwm5_top6"]
+        jmtVec          = ["jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
         j4Vec           = ["Jet_pt_", "Jet_eta_", "Jet_m_", "Jet_phi_"]
         jFlavVec        = ["Jet_flavb_", "Jet_flavc_", "Jet_flavuds_", "Jet_flavq_", "Jet_flavg_"]
         jCombVec        = ["combined7thToLastJet_pt_cm", "combined7thToLastJet_eta_cm", "combined7thToLastJet_m_cm", "combined7thToLastJet_phi_cm"]
         jqgDiscVec      = ["Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_"]
-        jpfVec          = ["Jet_nEF_", "Jet_cEF_", "Jet_nHF_", "Jet_cHF_", "Jet_multiplicity_"]
         stop1OldSeed    = ["Stop1_mass_cm_OldSeed", "Stop1_pt_cm_OldSeed", "Stop1_phi_cm_OldSeed", "Stop1_eta_cm_OldSeed"]
         stop2OldSeed    = ["Stop2_mass_cm_OldSeed", "Stop2_pt_cm_OldSeed", "Stop2_phi_cm_OldSeed", "Stop2_eta_cm_OldSeed"]
         stop1TopSeed    = ["Stop1_mass_cm_TopSeed", "Stop1_pt_cm_TopSeed", "Stop1_phi_cm_TopSeed", "Stop1_eta_cm_TopSeed"]
@@ -406,13 +427,20 @@ class Train:
 
         nJets = int(self.config["nJets"]); theVars = None
 
-        if "0l" in self.config["tree"]:
-            label = "_0l"
-            theVars = j4Vec + jFlavVec + htVec + fwmVec_0l + jmtVec_0l + stop1TopSeed + stop2TopSeed
+        theVars = j4Vec + jFlavVec 
 
+        if not self.config["scaleJetPt"]:
+            theVars += htVec
+
+        theVars += fwmVec
+        theVars += jmtVec
+
+        if "0l" in self.config["tree"]:
+            theVars += stop1TopSeed 
+            theVars += stop2TopSeed
         else:
-            label = "_1l"
-            theVars = j4Vec + jFlavVec + htVec + fwmVec_1l + jmtVec_1l + stop1OldSeed + stop2OldSeed
+            theVars += stop1OldSeed 
+            theVars += stop2OldSeed
 
         newVars = []; auxVars = []
         for var in theVars:
@@ -424,11 +452,13 @@ class Train:
                     start = 1
         
                 for nJet in range(start,nJets):
-                    newVars.append(var + str(nJet+1) + str(label))
+                    newVars.append(var + str(nJet+1))
 
             else: newVars.append(var)
 
         self.config["trainVars"] = newVars
+
+        print("Number of variables: ", len(self.config["trainVars"]))
         
         # We load auxiliary variables that are not to be used as direct inputs
         # DataLoader handles these separately
@@ -443,8 +473,9 @@ class Train:
 
     def importData(self):
         # Import data
-        print("\n----------------Preparing data------------------")
         temp = "*"
+
+        print("%s [INFO]: Preparing input data sets."%(timeStamp()))
 
         #Get Data set used in training and validation
         sgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+mass+temp+"Train.root") for mass in self.config["signal"]) , [])
@@ -481,8 +512,6 @@ class Train:
     def train(self):
         # Define vars for training
         self.defineVars()
-        print("Training variables:")
-        print(len(self.config["trainVars"]), self.config["trainVars"])
 
         # Get stuff from input ROOT files
         self.importData()
@@ -496,33 +525,35 @@ class Train:
         regShape, domainShape, discoShape, inputShape = self.loader.getShapes()
 
         # Make model
-        print("\n----------------Preparing training model------------------")
+        print("%s [INFO]: Preparing the training model."%(timeStamp()))
         # Kelvin says no
         self.gpu_allow_mem_grow()
         model     = self.make_model(scales, means, regShape, discoShape, inputShape)
         callbacks = self.get_callbacks()
 
         # Training model
-        print("\n----------------Training model------------------")
+        print("%s [INFO]: Training the model."%(timeStamp()))
         result_log = model.fit(self.loader, epochs=self.config["epochs"], callbacks=callbacks, validation_data=self.testLoader)
 
         if self.saveAndPrint:
             # Model Visualization
-            print("\n----------------Printed model layout------------------")
+            print("%s [INFO]: Printing the model."%(timeStamp()))
+
             try:
                 self.plot_model(model)
             except Exception as e:
-                print("WARNING: Could not print model !", e)
+                print("%s [WARNING]: Could not print model !"%(timeStamp()), e)
 
             # Save trainig model as a protocol buffers file
-            print("\n----------------Saving model------------------")
+            print("%s [INFO]: Saving model as in protobuffer format."%(timeStamp()))
+
             try:
                 self.save_model_pb(model)
             except Exception as e:
-                print("ERROR: Could not save model pb !", e)
+                print("%s [WARNING]: Could not save model pb !"%(timeStamp()), e)
        
         #Plot results
-        print("\n----------------Validation of training------------------")
+        print("%s [INFO]: Running validation of model."%(timeStamp()))
         val = Validation(model, self.config, self.loader, self.valLoader, self.evalLoader, self.testLoader, result_log)
 
         metric = val.makePlots(self.doQuickVal, self.config["evalMass"], self.config["evalModel"])
@@ -532,7 +563,6 @@ class Train:
         del model
     
         return metric
-
 
     def replay(self):
 
@@ -550,29 +580,34 @@ class Train:
         del val
 
 if __name__ == '__main__':
+
+    tracemalloc.start()
+
     usage = "usage: %prog [options]"
     parser = argparse.ArgumentParser(usage)
-    parser.add_argument("--quickVal",     dest="quickVal",     help="Do quick validation",            action="store_true", default=False                       ) 
-    parser.add_argument("--reweight",     dest="reweight",     help="Do event reweighting",           action="store_true", default=False                       ) 
-    parser.add_argument("--json",         dest="json",         help="JSON config file",               default="NULL"                                           ) 
-    parser.add_argument("--minMass",      dest="minMass",      help="Minimum stop mass to train on",  default=300                                              )
-    parser.add_argument("--maxMass",      dest="maxMass",      help="Maximum stop mass to train on",  default=1400                                             ) 
-    parser.add_argument("--evalMass",     dest="evalMass",     help="Stop mass to evaluate on",       default=500                                              ) 
-    parser.add_argument("--evalModel",    dest="evalModel",    help="Signal model to evaluate on",    default="RPV_SYY_SHH"                                    ) 
-    parser.add_argument("--model",        dest="model",        help="Signal model to train on",       type=str, default="RPV_SYY_SHH"                          ) 
-    parser.add_argument("--replay",       dest="replay",       help="Replay saved model",             action="store_true", default=False                       ) 
-    parser.add_argument("--year",         dest="year",         help="Year(s) to train on",            type=str, default="2016_2017_2018"                       ) 
-    parser.add_argument("--tree",         dest="tree",         help="myMiniTree to train on",         default="myMiniTree"                                     )
-    parser.add_argument("--saveAndPrint", dest="saveAndPrint", help="Save pb and print model",        action="store_true", default=False                       )
-    parser.add_argument("--seed",         dest="seed",         help="Use specific seed",              type=int, default=-1                                     )
-    parser.add_argument("--nJets",        dest="nJets",        help="Number of jets for 1L",          type=int, default=7                                      )
-    parser.add_argument("--debug",        dest="debug",        help="Do some debugging",              action="store_true", default=False                       )
-    parser.add_argument("--useJECs",      dest="useJECs",      help="Use JEC/JER variations",         action="store_true", default=False                       )
-    parser.add_argument("--maskNjet",     dest="maskNjet",     help="mask Njet bin/bins in training", default=[-1], nargs="+", type=int                        )
-    parser.add_argument("--procCats",     dest="procCats",     help="Balance batches bkg/sig",        default=False, action="store_true"                       )
-    parser.add_argument("--massCats",     dest="massCats",     help="Balance batches among masses",   default=False, action="store_true"                       )
-    parser.add_argument("--njetsCats",    dest="njetsCats",    help="Balance batches among njets",    default=False, action="store_true"                       )
-    parser.add_argument("--outputDir",    dest="outputDir",    help="Output directory path",          default="/home/nstrobbe/hiltbran/Train/DeepESM", type=str)
+    parser.add_argument("--quickVal",     dest="quickVal",     help="Do quick (partial) validation",  action="store_true", default=False                                  ) 
+    parser.add_argument("--json",         dest="json",         help="JSON config file",               default="NULL"                                                      ) 
+    parser.add_argument("--minMass",      dest="minMass",      help="Minimum stop mass to train on",  default=300                                                         )
+    parser.add_argument("--maxMass",      dest="maxMass",      help="Maximum stop mass to train on",  default=1400                                                        ) 
+    parser.add_argument("--evalMass",     dest="evalMass",     help="Stop mass to evaluate on",       default=500                                                         ) 
+    parser.add_argument("--evalModel",    dest="evalModel",    help="Signal model to evaluate on",    default="RPV"                                                       ) 
+    parser.add_argument("--evalYear",     dest="evalYear",     help="Year(s) to eval on",             type=str,            default="2016preVFP"                           ) 
+    parser.add_argument("--trainModel",   dest="trainModel",   help="Signal model to train on",       type=str,            default="RPV"                                  ) 
+    parser.add_argument("--replay",       dest="replay",       help="Replay saved model",             action="store_true", default=False                                  ) 
+    parser.add_argument("--trainYear",    dest="trainYear",    help="Year(s) to train on",            type=str,            default="2016preVFP_2016postVFP_2017_2018"     ) 
+    parser.add_argument("--inputs",       dest="inputs",       help="Path to input files",            type=str,            default="NN_inputs/"                           ) 
+    parser.add_argument("--tree",         dest="tree",         help="TTree to load events from",      type=str,            default="myMiniTree"                           )
+    parser.add_argument("--saveAndPrint", dest="saveAndPrint", help="Save pb and print model",        action="store_true", default=False                                  )
+    parser.add_argument("--seed",         dest="seed",         help="Use specific seed for env",      type=int,            default=-1                                     )
+    parser.add_argument("--nJets",        dest="nJets",        help="Minimum number of jets",         type=int,            default=7                                      )
+    parser.add_argument("--debug",        dest="debug",        help="Debug with small set of events", action="store_true", default=False                                  )
+    parser.add_argument("--scaleJetPt",   dest="scaleJetPt",   help="Scale Jet pt by HT",             default=False,       action="store_true"                            )
+    parser.add_argument("--useJECs",      dest="useJECs",      help="Use JEC/JER variations",         action="store_true", default=False                                  )
+    parser.add_argument("--maskNjet",     dest="maskNjet",     help="mask Njet bin(s) in training",   default=[-1], nargs="+", type=int                                   )
+    parser.add_argument("--procCats",     dest="procCats",     help="Balance batches bkg/sig",        default=False,       action="store_true"                            )
+    parser.add_argument("--massCats",     dest="massCats",     help="Balance batches among masses",   default=False,       action="store_true"                            )
+    parser.add_argument("--njetsCats",    dest="njetsCats",    help="Balance batches among njets",    default=False,       action="store_true"                            )
+    parser.add_argument("--outputDir",    dest="outputDir",    help="Output directory path",          type=str,            default="/home/nstrobbe/hiltbran/Train/DeepESM")
 
     args = parser.parse_args()
 
@@ -604,9 +639,9 @@ if __name__ == '__main__':
         with open(str(args.json), "r") as f:
             hyperconfig = json.load(f)
     else: 
-        hyperconfig = {"atag" : "Perfect_vpow", "disc_lambda": 10.0, "bkg_disco_lambda": 1000.0, "mass_reg_lambda": 0.0001, "abcd_close_lambda" : 10.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs":1, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 1.0}
+        hyperconfig = {"atag" : "Perfect_vpow", "disc_lambda": 5.0, "bkg_disco_lambda": 1000.0, "mass_reg_lambda": 0.0001, "abcd_close_lambda" : 2.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs":1, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 1.0}
 
-    t = Train(USER, args.outputDir, args.nJets, args.useJECs, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.reweight, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.model, evalMass=args.evalMass, evalModel=args.evalModel, year=args.year, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
+    t = Train(USER, args.inputs, args.outputDir, args.nJets, args.useJECs, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.scaleJetPt, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.trainModel, evalMass=args.evalMass, evalModel=args.evalModel, evalYear=args.evalYear, trainYear=args.trainYear, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
 
     if replay: t.replay()
 
@@ -619,4 +654,6 @@ if __name__ == '__main__':
             json.dump(metric, f)
     else:
         t.train()
-        print("----------------Ran with default config------------------")
+
+    print("%s [INFO]: Maximum memory useage = %3.2f GB"%(timeStamp(), tracemalloc.get_traced_memory()[1]/1e9))
+    print("%s [INFO]: End of trainNew.py"%(timeStamp()))
