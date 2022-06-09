@@ -121,14 +121,7 @@ class Train:
         TT_2018        = ["2018_TT%s*"%(channel)]
 
         ################### Samples to validate on #####################
-        if "vpow" in hyperconfig["atag"]:
-            TT_2016preVFP_eval  = ["2016preVFP_TT%s*[cu]%s[!u]*"%(channel,extra)]
-            TT_2016postVFP_eval = ["2016postVFP_TT%s*[cu]%s[!u]*"%(channel,extra)]
-            TT_2017_eval        = ["2017_TT%s*[cu]%s[!u]*"%(channel,extra)]
-            TT_2018_eval        = ["2018_TT%s*[cu]%s[!u]*"%(channel,extra)]
-            self.config["evalBkg"] = 0
-
-        elif "vmad" in hyperconfig["atag"]:
+        if   "vmad" in hyperconfig["atag"]:
             TT_2016preVFP_eval  = ["2016preVFP_TT%sJets%s*"%(channel,extra)]
             TT_2016postVFP_eval = ["2016postVFP_TT%sJets%s*"%(channel,extra)]
             TT_2017_eval        = ["2017_TT%sJets%s*"%(channel,extra)]
@@ -169,6 +162,12 @@ class Train:
             TT_2017_eval        = ["2017_TT%s*TuneCP5down%s*"%(channel,extra)]
             TT_2018_eval        = ["2018_TT%s*TuneCP5down%s*"%(channel,extra)]
             self.config["evalBkg"] = 6
+        else:
+            TT_2016preVFP_eval  = ["2016preVFP_TT%s*[cu]%s[!u]*"%(channel,extra)]
+            TT_2016postVFP_eval = ["2016postVFP_TT%s*[cu]%s[!u]*"%(channel,extra)]
+            TT_2017_eval        = ["2017_TT%s*[cu]%s[!u]*"%(channel,extra)]
+            TT_2018_eval        = ["2018_TT%s*[cu]%s[!u]*"%(channel,extra)]
+            self.config["evalBkg"] = 0
 
         if "vjcu" in hyperconfig["atag"]:
             self.config["evalBkg"] += 10
@@ -279,9 +278,9 @@ class Train:
             nbTot = 2.0*tf.reduce_sum(tf.sigmoid(0.0*val_1_bg))
 
             # Calculate non-closure in full ABCD region defined by (d1, d2) edges
-            nbA = tf.reduce_sum(tf.sigmoid(10e1*(val_1_bg-d1))*tf.sigmoid(10e1*(val_2_bg-d2)))
-            nbB = tf.reduce_sum(tf.sigmoid(10e1*(val_2_bg-d2))) - nbA
-            nbC = tf.reduce_sum(tf.sigmoid(10e1*(val_1_bg-d1))) - nbA
+            nbA = tf.reduce_sum(tf.sigmoid(25e0*(val_1_bg-d1))*tf.sigmoid(25e0*(val_2_bg-d2)))
+            nbB = tf.reduce_sum(tf.sigmoid(25e0*(val_2_bg-d2))) - nbA
+            nbC = tf.reduce_sum(tf.sigmoid(25e0*(val_1_bg-d1))) - nbA
             nbD = nbTot - nbA - nbB - nbC
 
             nbApred = nbB*nbC/nbD
@@ -639,7 +638,7 @@ if __name__ == '__main__':
         with open(str(args.json), "r") as f:
             hyperconfig = json.load(f)
     else: 
-        hyperconfig = {"atag" : "Perfect_vpow", "disc_lambda": 5.0, "bkg_disco_lambda": 1000.0, "mass_reg_lambda": 0.0001, "abcd_close_lambda" : 2.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs":1, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 1.0}
+        hyperconfig = {"atag" : "Perfect", "disc_lambda": 5.0, "bkg_disco_lambda": 1000.0, "mass_reg_lambda": 0.0001, "abcd_close_lambda" : 2.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs":20, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 1.0}
 
     t = Train(USER, args.inputs, args.outputDir, args.nJets, args.useJECs, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.scaleJetPt, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.trainModel, evalMass=args.evalMass, evalModel=args.evalModel, evalYear=args.evalYear, trainYear=args.trainYear, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
 
