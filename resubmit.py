@@ -25,7 +25,7 @@ def generate_qsub_config(taskPath, workPath, resubs, cluster, walltime, memory):
         elif "-p " in line and cluster != "NULL":
             f.write("#SBATCH -p %s\n"%(cluster))
         elif "mem" in line and memory != "NULL":
-            f.write("#SBATCH --mem=%s"%(memory))
+            f.write("#SBATCH --mem=%s\n"%(memory))
         elif "array" in line:
             f.write("#SBATCH --array=%s\n"%(resubStr))
         else:

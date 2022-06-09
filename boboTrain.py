@@ -129,7 +129,7 @@ if __name__ == '__main__':
     if args.channel == "1l":
         jetStr += " --nJets %d"%(args.nJets)
 
-    command = "python train.py --json temp${SLURM_ARRAY_TASK_ID}.json %s %s %s %s --maskNjet %s --minMass %d --maxMass %d --evalMass %d --trainModel %s --evalModel %s --trainYear %s --seed %s --tree myMiniTree_%s"%(jetStr,saveStr,jecStr,balanceStr,maskNjet,int(args.trainMass[0]),int(args.trainMass[1]),int(args.evalMass),args.trainModel,args.evalModel,args.trainYear,args.seed,args.channel)
+    command = "python train.py --json temp${SLURM_ARRAY_TASK_ID}.json %s %s %s %s --maskNjet %s --minMass %d --maxMass %d --evalMass %d --trainModel %s --evalModel %s --evalYear %s --trainYear %s --seed %s --tree myMiniTree_%s"%(jetStr,saveStr,jecStr,balanceStr,maskNjet,int(args.trainMass[0]),int(args.trainMass[1]),int(args.evalMass),args.trainModel,args.evalModel,args.evalYear,args.trainYear,args.seed,args.channel)
 
     pbsPath = generate_qsub_config(taskPath, workDir, jobid, command, args.cluster, args.walltime, args.memory) 
 
@@ -142,7 +142,7 @@ if __name__ == '__main__':
 
     USER = os.getenv("USER")
 
-    os.system("ln -s /home/nstrobbe/%s/Train/DeepESM/%s %s/NN_inputs"%(args.inputs, USER, taskPath))
+    os.system("ln -s /home/nstrobbe/%s/Train/DeepESM/%s %s/NN_inputs"%(USER, args.inputs, taskPath))
 
     if not args.noSubmit:
         subprocess.call(["qsub", pbsPath])
