@@ -606,7 +606,7 @@ if __name__ == '__main__':
     parser.add_argument("--procCats",     dest="procCats",     help="Balance batches bkg/sig",        default=False,       action="store_true"                            )
     parser.add_argument("--massCats",     dest="massCats",     help="Balance batches among masses",   default=False,       action="store_true"                            )
     parser.add_argument("--njetsCats",    dest="njetsCats",    help="Balance batches among njets",    default=False,       action="store_true"                            )
-    parser.add_argument("--outputDir",    dest="outputDir",    help="Output directory path",          type=str,            default="/home/nstrobbe/hiltbran/Train/DeepESM")
+    parser.add_argument("--outputDir",    dest="outputDir",    help="Output directory path",          type=str,            default="/home/nstrobbe/USER/Train/DeepESM")
 
     args = parser.parse_args()
 
@@ -631,6 +631,8 @@ if __name__ == '__main__':
 
     USER = os.getenv("USER")
 
+    outputDir = args.outputDir.replace("USER", USER)
+
     replay = args.replay
 
     hyperconfig = {}
@@ -640,7 +642,7 @@ if __name__ == '__main__':
     else: 
         hyperconfig = {"atag" : "Perfect", "disc_lambda": 5.0, "bkg_disco_lambda": 1000.0, "mass_reg_lambda": 0.0001, "abcd_close_lambda" : 2.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs":20, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 1.0}
 
-    t = Train(USER, args.inputs, args.outputDir, args.nJets, args.useJECs, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.scaleJetPt, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.trainModel, evalMass=args.evalMass, evalModel=args.evalModel, evalYear=args.evalYear, trainYear=args.trainYear, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
+    t = Train(USER, args.inputs, outputDir, args.nJets, args.useJECs, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.scaleJetPt, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.trainModel, evalMass=args.evalMass, evalModel=args.evalModel, evalYear=args.evalYear, trainYear=args.trainYear, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
 
     if replay: t.replay()
 
