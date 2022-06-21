@@ -262,3 +262,18 @@ An example to run the script could be:
 ```
 python ttVsSigNN_mini.py --year 2016 --path /path/to/ntuples/files --mass1 350 --model1 RPV --mass2 500 --model2 StealthSYY
 ```
+
+### Parsing Job Output
+
+A python script is provided `parseNNjobs.py` to grab plots for each neural network job and make a two slide summary, where two slide summaries are concatenated together into one set of LaTeX slides.
+Some primitive logic is available to sort the trainings by a metric and currently the metric is a chi2 calculation comparing the ABCD-predicted number of events in A to the actual number of events in A.
+Thus, the first NN jobs in the slides demonstrate the best ABCD closure.
+The script expects a certain folder structure for the NN jobs of the form
+```
+<main_folder_with_tex_file>/<collection_of_NN_jobs>/<individual_NN_job>
+```
+
+An example call to use the script is
+```
+python parseNNjobs.py --inputDir main_folder_with_tex_file --subdir collection_of_NN_jobs --title Fancy title for slides
+```
