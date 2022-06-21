@@ -266,7 +266,7 @@ python ttVsSigNN_mini.py --year 2016 --path /path/to/ntuples/files --mass1 350 -
 ### Parsing Job Output
 
 A python script is provided `parseNNjobs.py` to grab plots for each neural network job and make a two slide summary, where two slide summaries are concatenated together into one set of LaTeX slides.
-Some primitive logic is available to sort the trainings by a metric and currently the metric is a chi2 calculation comparing the ABCD-predicted number of events in A to the actual number of events in A.
+Some primitive logic is available to sort the trainings by a metric and currently the metric is a chi2 calculation comparing the ABCD-predicted number of events in A to the actual number of events in A based on fixed ABCD region boundaries.
 Thus, the first NN jobs in the slides demonstrate the best ABCD closure.
 The script expects a certain folder structure for the NN jobs of the form
 ```
