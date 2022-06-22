@@ -23,6 +23,7 @@ def generate_qsub_config(taskPath, workPath, jobid, com, cluster, walltime, memo
 
     g.write("#SBATCH -A nstrobbe\n\n")
     g.write("cd %s/\n\n"%(workPath))
+    g.write("conda activate tf\n")
     g.write("source deepenv.sh\n\n")
     g.write("echo $PYTHONHASHSEED\n")
     g.write("echo $TF_CUDNN_DETERMINISTIC\n")
