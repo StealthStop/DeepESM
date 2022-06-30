@@ -405,8 +405,9 @@ class Train:
         nJets           = ["NGoodJets_pt30_double"]
         fwmVec          = ["fwm2_top6",    "fwm3_top6",    "fwm4_top6",   "fwm5_top6"]
         jmtVec          = ["jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
-        j4Vec           = ["Jet_pt_", "Jet_eta_", "Jet_m_", "Jet_phi_"]
+        j4Vec           = ["Jet_ptrHT_", "Jet_eta_", "Jet_phi_"] # "Jet_m_", "Jet_phi_"]
         jFlavVec        = ["Jet_flavb_", "Jet_flavc_", "Jet_flavuds_", "Jet_flavq_", "Jet_flavg_"]
+        jCSVVec        	= ["Jet_CSVb_"]
         jCombVec        = ["combined7thToLastJet_pt_cm", "combined7thToLastJet_eta_cm", "combined7thToLastJet_m_cm", "combined7thToLastJet_phi_cm"]
         jqgDiscVec      = ["Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_"]
         stop1OldSeed    = ["Stop1_mass_cm_OldSeed", "Stop1_pt_cm_OldSeed", "Stop1_phi_cm_OldSeed", "Stop1_eta_cm_OldSeed"]
@@ -426,7 +427,7 @@ class Train:
 
         nJets = int(self.config["nJets"]); theVars = None
 
-        theVars = j4Vec + jFlavVec 
+        theVars = j4Vec + jCSVVec 
 
         if not self.config["scaleJetPt"]:
             theVars += htVec
@@ -457,7 +458,7 @@ class Train:
 
         self.config["trainVars"] = newVars
 
-        print("Number of variables: ", len(self.config["trainVars"]))
+        print("Number of variables: ", len(self.config["trainVars"]), self.config["trainVars"])
         
         # We load auxiliary variables that are not to be used as direct inputs
         # DataLoader handles these separately
