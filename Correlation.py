@@ -163,10 +163,10 @@ class Correlation:
 
             eigs = tf.linalg.eigvals(tf.matmul(tf.matmul(tf.linalg.pinv(Cxx), tf.transpose(Cxy)), tf.transpose(tf.matmul(tf.linalg.pinv(Cyy), tf.transpose(Cyx)))))
    
-            mag = tf.abs(eigs)
+            mag = tf.math.real(eigs)
 
             # Case to determine if all eigenvalues are real and within [0,1]
-            case = tf.reduce_all(tf.stack([tf.reduce_all(tf.equal(0., tf.math.imag(eigs))), tf.reduce_all(tf.less_equal(0., tf.reduce_min(mag))), tf.reduce_all(tf.greater_equal(1., tf.reduce_max(mag)))]))
+            case = tf.reduce_all(tf.stack([tf.reduce_all(tf.equal(0., tf.math.imag(eigs))), tf.reduce_all(tf.less_equal(1e-7, tf.reduce_min(mag))), tf.reduce_all(tf.greater_equal(0.9999999, tf.reduce_max(mag)))]))
 
             ub, lb, k = tf.cond(case, lambda: real(ub, lb, k), lambda: nonreal(ub, lb, k))
             return[C, ub, lb, k, k0, eigs, case]
@@ -195,8 +195,8 @@ class Correlation:
         #x = tf.divide(tf.constant([rankdata(xc, method='ordinal') for xc in tf.transpose(var_1)]), var_1.shape[0])
         #y = tf.divide(tf.constant([rankdata(yc, method='ordinal') for yc in tf.transpose(var_2)]), var_2.shape[0])
 
-        x = 1+tf.argsort(tf.argsort(tf.transpose(var_1))) / tf.shape(var_1)[0]
-        y = 1+tf.argsort(tf.argsort(tf.transpose(var_2))) / tf.shape(var_2)[0]
+        x = (1+tf.argsort(tf.argsort(tf.transpose(var_1)))) / tf.shape(var_1)[0]
+        y = (1+tf.argsort(tf.argsort(tf.transpose(var_2)))) / tf.shape(var_2)[0]
 
         # Adding in column of ones to each tensor to make the random linear projection a dot product
         x = tf.reshape(x, (-1, 1))
@@ -221,10 +221,10 @@ class Correlation:
         mean_x = tf.reduce_mean(fX, axis=0)
         mean_y = tf.reduce_mean(fY, axis=0)
 
-        Cxx = tf.cast(1 / (tf.shape(fX)[0]), tf.float32) * tf.matmul(tf.transpose(fX - mean_x), fX - mean_x)
-        Cyx = tf.cast(1 / (tf.shape(fX)[0]), tf.float32) * tf.matmul(tf.transpose(fY - mean_y), fX - mean_x)
-        Cxy = tf.cast(1 / (tf.shape(fX)[0]), tf.float32) * tf.matmul(tf.transpose(fX - mean_x), fY - mean_y)
-        Cyy = tf.cast(1 / (tf.shape(fX)[0]), tf.float32) * tf.matmul(tf.transpose(fY - mean_y), fY - mean_y)
+        Cxx = tf.cast(1 / (tf.shape(fX)[0] - 1), tf.float32) * tf.matmul(tf.transpose(fX - mean_x), fX - mean_x)
+        Cyx = tf.cast(1 / (tf.shape(fX)[0] - 1), tf.float32) * tf.matmul(tf.transpose(fY - mean_y), fX - mean_x)
+        Cxy = tf.cast(1 / (tf.shape(fX)[0] - 1), tf.float32) * tf.matmul(tf.transpose(fX - mean_x), fY - mean_y)
+        Cyy = tf.cast(1 / (tf.shape(fX)[0] - 1), tf.float32) * tf.matmul(tf.transpose(fY - mean_y), fY - mean_y)
        
         Cx = tf.concat((Cxx, Cyx), axis=0)
         Cy = tf.concat((Cxy, Cyy), axis=0)
@@ -236,7 +236,7 @@ class Correlation:
         ub = k
         eigs = tf.reshape(tf.convert_to_tensor((), dtype=tf.complex64), shape=(-1,))
         case = tf.constant(False)
-    
+ 
         C, ub, lb, k, k0, eigs, case = tf.while_loop(while_case, while_body, [C, ub, lb, k, k0, eigs, case], [C.get_shape(), ub.get_shape(), lb.get_shape(), k.get_shape(), k0.get_shape(), tf.TensorShape([None,]), case.get_shape()])
 
         '''
@@ -267,9 +267,59 @@ class Correlation:
             else:
                 k = (ub + lb) // 2
         '''
-
         return tf.sqrt(tf.reduce_max(tf.math.real(eigs)))
 
+    """
+    Implements the Randomized Dependence Coefficient
+    David Lopez-Paz, Philipp Hennig, Bernhard Schoelkopf
+
+    http://papers.nips.cc/paper/5138-the-randomized-dependence-coefficient.pdf
+    """
+    @staticmethod
+    def rdc_np(x, y, f=np.sin, k=20, s=1/6., n=1):
+        """
+        Computes the Randomized Dependence Coefficient
+        x,y: numpy arrays 1-D or 2-D
+             If 1-D, size (samples,)
+             If 2-D, size (samples, variables)
+        f:   function to use for random projection
+        k:   number of random projections to use
+        s:   scale parameter
+        n:   number of times to compute the RDC and
+             return the median (for stability)
+    
+        According to the paper, the coefficient should be relatively insensitive to
+        the settings of the f, k, and s parameters.
+        """
+        if n > 1:
+            values = []
+            for i in range(n):
+                try:
+                    values.append(rdc(x, y, f, k, s, 1))
+                except np.linalg.linalg.LinAlgError: pass
+            return np.median(values)
+ 
+        if len(x.shape) == 1: x = x.reshape((-1, 1))
+        if len(y.shape) == 1: y = y.reshape((-1, 1))
+    
+        # Copula Transformation
+        cx = np.column_stack([rankdata(xc, method='ordinal') for xc in x.T])/float(x.size)
+        cy = np.column_stack([rankdata(yc, method='ordinal') for yc in y.T])/float(y.size)
+    
+        # Add a vector of ones so that w.x + b is just a dot product
+        O = np.ones(cx.shape[0])
+        X = np.column_stack([cx, O])
+        Y = np.column_stack([cy, O])
+    
+        # Random linear projections
+        Rx = (s/X.shape[1])*np.random.randn(X.shape[1], k)
+        Ry = (s/Y.shape[1])*np.random.randn(Y.shape[1], k)
+        X = np.dot(X, Rx)
+        Y = np.dot(Y, Ry)
+    
+        # Apply non-linear function to random projections
+        fX = f(X)
+        fY = f(Y)
         C = np.cov(np.hstack([fX, fY]).T)
 
         # Due to numerical issues, if k is too large,
@@ -306,13 +356,17 @@ class Correlation:
             else:
                 k = (ub + lb) // 2
 
-        print(eigs)
-        print(k, ub, lb)
-        print(np.sqrt(np.max(eigs)))
+        return np.sqrt(np.max(eigs))
 
-#c = Correlation()
+def compare_rdc():
+    c = Correlation()
 
-#a = tf.constant([1.0, 2.0, 3.0, 4.0], dtype=tf.float64)
-#b = tf.constant([4.0, 3.0, 2.0, 1.0], dtype=tf.float64)
+    a = tf.constant([1.0, 2.0, 3.0, 4.0], dtype=tf.float64)
+    b = tf.constant([4.0, 3.0, 2.0, 1.0], dtype=tf.float64)
 
-#print(c.rdc(a, b))
+    print("RDC TF: ", c.rdc(a, b).numpy())
+    print("RDC NP: ", c.rdc_np(a.numpy(), b.numpy()))
+
+
+if __name__ == "__main__":
+    compare_rdc()
