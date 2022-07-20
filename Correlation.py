@@ -234,7 +234,7 @@ class Correlation:
         k0 = k
         lb = tf.constant(1)
         ub = k
-        eigs = tf.reshape(tf.convert_to_tensor((), dtype=tf.complex128), shape=(-1,))
+        eigs = tf.reshape(tf.convert_to_tensor((), dtype=tf.complex64), shape=(-1,))
         case = tf.constant(False)
  
         C, ub, lb, k, k0, eigs, case = tf.while_loop(while_case, while_body, [C, ub, lb, k, k0, eigs, case], [C.get_shape(), ub.get_shape(), lb.get_shape(), k.get_shape(), k0.get_shape(), tf.TensorShape([None,]), case.get_shape()])
