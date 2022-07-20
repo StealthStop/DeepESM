@@ -1058,7 +1058,7 @@ class Validation:
         self.plotDiscPerNjet("_Disc2", {"Bkg": [evalBkg, y_eval_bg_disc2, evalBkg["weight"]], "Sig": [evalSig, y_eval_sg_disc2, evalSig["weight"]]}, sigMaskEval, nBins=nBins)
         
         if not doQuickVal:
-            self.plotD1VsD2SigVsBkgd(y_eval_bg_disc1, y_eval_bg_disc2, y_eval_sg_disc1[massMaskEval&sigMaskEval], y_eval_sg_disc2[massMaskEval&sigMaskEval], evalMass)
+            #self.plotD1VsD2SigVsBkgd(y_eval_bg_disc1, y_eval_bg_disc2, y_eval_sg_disc1[massMaskEval&sigMaskEval], y_eval_sg_disc2[massMaskEval&sigMaskEval], evalMass)
             # Make arrays for possible values to cut on for both discriminant
             # starting at a minimum of 0.5 for each
             edgeWidth = 0.02; minEdge = 0.0; maxEdge = 1.0 
@@ -1172,7 +1172,7 @@ class Validation:
                 # highly unsafe
                 if not any(bkgNjetsMaskEval) or not any(sigNjetsMaskEval): continue
 
-                self.plotD1VsD2SigVsBkgd(y_eval_bg_disc1[bkgFullMaskEval], y_eval_bg_disc2[bkgFullMaskEval], y_eval_sg_disc1[sigFullMaskEval], y_eval_sg_disc2[sigFullMaskEval], evalMass, NJets)
+                #self.plotD1VsD2SigVsBkgd(y_eval_bg_disc1[bkgFullMaskEval], y_eval_bg_disc2[bkgFullMaskEval], y_eval_sg_disc1[sigFullMaskEval], y_eval_sg_disc2[sigFullMaskEval], evalMass, NJets)
 
                 # Plot each discriminant for sig and background while making cut on other disc
                 self.plotDiscWithCut(float(c2), y_eval_bg_disc1[bkgFullMaskEval], y_eval_bg_disc2[bkgFullMaskEval], evalBkg["weight"][bkgFullMaskEval], y_eval_sg_disc1[sigFullMaskEval], y_eval_sg_disc2[sigFullMaskEval], evalSig["weight"][sigFullMaskEval], "1", "2", mass=evalMass, Njets=NJets, bins=nBins)
