@@ -29,7 +29,10 @@ def generate_qsub_config(taskPath, workPath, jobid, com, cluster, walltime, memo
     g.write("echo $TF_CUDNN_DETERMINISTIC\n")
     g.write("echo $TF_DETERMINISTIC_OPS\n\n")
     g.write("cd %s/\n\n"%(taskPath))
-    g.write(com + "\n")
+    g.write(com + "\n\n")
+    g.write("module load texlive\n")
+    g.write("./makeQuickLook.py\n")
+    g.write("pdflatex ./quickLook.tex\n")
     g.close()
 
     return pbsPath
@@ -48,9 +51,10 @@ if __name__ == '__main__':
     parser.add_argument("--disc",         dest="disc",         help="list of disc lambda values",                    default=[10.0],     nargs="+")
     parser.add_argument("--abcd",         dest="abcd",         help="list of abcd lambda values",                    default=[10.0],     nargs="+")
     parser.add_argument("--reg",          dest="reg",          help="list of reg lambda values",                     default=[0.001],    nargs="+")
-    parser.add_argument("--nodes",        dest="nodes",        help="list of nodes values",                          default=[300],      nargs="+")
+    parser.add_argument("--nodes",        dest="nodes",        help="list of nodes values",                          default=[200],      nargs="+")
     parser.add_argument("--reglr",        dest="reglr",        help="regression lr",                                 default=[0.0001],   nargs="+")
     parser.add_argument("--disclr",       dest="disclr",       help="disc lr",                                       default=[0.001],    nargs="+")
+    parser.add_argument("--otherlr",       dest="otherlr",       help="disc lr",                                       default=[0.001],    nargs="+")
     parser.add_argument("--factors",      dest="factors",      help="list of factors to multiply",                   default=[1.0],      nargs="+")
     parser.add_argument("--epochs",       dest="epochs",       help="how many epochs",                               default=[20],       nargs="+")
     parser.add_argument("--trainYear",    dest="trainYear",    help="which year(s) to train on",                     default="2016preVFP", type=str)
@@ -69,6 +73,7 @@ if __name__ == '__main__':
     parser.add_argument("--njetsCats",    dest="njetsCats",    help="Balance batches among njets",                   default=False, action="store_true" )
     parser.add_argument("--saveAndPrint", dest="saveAndPrint", help="Save model peanut butter",                      action="store_true", default=False)
     parser.add_argument("--inputs",       dest="inputs",       help="which inputs files to use",                     default="UL_NN_inputs", type=str)
+    parser.add_argument("--output",       dest="output",       help="output directory name",                     default="Output", type=str)
     args = parser.parse_args()
 
 
@@ -92,16 +97,17 @@ if __name__ == '__main__':
                                 for vBkgd in args.evalBkgd:
                                     for reglr in args.reglr:
                                         for disclr in args.disclr:
-                                            for epoch in args.epochs:
+                                            for otherlr in args.otherlr:
+                                                for epoch in args.epochs:
 
-                                                if float(bcorr) == 0.0 and float(abcd) == 0.0: continue
+                                                    #if float(bcorr) == 0.0 and float(abcd) == 0.0: continue
 
-                                                config = {"case" : 0, "atag" : "%s_v%s"%(args.tag,vBkgd), "abcd_close_lambda" : float(factor)*float(abcd), "disc_lambda": float(factor)*float(disc), "mass_reg_lambda": float(reg), "bkg_disco_lambda": float(factor)*float(bcorr), "disc_nodes": int(nodes), "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs": int(epoch), "other_lr" : 0.001, "disc_lr": float(disclr), "mass_reg_lr" : float(reglr)}
+                                                    config = {"case" : 0, "atag" : "%s_v%s"%(args.tag,vBkgd), "abcd_close_lambda" : float(factor)*float(abcd), "disc_lambda": float(factor)*float(disc), "mass_reg_lambda": float(reg), "bkg_disco_lambda": float(factor)*float(bcorr), "input_nodes": int(nodes), "disc_nodes": int(nodes), "mass_reg_nodes":200, "input_layers": 0, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs": int(epoch), "other_lr" : float(otherlr), "disc_lr": float(disclr), "mass_reg_lr" : float(reglr)}
 
-                                                #Training all at once
-                                                generate_json(taskPath, config, jobid)
+                                                    #Training all at once
+                                                    generate_json(taskPath, config, jobid)
 
-                                                jobid += 1
+                                                    jobid += 1
 
     # We incremented one too far
     jobid -= 1
@@ -130,7 +136,7 @@ if __name__ == '__main__':
     if args.channel == "1l":
         jetStr += " --nJets %d"%(args.nJets)
 
-    command = "python train.py --json temp${SLURM_ARRAY_TASK_ID}.json %s %s %s %s --maskNjet %s --minMass %d --maxMass %d --evalMass %d --trainModel %s --evalModel %s --evalYear %s --trainYear %s --seed %s --tree myMiniTree_%s"%(jetStr,saveStr,jecStr,balanceStr,maskNjet,int(args.trainMass[0]),int(args.trainMass[1]),int(args.evalMass),args.trainModel,args.evalModel,args.evalYear,args.trainYear,args.seed,args.channel)
+    command = "python train.py --json temp${SLURM_ARRAY_TASK_ID}.json %s %s %s %s --maskNjet %s --minMass %d --maxMass %d --evalMass %d --trainModel %s --evalModel %s --evalYear %s --trainYear %s --seed %s --tree myMiniTree_%s --outputDir %s --scaleJetPt"%(jetStr,saveStr,jecStr,balanceStr,maskNjet,int(args.trainMass[0]),int(args.trainMass[1]),int(args.evalMass),args.trainModel,args.evalModel,args.evalYear,args.trainYear,args.seed,args.channel,args.output)
 
     pbsPath = generate_qsub_config(taskPath, workDir, jobid, command, args.cluster, args.walltime, args.memory) 
 
@@ -140,6 +146,8 @@ if __name__ == '__main__':
     shutil.copy2("%s/Validation.py"%(workDir),      "%s/Validation.py"%(taskPath))
     shutil.copy2("%s/Correlation.py"%(workDir),     "%s/Correlation.py"%(taskPath))
     shutil.copy2("%s/CustomOptimizer.py"%(workDir), "%s/CustomOptimizer.py"%(taskPath))
+    shutil.copy2("%s/MeanShiftTF.py"%(workDir),     "%s/MeanShiftTF.py"%(taskPath))
+    shutil.copy2("%s/utils/makeQuickLook.py"%(workDir),     "%s/makeQuickLook.py"%(taskPath))
 
     USER = os.getenv("USER")
 

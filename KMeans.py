@@ -101,6 +101,7 @@ class KMeans(MeanShift):
         return
 
     # Take in (disc 1, disc 2) information from loader, run MeanShift and determine cluster labels
+    @tf.function
     def cluster(self, data):
         bw = estimate_bandwidth(data, quantile=0.2, n_samples=500)
 

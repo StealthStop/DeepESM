@@ -76,7 +76,7 @@ class DataLoader(K.utils.Sequence):
         if Njets != None:
             mask &= (self.df[self.config["domainLabel"]]==Njets)
 
-        if year != None:
+        if year != None and year != "Run2" and year != "2016All":
             mask &= (self.df["year"]==year)
 
         flatDictionary["njets"]   = self.df[self.config["domainLabel"]][mask]
@@ -158,7 +158,7 @@ class DataLoader(K.utils.Sequence):
                     for var in tempVars:
                         newVar = var.replace("JERup", "").replace("JECup", "").replace("JERdown", "").replace("JECdown", "")
 
-                        if "Jet_pt" in newVar and self.config["scaleJetPt"]:
+                        if "Jet_pt_" in newVar and self.config["scaleJetPt"]:
                             npf[newVar] = tempnpf[var] /tempnpf["HT_trigger_pt30"+suffix]
                         else:
                             npf[newVar] = tempnpf[var]

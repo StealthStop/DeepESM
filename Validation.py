@@ -993,14 +993,14 @@ class Validation:
         tempColors = ["black"]; tempNames = ["ttbar"]; tempMass = [y_eval_mass_bg]; tempEvents = [evalBkg["weight"]]; tempMassVal = [y_val_mass_bg]; tempEventsVal = [valBkg["weight"]]
         i = 0
         for imass in masses:
-            self.plotDisc([y_eval_mass_sg[(evalSig["mass"]==imass)&sigMaskEval], y_val_mass_sg[valSig["mass"]==imass]], colors, labels, [evalSig["weight"][(evalSig["mass"]==imass)&sigMaskEval], valSig["weight"][valSig["mass"]==imass]], "mass_%d"%(imass), 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
+            self.plotDisc([y_eval_mass_sg[(evalSig["mass"]==imass)&sigMaskEval]*1000, y_val_mass_sg[valSig["mass"]==imass]*1000], colors, labels, [evalSig["weight"][(evalSig["mass"]==imass)&sigMaskEval], valSig["weight"][valSig["mass"]==imass]], "mass_%d"%(imass), 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
 
             tempColors.append(colors[i])
             tempNames.append("mass %d"%(imass))
-            tempMass.append(y_eval_mass_sg[(evalSig["mass"]==imass)&sigMaskEval])
+            tempMass.append(y_eval_mass_sg[(evalSig["mass"]==imass)&sigMaskEval]*1000)
             tempEvents.append(evalSig["weight"][(evalSig["mass"]==imass)&sigMaskEval])
 
-            tempMassVal.append(y_val_mass_sg[valSig["mass"]==imass])
+            tempMassVal.append(y_val_mass_sg[valSig["mass"]==imass]*1000)
             tempEventsVal.append(valSig["weight"][valSig["mass"]==imass])
 
             i += 1
@@ -1008,11 +1008,11 @@ class Validation:
         self.plotDisc([y_eval_bg_disc1, y_val_bg_disc1], colors, labels, [evalBkg["weight"], valBkg["weight"]], "Disc1", 'Norm Events', 'Disc. 1')
         self.plotDisc([y_eval_bg_disc2, y_val_bg_disc2], colors, labels, [evalBkg["weight"], valBkg["weight"]], "Disc2", 'Norm Events', 'Disc. 2')
 
-        self.plotDisc(tempMass, tempColors, tempNames, tempEvents, "mass_split",     'Norm Events', 'predicted mass', arange=(-10, 2000), bins=nBinsReg)
-        self.plotDisc(tempMass, tempColors, tempNames, tempEvents, "mass_split_log", 'Norm Events', 'predicted mass', arange=(-10, 2000), bins=nBinsReg, doLog=True)
+        self.plotDisc(tempMass, tempColors, tempNames, tempEvents, "mass_split",     'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
+        self.plotDisc(tempMass, tempColors, tempNames, tempEvents, "mass_split_log", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg, doLog=True)
 
-        self.plotDisc(tempMassVal, tempColors, tempNames, tempEventsVal, "mass_split_val",     'Norm Events', 'predicted mass', arange=(-10, 2000), bins=nBinsReg)
-        self.plotDisc(tempMassVal, tempColors, tempNames, tempEventsVal, "mass_split_val_log", 'Norm Events', 'predicted mass', arange=(-10, 2000), bins=nBinsReg, doLog=True)
+        self.plotDisc(tempMassVal, tempColors, tempNames, tempEventsVal, "mass_split_val",     'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
+        self.plotDisc(tempMassVal, tempColors, tempNames, tempEventsVal, "mass_split_val_log", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg, doLog=True)
 
         for NJets in NJetsRange:
             

@@ -24,7 +24,7 @@ class Correlation:
         
         yy = tf.transpose(xx)
         amat = tf.abs(xx-yy)
-        
+       
         xx = tf.reshape(var_2, [-1, 1])
         xx = tf.tile(xx, [1, tf.size(var_2)])
         xx = tf.reshape(xx, [tf.size(var_2), tf.size(var_2)])
@@ -114,6 +114,7 @@ class Correlation:
         return cor
     
     @staticmethod
+    @tf.function
     def rdc(var_1, var_2, f=tf.sin, k=20, s=1/6., n=1):
 
         # Some functions to handle all of the conditions within the while loop for

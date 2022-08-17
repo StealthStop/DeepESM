@@ -19,7 +19,7 @@ def writeHeader(talk, date, title):
 
     talk.write(r"\documentclass[usenames,dvipsnames]{beamer}")
     talk.write("\n")
-    talk.write(r"\input{/home/joshh/Documents/Slide_Extras/master_preamble.tex}")
+    talk.write(r"\input{master_preamble.tex}")
     talk.write("\n")
     talk.write(r"\let\underscore\_")
     talk.write("\n")
@@ -27,7 +27,7 @@ def writeHeader(talk, date, title):
     talk.write("\n")
     talk.write(r"\myunderscore")
     talk.write("\n")
-    talk.write(r"\author[Joshua C Hiltbrand]{J. C. Hiltbrand}")
+    talk.write(r"\author[Bryan Crossman]{B. Crossman}")
     talk.write("\n")
     talk.write(r"\institute[]{University of Minnesota}")
     talk.write("\n")
@@ -37,7 +37,7 @@ def writeHeader(talk, date, title):
     talk.write("\n")
     talk.write(r"\subtitle[Exploring the Double DisCo]{}")
     talk.write("\n")
-    talk.write(r"\titlegraphic{\includegraphics[width=2.15cm]{/home/joshh/Documents/Slide_Extras/cms_goldy.pdf}}")
+    talk.write(r"\titlegraphic{\includegraphics[width=2.15cm]{goldy.pdf}}")
     talk.write("\n")
     talk.write(r"\institute[]{%")
     talk.write("\n")
@@ -47,32 +47,10 @@ def writeHeader(talk, date, title):
     talk.write("\n")
     talk.write(r"\begin{document}")
     talk.write("\n")
-    talk.write("{\n")
-    talk.write(r"\usebackgroundtemplate{%")
-    talk.write("\n")
-    talk.write(r"    \bigskip")
-    talk.write("\n")
-    talk.write(r"    \begin{picture}(100,275)")
-    talk.write("\n")
-    talk.write(r"    \begin{tikzpicture}[remember picture]")
-    talk.write("\n")
-    talk.write(r"        \node[opacity=0.3,inner sep=0,anchor=center] (image) at (100,220) {\includegraphics[width=\paperwidth,keepaspectratio]{/home/joshh/Documents/SUSY_Meetings/common/title.png}};")
-    talk.write("\n")
-    talk.write(r"        \begin{scope}[x={(image.south east)},y={(image.north west)}]")
-    talk.write("\n")
-    talk.write(r"        \end{scope}")
-    talk.write("\n")
-    talk.write(r"    \end{tikzpicture}")
-    talk.write("\n")
-    talk.write(r"    \end{picture}")
-    talk.write("\n")
-    talk.write("}\n")
     talk.write("\n")
     talk.write(r"\titlefooter")
     talk.write("\n")
     talk.write(r"\begin{frame}")
-    talk.write("\n")
-    talk.write(r"    \setbeamertemplate{title page}[default][colsep=-4bp,rounded=true]")
     talk.write("\n")
     talk.write(r"    \titlepage")
     talk.write("\n")
@@ -110,7 +88,7 @@ def writeSlide1(talk, s, inputDir, plotsDir, title):
     talk.write("\n")
     talk.write(r"    \begin{tikzpicture}")
     talk.write("\n")
-    talk.write(r"        \node[anchor=south west,inner sep=0] (image) {\includegraphics[trim=0 0 1cm 0,clip,width=0.30\linewidth]{{%s}};"%(getFile(inputDir, plotsDir, "mass_split")))
+    talk.write(r"        \node[anchor=south west,inner sep=0] (image) {\includegraphics[trim=0 0 1cm 0,clip,width=0.30\linewidth]{{%s}};"%(getFile(inputDir, plotsDir, "output_loss_val")))
     talk.write("\n")
     talk.write(r"        \begin{scope}[x={(image.south east)},y={(image.north west)}]")
     talk.write("\n")
@@ -120,7 +98,7 @@ def writeSlide1(talk, s, inputDir, plotsDir, title):
     talk.write("\n")
     talk.write(r"    \begin{tikzpicture}")
     talk.write("\n")
-    talk.write(r"        \node[anchor=south west,inner sep=0] (image) {\includegraphics[trim=0 0 2cm 0,clip,width=0.30\linewidth]{{%s}};"%(getFile(inputDir, plotsDir, "loss_train_val")))
+    talk.write(r"        \node[anchor=south west,inner sep=0] (image) {\includegraphics[trim=0 0 2cm 0,clip,width=0.30\linewidth]{{%s}};"%(getFile(inputDir, plotsDir, "NonClosure_vs_Disc1Disc2_Njets7")))
     talk.write("\n")
     talk.write(r"        \begin{scope}[x={(image.south east)},y={(image.north west)}]")
     talk.write("\n")
@@ -485,7 +463,7 @@ if __name__ == '__main__':
 
     stop = 100
 
-    path = "%s/plots/%s"%(args.inputDir,args.subdir)
+    path = "%s/%s"%(args.inputDir,args.subdir)
 
     trainings = sorted(os.listdir(path))
     tDict = {}; mDict = {}
@@ -503,10 +481,10 @@ if __name__ == '__main__':
             #tempS = "Closure $\chi^2/\\text{ndof}=%3.2f$ ----- Sign. = %3.2f ----- $\langle\\text{CC}\\rangle$ = %3.2f ----- $\sigma_{\\text{CC}} = %3.2f$"%(config["Achi2ndof"], config["TotalSignificance"], config["bkgdCorrAve"], config["bkgdCorrStd"])
 
             totMetric = config["Achi2ndof"]
-            tDict["plots/%s/%s/"%(args.subdir,training)] = totMetric
+            tDict["%s/%s/"%(args.subdir,training)] = totMetric
             mDict[totMetric] = "N / A" 
         else:
-            tDict["plots/%s/%s/"%(args.subdir,training)] = 999.0
+            tDict["%s/%s/"%(args.subdir,training)] = 999.0
             mDict[999.0] = "N / A"
             
         f.close()
@@ -521,7 +499,7 @@ if __name__ == '__main__':
 
     talks = []
     for nTalk in range(0, nTalks):
-        talks.append(open("%s/JCH_%s_Double_DisCo_Stealth_Stop_Meeting_%s_%d.tex"%(args.inputDir,date1,args.subdir,nTalk), "w"))
+        talks.append(open("%s/%s_Double_DisCo_Stealth_Stop_Meeting_%s_%d.tex"%(args.inputDir,date1,args.subdir,nTalk), "w"))
         writeHeader(talks[nTalk], date2, " ".join(args.title))
 
     count = 0
@@ -538,7 +516,7 @@ if __name__ == '__main__':
         iTalk = int(count / stop)
 
         writeSlide1(talks[iTalk], mDict[metric], args.inputDir, plotDir, plotDir.replace("_","\_"))
-        writeSlide2(talks[iTalk], args.inputDir, plotDir, plotDir.replace("_","\_"))
+        #writeSlide2(talks[iTalk], args.inputDir, plotDir, plotDir.replace("_","\_"))
 
     for talk in talks:
         writeFooter(talk)
