@@ -104,7 +104,8 @@ class DataLoader(K.utils.Sequence):
     # Returns the shapes of the unique layers output in the NN model
     # Order: Mass regression, Domain (Njets), Double DisCo, Input
     def getShapes(self):
-        return 1, self.config["maxNJetBin"] - self.config["minNJetBin"] + 1, 2, len(self.config["trainVars"])
+        #return 1, self.config["maxNJetBin"] - self.config["minNJetBin"] + 1, 2, len(self.config["trainVars"])
+        return 0, self.config["maxNJetBin"] - self.config["minNJetBin"] + 1, 2, len(self.config["trainVars"])
    
     def getColumnHeaders(self):
         if self.columnHeaders is None:
@@ -189,14 +190,15 @@ class DataLoader(K.utils.Sequence):
             offset += maskDict["factor"]
 
         batchInputs  = self.df["inputs"][self.batchIndexContainer]
-        batchMassReg = self.df[self.config["regressionLabel"]][self.batchIndexContainer]
+        #batchMassReg = self.df[self.config["regressionLabel"]][self.batchIndexContainer]
 
         model      = self.df[self.config["modelLabel"]][self.batchIndexContainer]
         labelSig   = (model>=100).astype("float32")
         labelBkg   = (model<100).astype("float32")
         batchDisCo = np.vstack((labelSig, labelBkg, labelSig, labelBkg)).T
     
-        return batchInputs, tuple((batchDisCo, batchDisCo, batchMassReg))
+        #return batchInputs, tuple((batchDisCo, batchDisCo, batchMassReg))
+        return batchInputs, tuple((batchDisCo, batchDisCo, batchDisCo))
 
     # Required function that tells tensorflow how many batches per epoch
     def __len__(self):

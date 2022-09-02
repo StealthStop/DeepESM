@@ -22,6 +22,7 @@ def main_model(config, scales, means, regShape, discoShape, inputShape):
 
     #iD += 1
     #layer = K.layers.BatchNormalization(name="disc_%d"%(iD))(main_input)        
+    '''
     layer = norm_layer
     iM = 0
     for n in n_hidden_layers_M:
@@ -29,10 +30,12 @@ def main_model(config, scales, means, regShape, discoShape, inputShape):
         iM += 1
     layer = K.layers.Dropout(config["dropout"],seed=config["seed"])(layer)
     mass_reg = K.layers.Dense(regShape, activation=None, name='mass_reg')(layer)
+    
 
     layerSplit = K.layers.concatenate([norm_layer, mass_reg], name='concat_mass_layer')
            
     layer = layerSplit
+    '''
     iPre = 0
     for n in n_hidden_layers_in:
         layer = K.layers.Dense(n, activation='relu',name="pre_disc_%d"%(iPre))(layer)
@@ -49,7 +52,8 @@ def main_model(config, scales, means, regShape, discoShape, inputShape):
     iD += 1
     first_output = K.layers.Dense(discoShape, activation='softmax', name='disc_%d'%(iD))(layer)
 
-    layer = K.layers.BatchNormalization()(layerPre)        
+    iD += 1
+    layer = K.layers.BatchNormalization(name="disc_%d"%(iD))(layerPre)        
     for n in n_hidden_layers:
         iD += 1
         layer = K.layers.Dense(n, activation='relu', name="disc_%d"%(iD))(layer)
@@ -60,6 +64,8 @@ def main_model(config, scales, means, regShape, discoShape, inputShape):
 
     disc = K.layers.concatenate([first_output, second_output], name='disc')
     disco = K.layers.concatenate([first_output, second_output], name='disco')
+    closure = K.layers.concatenate([first_output, second_output], name='closure')
 
-    model = K.models.Model(inputs=main_input, outputs=[disc, disco, mass_reg], name='model')
+    #model = K.models.Model(inputs=main_input, outputs=[disc, disco, mass_reg], name='model')
+    model = K.models.Model(inputs=main_input, outputs=[disc, disco, closure], name='model')
     return model, theOptimizer

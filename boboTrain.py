@@ -16,12 +16,16 @@ def generate_qsub_config(taskPath, workPath, jobid, com, cluster, walltime, memo
     g.write("#SBATCH --time=%s\n"%(walltime))
     g.write("#SBATCH --gres=gpu:%s:1\n"%(cluster.partition("-")[0]))
     g.write("#SBATCH --mem=%s\n"%(memory))
+    g.write("#SBATCH --tmp=24g\n")
     g.write("#SBATCH -p %s\n"%(cluster))
     g.write("#SBATCH --output=%s/out_%%A_%%a.txt\n"%(taskPath))
+    g.write("#SBATCH -e %s/err_%%A_%%a.txt\n"%(taskPath))
 
     g.write("#SBATCH --array=1-%d\n"%(jobid))
 
-    g.write("#SBATCH -A nstrobbe\n\n")
+    g.write("#SBATCH -A nstrobbe\n")
+    #g.write("#SBATCH --mail-type=All\n")
+    #g.write("#SBATCH --mail-user=cros0400@umn.edu\n\n")
     g.write("cd %s/\n\n"%(workPath))
     g.write("conda activate tf\n")
     g.write("source deepenv.sh\n\n")
@@ -102,7 +106,7 @@ if __name__ == '__main__':
 
                                                     #if float(bcorr) == 0.0 and float(abcd) == 0.0: continue
 
-                                                    config = {"case" : 0, "atag" : "%s_v%s"%(args.tag,vBkgd), "abcd_close_lambda" : float(factor)*float(abcd), "disc_lambda": float(factor)*float(disc), "mass_reg_lambda": float(reg), "bkg_disco_lambda": float(factor)*float(bcorr), "input_nodes": int(nodes), "disc_nodes": int(nodes), "mass_reg_nodes":200, "input_layers": 0, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs": int(epoch), "other_lr" : float(otherlr), "disc_lr": float(disclr), "mass_reg_lr" : float(reglr)}
+                                                    config = {"case" : 0, "atag" : "%s_v%s"%(args.tag,vBkgd), "abcd_close_lambda" : float(factor)*float(abcd), "disc_lambda": float(factor)*float(disc), "mass_reg_lambda": float(reg), "bkg_disco_lambda": float(factor)*float(bcorr), "input_nodes": int(nodes), "disc_nodes": int(nodes), "mass_reg_nodes":200, "input_layers": 0, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":10000, "epochs": int(epoch), "other_lr" : float(otherlr), "disc_lr": float(disclr), "mass_reg_lr" : float(reglr)}
 
                                                     #Training all at once
                                                     generate_json(taskPath, config, jobid)
@@ -147,6 +151,7 @@ if __name__ == '__main__':
     shutil.copy2("%s/Correlation.py"%(workDir),     "%s/Correlation.py"%(taskPath))
     shutil.copy2("%s/CustomOptimizer.py"%(workDir), "%s/CustomOptimizer.py"%(taskPath))
     shutil.copy2("%s/MeanShiftTF.py"%(workDir),     "%s/MeanShiftTF.py"%(taskPath))
+    shutil.copy2("%s/CustomCallback.py"%(workDir),     "%s/CustomCallback.py"%(taskPath))
     shutil.copy2("%s/utils/makeQuickLook.py"%(workDir),     "%s/makeQuickLook.py"%(taskPath))
 
     USER = os.getenv("USER")

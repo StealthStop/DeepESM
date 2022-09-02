@@ -26,6 +26,7 @@ from Correlation import Correlation as cor
 from DataLoader import DataLoader
 from Models import main_model
 from MeanShiftTF import MeanShift
+from CustomCallback import CustomCallback
 
 def timeStamp():
     return datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
@@ -256,11 +257,44 @@ class Train:
             return c * K.losses.mean_squared_error(y_true/1000.0, y_pred)
         return regLoss
 
-    def loss_disco(self, c1, c2, g):
-        def discoLoss(y_mask, y_pred):            
+    def loss_disco(self, c, current_epoch):
+        def discoLoss(y_mask, y_pred):
             val_1 = tf.reshape(y_pred[:,  :1], [-1])
             val_2 = tf.reshape(y_pred[:, 2:3], [-1])
-            tf.print(val_1, val_2)
+            normedweight = tf.ones_like(val_1)
+
+            #Mask all signal events
+            mask_sg = tf.reshape(y_mask[:,  1:2], [-1])
+            val_1_bg = tf.boolean_mask(val_1, mask_sg)
+            val_2_bg = tf.boolean_mask(val_2, mask_sg)
+            temp1 = tf.boolean_mask(val_1, mask_sg)
+            temp2 = tf.boolean_mask(val_2, mask_sg)
+            #temp1 = val_1
+            #temp2 = val_2
+
+            normedweight_bg = tf.boolean_mask(normedweight, mask_sg)
+
+            #frac1 = 4.0 * (nbB * nbC)/ tf.math.pow(nbTot, 2)
+            #frac2 = 4.0 * (nbA * nbD)/ tf.math.pow(nbTot, 2)
+
+            #dcorr = cor.rdc(val_1_bg, val_2_bg)
+
+            #ms = MeanShift(tf.concat(val_1, val_2), axis=1)
+            #_, __, labels, centroids = MeanShift.fit()
+            
+            #loss = MeanShift.loss() 
+
+            dcorr = cor.distance_corr(temp1, temp2, normedweight_bg, 1)
+
+            case = tf.greater(current_epoch, 10)
+
+            return c * tf.cast(case, "float32") * dcorr
+        return discoLoss
+    
+    def loss_closure(self, c, g, nBinEdge, current_epoch):
+        def closureLoss(y_mask, y_pred):
+            val_1 = tf.reshape(y_pred[:,  :1], [-1])
+            val_2 = tf.reshape(y_pred[:, 2:3], [-1])
             normedweight = tf.ones_like(val_1)
 
             #Mask all signal events
@@ -270,39 +304,63 @@ class Train:
             temp1 = tf.boolean_mask(val_1, mask_sg)
             temp2 = tf.boolean_mask(val_2, mask_sg)
 
-            normedweight_bg = tf.boolean_mask(normedweight, mask_sg)
+            temptile1 = tf.reshape(tf.tile(temp1, [nBinEdge]), shape=(nBinEdge,-1))
+            temptile2 = tf.reshape(tf.tile(temp2, [nBinEdge]), shape=(nBinEdge,-1))
 
-            d1 = g.uniform(shape=(), minval=0.0, maxval=1.0)
-            d2 = g.uniform(shape=(), minval=0.0, maxval=1.0)
+            d1 = g.uniform(shape=(nBinEdge, 1), minval=0.0, maxval=1.0)
+            d2 = g.uniform(shape=(nBinEdge, 1), minval=0.0, maxval=1.0)
 
+            #d1 = tf.reshape(tf.range(0.2, 1.0, 0.8/nBinEdge), shape=(nBinEdge, 1))
+            #d2 = tf.reshape(tf.range(0.2, 1.0, 0.8/nBinEdge), shape=(nBinEdge, 1))
+            
             dval1 = d1 / 2.0
             dval2 = d2 / 2.0
 
-            nbTot = 2.0*tf.reduce_sum(tf.sigmoid(0.0*val_1_bg))
+            nbTot = 2.0*tf.reduce_sum(tf.sigmoid(0.0*temptile1), axis=1)
 
             # Calculate non-closure in full ABCD region defined by (d1, d2) edges
-            nbA = tf.reduce_sum(tf.sigmoid(25e0*(val_1_bg-d1))*tf.sigmoid(25e0*(val_2_bg-d2)))
-            nbB = tf.reduce_sum(tf.sigmoid(25e0*(val_2_bg-d2))) - nbA
-            nbC = tf.reduce_sum(tf.sigmoid(25e0*(val_1_bg-d1))) - nbA
-            nbD = nbTot - nbA - nbB - nbC
+            nbA = tf.reduce_sum(tf.sigmoid(25e0*(temptile1-d1))*tf.sigmoid(25e0*(temptile2-d2)), axis=1)
+            nbB = tf.reduce_sum(tf.sigmoid(25e0*(d1 - temptile1))*tf.sigmoid(25e0*(temptile2-d2)), axis=1)
+            #nbB = tf.reduce_sum(tf.sigmoid(25e0*(temptile2-d2)), axis=1) - nbA
+            nbC = tf.reduce_sum(tf.sigmoid(25e0*(temptile1 - d1))*tf.sigmoid(25e0*(d2 - temptile2)), axis=1)
+            #nbC = tf.reduce_sum(tf.sigmoid(25e0*(temptile1-d1)), axis=1) - nbA
+            nbD = tf.reduce_sum(tf.sigmoid(25e0*(d1 - temptile1))*tf.sigmoid(25e0*(d2 - temptile2)), axis=1)
+            #nbD = nbTot - nbA - nbB - nbC
+
+            nbA = nbA[nbD != 0]
+            nbB = nbB[nbD != 0]
+            nbC = nbC[nbD != 0]
+            nbD = nbD[nbD != 0]
+            nbTot = nbTot[nbD != 0]
+
+            nbA = nbA[nbC != 0]
+            nbB = nbB[nbC != 0]
+            nbC = nbC[nbC != 0]
+            nbD = nbD[nbC != 0]
+            nbTot = nbTot[nbC != 0]
+
+            nbA = nbA[nbB != 0]
+            nbB = nbB[nbB != 0]
+            nbC = nbC[nbB != 0]
+            nbD = nbD[nbB != 0]
+            nbTot = nbTot[nbB != 0]
+
+            nbA = nbA[nbA != 0]
+            nbB = nbB[nbA != 0]
+            nbC = nbC[nbA != 0]
+            nbD = nbD[nbA != 0]
+            nbTot = nbTot[nbA != 0]
 
             nbApred = nbB*nbC/nbD
-            frac = abs(nbApred - nbA)/nbA
-            #frac1 = 4.0 * (nbB * nbC)/ tf.math.pow(nbTot, 2)
-            #frac2 = 4.0 * (nbA * nbD)/ tf.math.pow(nbTot, 2)
+            fracs = abs(nbA - nbApred) / nbA
 
-            #c = cor.rdc(val_1, val_2)
+            frac = tf.reduce_mean(fracs)            
 
-            #ms = MeanShift(tf.concat(val_1, val_2), axis=1)
-            #_, __, labels, centroids = MeanShift.fit()
+            case = tf.greater(current_epoch, 15)
+
+            return c * tf.cast(case, "float32") * frac 
+        return closureLoss 
             
-            #loss = MeanShift.loss() 
-
-            dcorr = cor.distance_corr(temp1, temp2, normedweight_bg, 1)
-
-            return c2 * frac + c1 * dcorr
-        return discoLoss
-
     def loss_disc(self, c):
         def loss_model_disc(y_true, y_pred):            
             # Decat truth and predicted
@@ -315,12 +373,13 @@ class Train:
             #val_disco_pred = tf.reshape(y_pred[:, :4], [-1])
 
             # Calculate loss function
+            #val_1_disco_loss = K.losses.kl_divergence(val_1_disco_true, val_1_disco_pred)
+            #val_2_disco_loss = K.losses.kl_divergence(val_2_disco_true, val_2_disco_pred)
             val_1_disco_loss = K.losses.binary_crossentropy(val_1_disco_true, val_1_disco_pred)
             val_2_disco_loss = K.losses.binary_crossentropy(val_2_disco_true, val_2_disco_pred)
             #val_disco_loss = K.losses.binary_crossentropy(val_disco_true, val_disco_pred)
 
             return c * (val_1_disco_loss + val_2_disco_loss)
-
         return loss_model_disc
 
     def make_model(self, scales, means, regShape, discoShape, inputShape):
@@ -332,8 +391,12 @@ class Train:
             K.utils.plot_model(model, show_shapes=True)
             model.summary()
         g = tf.random.Generator.from_seed(self.config["seed"]) 
-        model.compile(loss=[self.loss_disc(c=self.config["disc_lambda"]), self.loss_disco(c1=self.config["bkg_disco_lambda"], c2=self.config["abcd_close_lambda"], g=g), self.loss_mass_reg(c=self.config["mass_reg_lambda"])], optimizer="adam")#, metrics=self.config["metrics"])
-        return model
+        current_epoch = K.backend.variable(1.)
+
+        cb = CustomCallback(current_epoch)
+        model.compile(loss=[self.loss_disc(c=self.config["disc_lambda"]), self.loss_disco(c=self.config["bkg_disco_lambda"], current_epoch=cb.current_epoch), self.loss_closure(c=self.config["abcd_close_lambda"], g=g, nBinEdge=20, current_epoch=cb.current_epoch)], optimizer="adam")#, metrics=self.config["metrics"])
+        #model.compile(loss=[self.loss_disc(c=self.config["disc_lambda"]), self.loss_disco(c=self.config["bkg_disco_lambda"], current_epoch=1), self.loss_mass_reg(c=self.config["mass_reg_lambda"])], optimizer="adam")#, metrics=self.config["metrics"])
+        return model, cb
 
     def getSamplesToRun(self, names):
         s = glob(names)
@@ -344,12 +407,14 @@ class Train:
     def get_callbacks(self):
         tbCallBack = K.callbacks.TensorBoard(log_dir=self.logdir+"/log_graph",            histogram_freq=0,   write_graph=True,               write_images=True)
         log_model  = K.callbacks.ModelCheckpoint(self.config["outputDir"]+"/BestNN.hdf5", monitor='val_loss', verbose=self.config["verbose"], save_best_only=True)
-        earlyStop  = K.callbacks.EarlyStopping(monitor="val_loss",                        min_delta=0,        patience=5, verbose=0,          mode="auto", baseline=None)
+        earlyStop  = K.callbacks.EarlyStopping(monitor="disc_loss",                        min_delta=0,        patience=10, verbose=0,          mode="auto", baseline=None)
+
         callbacks  = []
         if self.config["verbose"] == 1: 
             #callbacks = [log_model, tbCallBack, earlyStop]
             #callbacks = [log_model, tbCallBack]
-            callbacks = [tbCallBack]
+            callbacks = [log_model, earlyStop]
+            #callbacks = [tbCallBack]
         return callbacks
 
     def gpu_allow_mem_grow(self):
@@ -558,8 +623,10 @@ class Train:
         print("%s [INFO]: Preparing the training model."%(timeStamp()))
         # Kelvin says no
         self.gpu_allow_mem_grow()
-        model     = self.make_model(scales, means, regShape, discoShape, inputShape)
+        g = tf.random.Generator.from_seed(self.config["seed"]) 
+        model, cb     = self.make_model(scales, means, regShape, discoShape, inputShape)
         callbacks = self.get_callbacks()
+        callbacks.append(cb)
 
         # Training model
         print("%s [INFO]: Training the model."%(timeStamp()))
