@@ -177,11 +177,11 @@ if __name__ == '__main__':
     # ---------------------------------------------------------------------------------------------------------------------------------------------- 
     usage  = "usage: %prog [options]"
     parser = argparse.ArgumentParser(usage)
-    parser.add_argument("--year",    dest="year",     help="which year",             required=True)
-    parser.add_argument("--path",    dest="path",     help="Input dir with histos",  required=True)
-    parser.add_argument("--model",   dest="model",    help="for which signal model", required=True)
-    parser.add_argument("--channel", dest="channel",  help="0l, 1l, 2l",             required=True)
-    parser.add_argument("--version", dest="version",  help="which version tag",      required=True)
+    parser.add_argument("--year",    dest="year",     help="year that NN is trained for",              required=True)
+    parser.add_argument("--path",    dest="path",     help="Input dir with pb and json from training", required=True)
+    parser.add_argument("--model",   dest="model",    help="signal model that NN is trained for",      required=True)
+    parser.add_argument("--channel", dest="channel",  help="channel that NN is trained for",           required=True)
+    parser.add_argument("--version", dest="version",  help="versioning tag for local organization",    required=True)
     args = parser.parse_args()
 
     theMaker = ReleaseMaker(args.year, args.path, args.model, args.channel, args.version)

@@ -288,11 +288,11 @@ usage: usage: %prog [options] [-h] --year YEAR --path PATH --model MODEL --chann
 
 optional arguments:
   -h, --help         show this help message and exit
-  --year YEAR        which year
-  --path PATH        Input dir with histos
-  --model MODEL      for which signal model
-  --channel CHANNEL  0l, 1l, 2l
-  --version VERSION  which version tag
+  --year YEAR        year that NN is trained for
+  --path PATH        Input dir with pb and json from training
+  --model MODEL      signal model that NN is trained for
+  --channel CHANNEL  channel that NN is trained for
+  --version VERSION  versioning tag for local organization
 ```
 
 where an example call to the script would be
