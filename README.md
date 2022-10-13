@@ -277,3 +277,29 @@ An example call to use the script is
 ```
 python parseNNjobs.py --inputDir main_folder_with_tex_file --subdir collection_of_NN_jobs --title Fancy title for slides
 ```
+
+### Preparing Files for a Release
+Once a NN training configuration has been chosen for use in the StealthStop analysis framework, a release needs to be made in `DeepESMCfg` (see that repository for further information on making a release).
+A script is provided here to help make the `.cfg` and tar up the `.pb` ready for sending to `DeepESMCfg`.
+The script has the arguments:
+
+```
+usage: usage: %prog [options] [-h] --year YEAR --path PATH --model MODEL --channel CHANNEL --version VERSION
+
+optional arguments:
+  -h, --help         show this help message and exit
+  --year YEAR        which year
+  --path PATH        Input dir with histos
+  --model MODEL      for which signal model
+  --channel CHANNEL  0l, 1l, 2l
+  --version VERSION  which version tag
+```
+
+where an example call to the script would be
+
+```
+python make_DoubleDisCo_cfgFile.py --year Run2 --path Output/atag_1l_MyFavRPV_lots_of_hyperparams/ --channel 1l --model RPV --version v1.2
+```
+
+This would make a folder `DoubleDisCo_Reg_1l_RPV_Run2_v1.2` that contains two `.cfg` and a `.tar`.
+The `.cfg` are to be pushed to `DeepESMCfg`, while the tar should be uploaded when a new tag is made.
