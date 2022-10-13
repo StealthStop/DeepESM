@@ -278,7 +278,7 @@ An example call to use the script is
 python parseNNjobs.py --inputDir main_folder_with_tex_file --subdir collection_of_NN_jobs --title Fancy title for slides
 ```
 
-### Preparing Files for a Release
+## Preparing Files for a Release
 Once a NN training configuration has been chosen for use in the StealthStop analysis framework, a release needs to be made in `DeepESMCfg` (see that repository for further information on making a release).
 A script is provided here to help make the `.cfg` and tar up the `.pb` ready for sending to `DeepESMCfg`.
 The script has the arguments:
