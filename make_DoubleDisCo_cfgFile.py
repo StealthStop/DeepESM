@@ -104,6 +104,7 @@ class ReleaseMaker():
         # Write out default definitions of the signal (ABCD) and validation (Val_BD, Val_CD, Val_D) regions
         # assuming (0.6, 0.6) edges for ABCD.
         # These values would necessarily be updated after running the validation framework and optimizing the edges and boundaries
+        # for a given NN configuration
         globalCount = 0
         for region in regions:
 
@@ -149,6 +150,7 @@ class ReleaseMaker():
             # Need to add the string "NonIsoMuon" into the variable collections
             # for QCD CR config. This is not the case for 0L, which uses the nominal
             # collections 
+            # Also, need to add the channel to the end of each variable name except for Stop variables
             if doQCDCR and self.channel != "0l":
                 var = var.replace("Jet",         "Jet%ss"%(qcdCRtag)) \
                          .replace("fwm",         "%ss_fwm"%(qcdCRtag)) \
@@ -157,6 +159,9 @@ class ReleaseMaker():
                          .replace("jmt",         "%ss_jmt"%(qcdCRtag)) \
                          .replace("Seed",        "Seed_%s"%(qcdCRtag)) \
                          .replace("trigger",     "%s"%(qcdCRtag))
+
+            if "Stop" not in var:
+                var += "_%s"%(self.channel)
 
             f.write("    inputVar[%d] = \"%s\" \n" %(iVar, var))
             iVar += 1
