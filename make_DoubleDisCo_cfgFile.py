@@ -105,6 +105,7 @@ class ReleaseMaker():
         # assuming (0.6, 0.6) edges for ABCD.
         # These values would necessarily be updated after running the validation framework and optimizing the edges and boundaries
         # for a given NN configuration
+        wroteExample = False
         for region in regions:
 
             globalCount = 0
@@ -113,7 +114,7 @@ class ReleaseMaker():
 
                 if (mask == True and njet in mask_njet): continue
 
-                if globalCount == 0:
+                if globalCount == 0 and not wroteExample:
                     f.write("    # An example of region definitions\n")
                     f.write("    # binEdges_aRegion[i]   = disc1edge\n")
                     f.write("    # binEdges_aRegion[i+1] = disc2edge\n")
@@ -121,6 +122,8 @@ class ReleaseMaker():
                     f.write("    # binEdges_aRegion[i+3] = rightBoundary\n")
                     f.write("    # binEdges_aRegion[i+4] = topBoundary\n")
                     f.write("    # binEdges_aRegion[i+5] = bottomBoundary\n\n")
+
+                    wroteExample = True
 
                 f.write("    # region = %s, Njets = %d\n"%(region, njet))
                 f.write("    binEdges_%s[%d] = %.2f\n"%(region, globalCount, disc1Edges[iReg]))
