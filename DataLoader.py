@@ -79,15 +79,22 @@ class DataLoader(K.utils.Sequence):
         if year != None and year != "Run2" and year != "2016All":
             mask &= (self.df["year"]==year)
 
+        flatDictionary["vars"]    = self.config["trainVars"]
         flatDictionary["njets"]   = self.df[self.config["domainLabel"]][mask]
         flatDictionary["inputs"]  = self.df["inputs"][mask]
         flatDictionary["massReg"] = self.df[self.config["regressionLabel"]][mask]
         flatDictionary["mass"]    = self.df[self.config["massLabel"]][mask]
         flatDictionary["weight"]  = self.df[self.config["weightLabel"]][mask]*self.config["lumi"]
         flatDictionary["model"]   = self.df[self.config["modelLabel"]][mask]
-        flatDictionary["label"]   = (self.df[self.config["modelLabel"]][mask]>=100).astype("float32")
+        flatDictionary["label"]   = (self.df[self.config["modelLabel"]][mask]>=100).astype("float16")
 
         return flatDictionary
+
+    def getSigWeight(self):
+        return float(self.sigWeight)
+
+    def getBkgWeight(self):
+        return float(self.bkgWeight)
 
     def getNumBkgEvents(self):
         return float(self.numBkgEvents)
@@ -104,8 +111,8 @@ class DataLoader(K.utils.Sequence):
     # Returns the shapes of the unique layers output in the NN model
     # Order: Mass regression, Domain (Njets), Double DisCo, Input
     def getShapes(self):
-        #return 1, self.config["maxNJetBin"] - self.config["minNJetBin"] + 1, 2, len(self.config["trainVars"])
-        return 0, self.config["maxNJetBin"] - self.config["minNJetBin"] + 1, 2, len(self.config["trainVars"])
+        return 1, self.config["maxNJetBin"] - self.config["minNJetBin"] + 1, 1, len(self.config["trainVars"])
+        #return 0, self.config["maxNJetBin"] - self.config["minNJetBin"] + 1, 4, len(self.config["trainVars"])
    
     def getColumnHeaders(self):
         if self.columnHeaders is None:
@@ -130,9 +137,11 @@ class DataLoader(K.utils.Sequence):
         if len(self.datasets[process]) == 0:
             raise IndexError("No sample in samplesToRun")
 
-        max_entries = None
+        max_entries_bg = None
+        max_entries_sg = None
         if self.config["debug"]:
-            max_entries = 100
+            max_entries_bg = 10000
+            max_entries_sg = 100
 
         variations = ["", "JECup", "JECdown", "JERup", "JERdown"]
         if self.config["debug"] or not self.config["useJECs"]:
@@ -151,7 +160,11 @@ class DataLoader(K.utils.Sequence):
                 year = filename.split("MyAnalysis_")[-1].split("_")[0]
                 try:
                     f = uproot.open(filename)
-                    tempnpf = f[self.config["tree"]+suffix].arrays(expressions=theVars, cut=selection, library="np", entry_stop=max_entries)
+                    if "RPV" in filename or "SYY" in filename:
+                        tempnpf = f[self.config["tree"]+suffix].arrays(expressions=theVars, cut=selection, library="np", entry_stop=max_entries_sg)
+                    else:
+                        tempnpf = f[self.config["tree"]+suffix].arrays(expressions=theVars, cut=selection, library="np", entry_stop=max_entries_bg)
+                        
                     f.close()
 
                     tempVars = list(tempnpf.keys())
@@ -159,10 +172,10 @@ class DataLoader(K.utils.Sequence):
                     for var in tempVars:
                         newVar = var.replace("JERup", "").replace("JECup", "").replace("JERdown", "").replace("JECdown", "")
 
-                        if "Jet_pt_" in newVar and self.config["scaleJetPt"]:
-                            npf[newVar] = tempnpf[var] /tempnpf["HT_trigger_pt30"+suffix]
+                        if ("Jet_pt_" in newVar or "Stop1_pt_" in newVar or "Stop2_pt" in newVar) and self.config["scaleJetPt"]:
+                            npf[newVar] = tempnpf[var] /tempnpf["HT_trigger_pt30"+suffix].astype('float16')
                         else:
-                            npf[newVar] = tempnpf[var]
+                            npf[newVar] = tempnpf[var].astype('float16')
 
                     print("%s [INFO]: Loaded \"%s\" from input file \"%s\""%(timeStamp(), self.config["tree"]+suffix,filename))
 
@@ -190,12 +203,18 @@ class DataLoader(K.utils.Sequence):
             offset += maskDict["factor"]
 
         batchInputs  = self.df["inputs"][self.batchIndexContainer]
+        batchMass    = self.df[self.config['massLabel']][self.batchIndexContainer]
         #batchMassReg = self.df[self.config["regressionLabel"]][self.batchIndexContainer]
 
         model      = self.df[self.config["modelLabel"]][self.batchIndexContainer]
-        labelSig   = (model>=100).astype("float32")
-        labelBkg   = (model<100).astype("float32")
-        batchDisCo = np.vstack((labelSig, labelBkg, labelSig, labelBkg)).T
+        mass       = self.df[self.config["massLabel"]][self.batchIndexContainer]
+        labelSig     = (model>=100).astype("float16")
+        #labelSigLow     = (np.logical_and(model>=100, mass <= 400)).astype("float32")
+        #labelSigMid    = (np.logical_and(np.logical_and(model>=100, mass > 400), mass <= 850)).astype("float32")
+        #labelSigHigh    = (np.logical_and(model>=100, mass > 850)).astype("float32")
+        #labelBkg   = (model<100).astype("float32")
+        #batchDisCo = np.vstack((labelSigHigh, labelSigMid, labelSigLow, labelBkg, labelSigHigh, labelSigMid, labelSigLow, labelBkg)).T
+        batchDisCo = np.vstack((labelSig, labelSig)).T
     
         #return batchInputs, tuple((batchDisCo, batchDisCo, batchMassReg))
         return batchInputs, tuple((batchDisCo, batchDisCo, batchDisCo))
@@ -238,15 +257,22 @@ class DataLoader(K.utils.Sequence):
         nVars = len(self.config["trainVars"])
 
         # Allocate array for inputs and labels
-        self.df["inputs"] = np.zeros((totalNevts, nVars), dtype="float32")
+        self.df["inputs"] = np.zeros((totalNevts, nVars), dtype="float16")
         for var in self.config["auxVars"]:
-            self.df[var] = np.zeros(totalNevts, dtype="float32")
+            self.df[var] = np.zeros(totalNevts, dtype="float16")
 
         self.df["year"] = np.empty(totalNevts, dtype="U11")
 
         # Use an offset to move the "pointer" were we write in values
         # to the preallocated arrays
         offset = 0
+
+        # Calculated the mean and inverse std dev for the input variables
+        for i,Var in enumerate(self.config["trainVars"]):
+            var = [x[Var] for x in dsets]
+            varVals = np.concatenate(var).ravel()
+            self.means[i]  = np.mean(varVals)
+            self.scales[i] = 1.0 / np.std(varVals)
 
         # Start with a loop over the data sets that are mixed up
         for iMix in mixer:
@@ -267,11 +293,6 @@ class DataLoader(K.utils.Sequence):
 
             # Move pointer before filling with next data set
             offset += nEvents
-
-        # Calculated the mean and inverse std dev for the input variables
-        for iVar in range(0, len(self.config["trainVars"])):
-            self.means[iVar]  = np.mean(self.df["inputs"][iVar,:])
-            self.scales[iVar] = 1.0 / np.std(self.df["inputs"][iVar,:])
 
         # Make a mask for any njets events we do not want to use
         combMaskNjets = None
@@ -317,7 +338,9 @@ class DataLoader(K.utils.Sequence):
         procDict = dict(zip(unique, counts))
 
         self.numBkgEvents = self.df[self.config["massLabel"]][combMaskNjets&(self.df[self.config["modelLabel"]]<100)].shape[0]
+        self.bkgWeight = self.df[self.config["weightLabel"]][combMaskNjets&(self.df[self.config["modelLabel"]]<100)][0]
         self.numSigEvents = self.df[self.config["massLabel"]][combMaskNjets&(self.df[self.config["modelLabel"]]>=100)].shape[0]
+        self.sigWeight = self.df[self.config["weightLabel"]][combMaskNjets&(self.df[self.config["modelLabel"]]>=100)][0]
 
         minNJetBin = self.df[self.config["domainLabel"]][combMaskNjets].min()
         numDomains = int(self.config["maxNJetBin"] + 1 - minNJetBin)
@@ -374,7 +397,7 @@ class DataLoader(K.utils.Sequence):
                     if not isBackground: 
                         shiftedMass = int(m)
 
-                for n in np.arange(minNJetBin, self.config["maxNJetBin"]+1, dtype="float32"):
+                for n in np.arange(minNJetBin, self.config["maxNJetBin"]+1, dtype="float16"):
 
                     gc.collect()
                     theKey = ""

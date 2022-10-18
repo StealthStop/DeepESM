@@ -32,7 +32,7 @@ def timeStamp():
     return datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
 
 class Train:
-    def __init__(self, USER, inputs, outputDir, nJets, useJECs, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, scaleJetPt=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", evalMass=500, evalModel="RPV_SYY_SHH", evalYear = "2016preVFP", trainYear = "2016preVFP_2016postVFP_2017_2018", tree = "myMiniTree", maskNjet = [-1], procCats=False, massCats=False, njetsCats=False, debugModel=False):
+    def __init__(self, USER, inputs, outputDir, nJets, useJECs, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=True, scaleJetPt=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", evalMass=500, evalModel="RPV_SYY_SHH", evalYear = "2016preVFP", trainYear = "2016preVFP_2016postVFP_2017_2018", tree = "myMiniTree", maskNjet = [-1], procCats=False, massCats=False, njetsCats=False, debugModel=False):
 
         print("%s [INFO]: Creating instance of Train."%(timeStamp()))
 
@@ -190,6 +190,7 @@ class Train:
                 Signal_2016postVFP_eval.append("2016postVFP*%s*mStop-%s"%(model,mass))
                 Signal_2017_eval.append("2017*%s*mStop-%s"%(model,mass))
                 Signal_2018_eval.append("2018*%s*mStop-%s"%(model,mass))
+        
 
         for model in trainModel.split("_"):
             Signal_2016preVFP  += list("2016preVFP*%s*mStop-"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
@@ -257,146 +258,176 @@ class Train:
             return c * K.losses.mean_squared_error(y_true/1000.0, y_pred)
         return regLoss
 
-    def loss_disco(self, c, current_epoch):
+    def loss_disco(self, c, current_epoch, start_epoch):
         def discoLoss(y_mask, y_pred):
+            case = tf.greater(current_epoch, start_epoch)
+
             val_1 = tf.reshape(y_pred[:,  :1], [-1])
-            val_2 = tf.reshape(y_pred[:, 2:3], [-1])
+            val_2 = tf.reshape(y_pred[:, 1:2], [-1])
             normedweight = tf.ones_like(val_1)
 
             #Mask all signal events
-            mask_sg = tf.reshape(y_mask[:,  1:2], [-1])
+            mask_sg = tf.reshape(tf.abs(1 - y_mask[:,  :1]), [-1])
             val_1_bg = tf.boolean_mask(val_1, mask_sg)
             val_2_bg = tf.boolean_mask(val_2, mask_sg)
-            temp1 = tf.boolean_mask(val_1, mask_sg)
-            temp2 = tf.boolean_mask(val_2, mask_sg)
-            #temp1 = val_1
-            #temp2 = val_2
 
             normedweight_bg = tf.boolean_mask(normedweight, mask_sg)
 
-            #frac1 = 4.0 * (nbB * nbC)/ tf.math.pow(nbTot, 2)
-            #frac2 = 4.0 * (nbA * nbD)/ tf.math.pow(nbTot, 2)
-
             #dcorr = cor.rdc(val_1_bg, val_2_bg)
+            #dcorr = cor.distance_corr(val_1, val_2, normedweight, 1)
+            dcorr = cor.distance_corr(val_1_bg, val_2_bg, normedweight_bg, 1)
 
-            #ms = MeanShift(tf.concat(val_1, val_2), axis=1)
-            #_, __, labels, centroids = MeanShift.fit()
-            
-            #loss = MeanShift.loss() 
-
-            dcorr = cor.distance_corr(temp1, temp2, normedweight_bg, 1)
-
-            case = tf.greater(current_epoch, 10)
-
-            return c * tf.cast(case, "float32") * dcorr
+            return c * tf.cast(case, "float32") * (dcorr)
         return discoLoss
     
-    def loss_closure(self, c, g, nBinEdge, current_epoch):
+    def loss_closure(self, c, g, nBinEdge, current_epoch, start_epoch):
         def closureLoss(y_mask, y_pred):
+
+            case = tf.greater(current_epoch, start_epoch)
+
             val_1 = tf.reshape(y_pred[:,  :1], [-1])
-            val_2 = tf.reshape(y_pred[:, 2:3], [-1])
+            val_2 = tf.reshape(y_pred[:, 1:2], [-1])
             normedweight = tf.ones_like(val_1)
 
             #Mask all signal events
-            mask_sg = tf.reshape(y_mask[:,  1:2], [-1])
-            val_1_bg = tf.boolean_mask(val_1, mask_sg)
-            val_2_bg = tf.boolean_mask(val_2, mask_sg)
+            mask_sg = tf.reshape(tf.abs(1 - y_mask[:,  :1]), [-1])
             temp1 = tf.boolean_mask(val_1, mask_sg)
             temp2 = tf.boolean_mask(val_2, mask_sg)
 
-            temptile1 = tf.reshape(tf.tile(temp1, [nBinEdge]), shape=(nBinEdge,-1))
-            temptile2 = tf.reshape(tf.tile(temp2, [nBinEdge]), shape=(nBinEdge,-1))
+            #temptile1 = tf.reshape(tf.tile(temp1, [nBinEdge]), shape=(nBinEdge,-1))
+            #temptile2 = tf.reshape(tf.tile(temp2, [nBinEdge]), shape=(nBinEdge,-1))
 
-            d1 = g.uniform(shape=(nBinEdge, 1), minval=0.0, maxval=1.0)
-            d2 = g.uniform(shape=(nBinEdge, 1), minval=0.0, maxval=1.0)
+            d1 = g.uniform(shape=(), minval=0.0, maxval=1.0)
+            d2 = g.uniform(shape=(), minval=0.0, maxval=1.0)
+            #d1 = 0.5
+            #d2 = 0.5
 
-            #d1 = tf.reshape(tf.range(0.2, 1.0, 0.8/nBinEdge), shape=(nBinEdge, 1))
-            #d2 = tf.reshape(tf.range(0.2, 1.0, 0.8/nBinEdge), shape=(nBinEdge, 1))
+            #d1_peak = tf.reshape(tf.range(0.2, 1.0, 0.2), shape=(4, 1))
+            #d2_peak = tf.reshape(tf.range(0.2, 1.0, 0.2), shape=(4, 1))
             
+            #histy_bins = tf.histogram_fixed_width_bins(val_1, (0.0, 1.0), nbins=5, dtype=tf.dtype.float32)
+            
+            #H = tf.map_fn(lambda i: tf.histogram_fixed_width(val_2[histy_bins == i], (0.0, 1.0), nbins=5), tf.range(5), dtype=tf.dtype.float32)
+
+            #tot = tf.reduce_sum(H)
+
+            #H = H / tot
+
+            #tf.print(H)
+            #tf.print(tf.reduce_sum(H))
+
+
             dval1 = d1 / 2.0
             dval2 = d2 / 2.0
 
-            nbTot = 2.0*tf.reduce_sum(tf.sigmoid(0.0*temptile1), axis=1)
+            nbTot = 2.0*tf.reduce_sum(tf.sigmoid(0.0*temp1))
 
             # Calculate non-closure in full ABCD region defined by (d1, d2) edges
-            nbA = tf.reduce_sum(tf.sigmoid(25e0*(temptile1-d1))*tf.sigmoid(25e0*(temptile2-d2)), axis=1)
-            nbB = tf.reduce_sum(tf.sigmoid(25e0*(d1 - temptile1))*tf.sigmoid(25e0*(temptile2-d2)), axis=1)
-            #nbB = tf.reduce_sum(tf.sigmoid(25e0*(temptile2-d2)), axis=1) - nbA
-            nbC = tf.reduce_sum(tf.sigmoid(25e0*(temptile1 - d1))*tf.sigmoid(25e0*(d2 - temptile2)), axis=1)
-            #nbC = tf.reduce_sum(tf.sigmoid(25e0*(temptile1-d1)), axis=1) - nbA
-            nbD = tf.reduce_sum(tf.sigmoid(25e0*(d1 - temptile1))*tf.sigmoid(25e0*(d2 - temptile2)), axis=1)
-            #nbD = nbTot - nbA - nbB - nbC
+            nbA = tf.reduce_sum(tf.sigmoid(1e2*(temp1-d1))*tf.sigmoid(1e2*(temp2-d2)))
+            nbB = tf.reduce_sum(tf.sigmoid(1e2*(d1 - temp1))*tf.sigmoid(1e2*(temp2-d2)))
+            nbC = tf.reduce_sum(tf.sigmoid(1e2*(temp1 - d1))*tf.sigmoid(1e2*(d2 - temp2)))
+            nbD = tf.reduce_sum(tf.sigmoid(1e2*(d1 - temp1))*tf.sigmoid(1e2*(d2 - temp2)))
+           
+            nbA = nbA + 1
+            nbB = nbB + 1
+            nbC = nbC + 1
+            nbD = nbD + 1
 
-            nbA = nbA[nbD != 0]
-            nbB = nbB[nbD != 0]
-            nbC = nbC[nbD != 0]
-            nbD = nbD[nbD != 0]
-            nbTot = nbTot[nbD != 0]
+            ''' 
+            min_N = 1 #tf.reduce_mean(nbTot) * 0.001
 
-            nbA = nbA[nbC != 0]
-            nbB = nbB[nbC != 0]
-            nbC = nbC[nbC != 0]
-            nbD = nbD[nbC != 0]
-            nbTot = nbTot[nbC != 0]
+            nbA = nbA[nbD > min_N]
+            nbB = nbB[nbD > min_N]
+            nbC = nbC[nbD > min_N]
+            nbD = nbD[nbD > min_N]
+            nbTot = nbTot[nbD > min_N]
 
-            nbA = nbA[nbB != 0]
-            nbB = nbB[nbB != 0]
-            nbC = nbC[nbB != 0]
-            nbD = nbD[nbB != 0]
-            nbTot = nbTot[nbB != 0]
+            nbA = nbA[nbC > min_N]
+            nbB = nbB[nbC > min_N]
+            nbC = nbC[nbC > min_N]
+            nbD = nbD[nbC > min_N]
+            nbTot = nbTot[nbC > min_N]
 
-            nbA = nbA[nbA != 0]
-            nbB = nbB[nbA != 0]
-            nbC = nbC[nbA != 0]
-            nbD = nbD[nbA != 0]
-            nbTot = nbTot[nbA != 0]
+            nbA = nbA[nbB > min_N]
+            nbB = nbB[nbB > min_N]
+            nbC = nbC[nbB > min_N]
+            nbD = nbD[nbB > min_N]
+            nbTot = nbTot[nbB > min_N]
 
-            nbApred = nbB*nbC/nbD
-            fracs = abs(nbA - nbApred) / nbA
+            nbA = nbA[nbA > min_N]
+            nbB = nbB[nbA > min_N]
+            nbC = nbC[nbA > min_N]
+            nbD = nbD[nbA > min_N]
+            nbTot = nbTot[nbA > min_N]
+            '''
+            #nbApred = nbB*nbC/nbD
+            
+            #fracs = abs(nbA - nbApred) / (nbA)
+             
+            # New pull based loss function
+            '''
+            var = nbD ** 2 * nbA + nbC **2 * nbB + nbB ** 2 * nbC + nbA ** 2 * nbD
+            var = nbD ** 2 * cov(nbA, nbA) + nbC ** 2 * cov(nbB, nbB) + nbB ** 2 * cov(nbC, nbC) + nbA ** 2 *cov(nbD, nbD) 
+            covar = - 2 * nbC * nbD * cov(nbA, nbB) - 2 * nbB * nbD * cov(nbA, nbC) + 2 * nbA * nbD * cov(nbA, nbD) + 2 * nbB * nbC * cov(nbB, nbC) - 2 * nbA * nbC * cov(nbB, nbD) - 2 * nbA * nbB * cov(nbC, nbD)
+            dl = tf.sqrt(var)
 
-            frac = tf.reduce_mean(fracs)            
+            fracs = (nbA * nbD - nbB * nbC) / dl
+            '''
 
-            case = tf.greater(current_epoch, 15)
+            fracs = ((nbA * nbD - nbB * nbC)/(nbA * nbD + nbB * nbC))**2
 
-            return c * tf.cast(case, "float32") * frac 
+            #frac = tf.reduce_sum(fracs)
+            #frac = K.losses.mean_squared_error(tf.zeros_like(fracs), fracs)
+            frac = tf.reduce_mean(fracs)
+
+            return c * tf.cast(case, "float32") * (frac)
         return closureLoss 
             
-    def loss_disc(self, c):
-        def loss_model_disc(y_true, y_pred):            
+    def loss_disc(self, c, current_epoch, start_epoch):
+        def loss_model_disc(y_true, y_pred):         
+            case = tf.greater(current_epoch, start_epoch)
+
             # Decat truth and predicted
-            val_1_disco_true = tf.reshape(y_true[:,  :2], [-1])
-            val_2_disco_true = tf.reshape(y_true[:, 2:4], [-1])
+            val_1_disco_true = y_true[:, :1]
+            val_2_disco_true = y_true[:, 1:]
+            #val_1_disco_true = tf.reshape(y_true[:, :4], [-1])
+            #val_2_disco_true = tf.reshape(y_true[:, 4:], [-1])
             #val_disco_true = tf.reshape(y_true[:, :4], [-1])
 
-            val_1_disco_pred = tf.reshape(y_pred[:,  :2], [-1])
-            val_2_disco_pred = tf.reshape(y_pred[:, 2:4], [-1])
+            val_1_disco_pred = y_pred[:, :1]
+            val_2_disco_pred = y_pred[:, 1:]
+            #val_1_disco_pred = tf.reshape(y_pred[:, :4], [-1])
+            #val_2_disco_pred = tf.reshape(y_pred[:, 4:], [-1])
             #val_disco_pred = tf.reshape(y_pred[:, :4], [-1])
 
-            # Calculate loss function
-            #val_1_disco_loss = K.losses.kl_divergence(val_1_disco_true, val_1_disco_pred)
-            #val_2_disco_loss = K.losses.kl_divergence(val_2_disco_true, val_2_disco_pred)
-            val_1_disco_loss = K.losses.binary_crossentropy(val_1_disco_true, val_1_disco_pred)
-            val_2_disco_loss = K.losses.binary_crossentropy(val_2_disco_true, val_2_disco_pred)
-            #val_disco_loss = K.losses.binary_crossentropy(val_disco_true, val_disco_pred)
+            cce = K.losses.BinaryCrossentropy()
 
-            return c * (val_1_disco_loss + val_2_disco_loss)
+            #sample_weight = val_1_disco_true * (self.config['sigWeight'] - 1) + 1
+
+            # Calculate loss function
+            val_1_disco_loss = cce(val_1_disco_true, val_1_disco_pred)#, sample_weight = sample_weight)
+            val_2_disco_loss = cce(val_2_disco_true, val_2_disco_pred)#, sample_weight = sample_weight)
+
+            return c * tf.cast(case, "float32") * (val_1_disco_loss + val_2_disco_loss)
         return loss_model_disc
 
-    def make_model(self, scales, means, regShape, discoShape, inputShape):
+    def make_model(self, scales, means, regShape, discoShape, inputShape, bias):
 
         print("%s [INFO]: Constructing model."%(timeStamp()))
 
-        model, optimizer = main_model(self.config, scales, means, regShape, discoShape, inputShape)
+        model = main_model(self.config, scales, means, regShape, discoShape, inputShape, bias)
         if self.debugModel:
-            K.utils.plot_model(model, show_shapes=True)
+            K.utils.plot_model(model, show_shapes=True, to_file="model.png")
             model.summary()
         g = tf.random.Generator.from_seed(self.config["seed"]) 
         current_epoch = K.backend.variable(1.)
 
-        cb = CustomCallback(current_epoch)
-        model.compile(loss=[self.loss_disc(c=self.config["disc_lambda"]), self.loss_disco(c=self.config["bkg_disco_lambda"], current_epoch=cb.current_epoch), self.loss_closure(c=self.config["abcd_close_lambda"], g=g, nBinEdge=20, current_epoch=cb.current_epoch)], optimizer="adam")#, metrics=self.config["metrics"])
+        opt = K.optimizers.Nadam(learning_rate=0.00001)
+
+        self.cb = CustomCallback(current_epoch)
+        model.compile(loss=[self.loss_disc(c=self.config["disc_lambda"], current_epoch=self.cb.current_epoch, start_epoch=self.config["disc_start"]), self.loss_disco(c=self.config["bkg_disco_lambda"], current_epoch=self.cb.current_epoch, start_epoch=self.config["disco_start"]), self.loss_closure(c=self.config["abcd_close_lambda"], g=g, nBinEdge=1, current_epoch=self.cb.current_epoch, start_epoch=self.config["abcd_start"])], optimizer=opt, metrics=[K.metrics.Precision(), K.metrics.Recall()])
         #model.compile(loss=[self.loss_disc(c=self.config["disc_lambda"]), self.loss_disco(c=self.config["bkg_disco_lambda"], current_epoch=1), self.loss_mass_reg(c=self.config["mass_reg_lambda"])], optimizer="adam")#, metrics=self.config["metrics"])
-        return model, cb
+        return model, self.cb
 
     def getSamplesToRun(self, names):
         s = glob(names)
@@ -405,7 +436,7 @@ class Train:
         return s
 
     def get_callbacks(self):
-        tbCallBack = K.callbacks.TensorBoard(log_dir=self.logdir+"/log_graph",            histogram_freq=0,   write_graph=True,               write_images=True)
+        #tbCallBack = K.callbacks.TensorBoard(log_dir=self.logdir+"/log_graph",            histogram_freq=0,   write_graph=True,               write_images=True)
         log_model  = K.callbacks.ModelCheckpoint(self.config["outputDir"]+"/BestNN.hdf5", monitor='val_loss', verbose=self.config["verbose"], save_best_only=True)
         earlyStop  = K.callbacks.EarlyStopping(monitor="disc_loss",                        min_delta=0,        patience=10, verbose=0,          mode="auto", baseline=None)
 
@@ -413,8 +444,9 @@ class Train:
         if self.config["verbose"] == 1: 
             #callbacks = [log_model, tbCallBack, earlyStop]
             #callbacks = [log_model, tbCallBack]
-            callbacks = [log_model, earlyStop]
+            #callbacks = [log_model, earlyStop]
             #callbacks = [tbCallBack]
+            callbacks = []
         return callbacks
 
     def gpu_allow_mem_grow(self):
@@ -430,11 +462,11 @@ class Train:
         #https://github.com/leimao/Frozen_Graph_TensorFlow/tree/master/TensorFlow_v2
 
         # Save model as hdf5 format
-        #model.save(self.config["outputDir"]+"/keras_model")
+        model.save(self.config["outputDir"]+"/keras_model")
 
         # Convert Keras model to ConcreteFunction
         full_model = tf.function(lambda x: model(x))
-        full_model = full_model.get_concrete_function(x=tf.TensorSpec(model.inputs[0].shape, model.inputs[0].dtype))
+        full_model= full_model.get_concrete_function(x=tf.TensorSpec(model.inputs[0].shape, model.inputs[0].dtype))
 
         # Get frozen ConcreteFunction
         frozen_func = convert_variables_to_constants_v2(full_model)
@@ -487,7 +519,7 @@ class Train:
         print("%s [INFO]: Defining input variables."%(timeStamp()))
 
         htVec           = ["HT_trigger_pt30"]
-        nJets           = ["NGoodJets_pt30_double"]
+        nJetsVec        = ["NGoodJets_pt30_double"]
         fwmVec          = ["fwm2_top6",    "fwm3_top6",    "fwm4_top6",   "fwm5_top6"]
         jmtVec          = ["jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
         j4Vec           = ["Jet_pt_", "Jet_eta_", "Jet_phi_"]#,"Jet_m_"]
@@ -514,7 +546,8 @@ class Train:
 
         nJets = int(self.config["nJets"]); theVars = None
 
-        theVars = j4Vec + jCSVVec + jCombVec + lVec + lvMETVec
+        #theVars = j4Vec + jCSVVec + jCombVec + lVec + lvMETVec
+        theVars = j4Vec + jFlavVec + jCombVec
 
         if not self.config["scaleJetPt"]:
             theVars += htVec
@@ -523,13 +556,13 @@ class Train:
         theVars += jmtVec
 
         if "0l" in self.config["tree"]:
-            pass
-            #theVars += stop1TopSeed 
-            #theVars += stop2TopSeed
+            #pass
+            theVars += stop1TopSeed 
+            theVars += stop2TopSeed
         else:
-            pass
-            #theVars += stop1OldSeed 
-            #theVars += stop2OldSeed
+            #pass
+            theVars += stop1OldSeed 
+            theVars += stop2OldSeed
 
         newVars = []; auxVars = []
         for var in theVars:
@@ -540,7 +573,7 @@ class Train:
                 if "phi" in var:
                     start = 1
         
-                for nJet in range(start,nJets):
+                for nJet in range(start,7):
                     newVars.append(var + str(nJet+1))
 
             else: newVars.append(var)
@@ -565,7 +598,6 @@ class Train:
         temp = "*"
 
         print("%s [INFO]: Preparing input data sets."%(timeStamp()))
-
         #Get Data set used in training and validation
         sgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+mass+temp+"Train.root") for mass in self.config["signal"]) , [])
         bgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Train.root") for bkgd in self.config["bkgd"][1]), [])
@@ -592,14 +624,14 @@ class Train:
                 needeval = True
                 break
 
-        if needeval: self.evalLoader = DataLoader(self.config, sgEvalSet, bgEvalSet)
+        if needeval: self.evalLoader = None #DataLoader(self.config, sgEvalSet, bgEvalSet)
 
         cfg_string = json.dumps(self.config)
        
         with open("config.json", "w") as f:
             f.write(cfg_string)
         f.close()
-        
+       
         self.loader     = DataLoader(self.config, sgTrainSet, bgTrainSet)
         self.valLoader  = DataLoader(self.config, sgValSet,   bgValSet)
         self.testLoader = DataLoader(self.config, sgTestSet,  bgTestSet)
@@ -619,14 +651,16 @@ class Train:
 
         regShape, domainShape, discoShape, inputShape = self.loader.getShapes()
 
+        initial_bias = np.log(self.loader.getNumSigEvents()/self.loader.getNumBkgEvents())
+
         # Make model
         print("%s [INFO]: Preparing the training model."%(timeStamp()))
         # Kelvin says no
         self.gpu_allow_mem_grow()
         g = tf.random.Generator.from_seed(self.config["seed"]) 
-        model, cb     = self.make_model(scales, means, regShape, discoShape, inputShape)
+        model, self.cb     = self.make_model(scales, means, regShape, discoShape, inputShape, initial_bias)
         callbacks = self.get_callbacks()
-        callbacks.append(cb)
+        callbacks.append(self.cb)
 
         # Training model
         print("%s [INFO]: Training the model."%(timeStamp()))
@@ -648,7 +682,11 @@ class Train:
                 self.save_model_pb(model)
             except Exception as e:
                 print("%s [WARNING]: Could not save model pb !"%(timeStamp()), e)
-       
+      
+        self.config['outputDir'] += "/" +  self.config['evalYear']
+        if not os.path.isdir(self.config['outputDir']):        
+            os.makedirs(self.config['outputDir'])
+ 
         #Plot results
         print("%s [INFO]: Running validation of model."%(timeStamp()))
         val = Validation(model, self.config, self.loader, self.valLoader, self.evalLoader, self.testLoader, result_log)
@@ -663,17 +701,24 @@ class Train:
 
     def replay(self):
 
-        model = K.models.load_model(self.config["outputDir"]+"/keras_model")
+        self.defineVars()
 
-        sgTrainSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+mass+"*Train.root") for mass in self.config["signal"]) , [])
-        bgTrainSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+bkgd+"*Train.root") for bkgd in self.config["bkgd"][1]), [])
-        sgTestSet  = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+mass+"*Test.root")  for mass in self.config["signal"]) , [])
-        bgTestSet  = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+bkgd+"*Test.root")  for bkgd in self.config["bkgd"][1]), [])
+        current_epoch = K.backend.variable(1.)
+        self.cb = CustomCallback(current_epoch)
 
-        trainData, trainSg, trainBg = get_data(sgTrainSet, bgTrainSet, self.config)
+        g = tf.random.Generator.from_seed(self.config["seed"]) 
 
-        val = Validation(model, self.config, trainData, trainSg, trainBg)
-        metric = val.makePlots(doQuickVal, evalMass)
+        self.importData()
+
+        model = K.models.load_model(self.config["outputDir"]+"/keras_model", custom_objects={'loss_model_disc': self.loss_disc(c=self.config["disc_lambda"], current_epoch=self.cb.current_epoch, start_epoch=self.config["disc_start"]), 'discoLoss': self.loss_disco(c=self.config["bkg_disco_lambda"], current_epoch=self.cb.current_epoch, start_epoch=self.config["disco_start"]), 'closureLoss': self.loss_closure(c=self.config["abcd_close_lambda"], g=g, nBinEdge=1, current_epoch=self.cb.current_epoch, start_epoch=self.config["abcd_start"]) })
+
+        self.config['outputDir'] += "/" + self.config['evalYear']
+        if not os.path.isdir(self.config['outputDir']):        
+            os.makedirs(self.config['outputDir'])
+ 
+        #trainData, trainSg, trainBg = get_data(sgTrainSet, bgTrainSet, self.config)
+        val = Validation(model, self.config, self.loader, self.valLoader, self.evalLoader, self.testLoader)
+        metric = val.makePlots(self.doQuickVal, self.config["evalMass"], self.config["evalModel"])
         del val
 
 if __name__ == '__main__':

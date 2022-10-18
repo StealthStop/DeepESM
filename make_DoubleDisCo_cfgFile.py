@@ -32,14 +32,14 @@ def main():
     if args.qcdcr:
         qcdCRtag = "_NonIsoMuon_"
 
-    release = "DoubleDisCo_Reg" + "_" + args.case + "_" + args.model + "_" + args.year + "_" + args.path.split("atag_")[-1].split("_batch_size_")[0]
+    release = "DoubleDisCo_Reg" + "_" + args.case + "_" + args.model + "_" + args.year #+ "_" + args.path.split("atag_")[-1].split("_batch_size_")[0]
     if not os.path.exists(release):
         os.makedirs(release)
 
     # --------------------------
     # put pb file to this folder
     # --------------------------
-    os.system("cp %s/keras_frozen.pb %s" %(args.path,release))
+    os.system("cp %s/keras_frozen.pb %s" %(args.path[:-5],release))
 
     # -------------------
     # make tar file of pb
@@ -79,7 +79,7 @@ def main():
         if args.qcdcr:
             goodStr = ""
 
-        if (args.case == "0l"):
+        if (args.case == "0l" and not args.qcdcr):
             f.write("   nJetVar = \"N%s%sJets_pt45\"\n"%(qcdCRtag[1:-1],goodStr))
         else:
             f.write("   nJetVar = \"N%s%sJets_pt30\"\n"%(qcdCRtag[1:-1],goodStr))
@@ -119,6 +119,9 @@ def main():
                 var = var.replace("jmt",       "%ss_jmt"%(qcdCRtag[1:-1]))
                 var = var.replace("cm_",       "cm_%s"%(qcdCRtag[1:]))
                 var = var.replace("trigger",   "%s"%(qcdCRtag[1:-1]))
+
+            if "pt" in var:
+                var = var.replace("pt_",         "ptrHT_")
 
             f.write("   mvaVar[%d] = \"%s\" \n" %(i,var))
             i += 1

@@ -1,3 +1,4 @@
+import time
 import tensorflow as tf
 from scipy.spatial.distance import pdist, squareform
 import numpy as np
@@ -114,11 +115,29 @@ class Correlation:
         return cor
     
     @staticmethod
-    @tf.function
     def rdc(var_1, var_2, f=tf.sin, k=20, s=1/6., n=1):
 
         # Some functions to handle all of the conditions within the while loop for
         # ensuring real eigvals in tensor friendly syntax
+
+        def cov(x, y):
+            #x = tf.expand_dims(x, axis=0)    
+            #y = tf.expand_dims(y, axis=0)    
+
+            # Find mean (along k direction)
+            mean_x = tf.reshape(tf.reduce_mean(x, axis=1), shape=(-1,1))
+            mean_y = tf.reshape(tf.reduce_mean(y, axis=1), shape=(-1,1))
+
+            # Subtract mean from each value (k dimenson)
+            sub_x = x - mean_x
+            sub_y = y - mean_y
+
+            # Do the matrix multiplication
+            cov = tf.einsum('ij,jk->ik', sub_x, tf.transpose(sub_y))
+
+            scale = 1. / tf.cast(tf.shape(x)[1] - 1, tf.float32)
+
+            return scale * cov
 
         # What to do when eigs aren't real or not between zero and one
         def nonreal(ub, lb, k):
@@ -162,13 +181,17 @@ class Correlation:
             Cxy = C[:k, k0:k0+k]
             Cyx = C[k0:k0+k, :k]
 
-            eigs = tf.linalg.eigvals(tf.matmul(tf.matmul(tf.linalg.pinv(Cxx), tf.transpose(Cxy)), tf.transpose(tf.matmul(tf.linalg.pinv(Cyy), tf.transpose(Cyx)))))
-   
+            eigs = tf.linalg.eigvals(
+                tf.matmul(
+                    tf.matmul(tf.linalg.pinv(Cxx), tf.transpose(Cxy)), 
+                    tf.transpose(tf.matmul(tf.linalg.pinv(Cyy), tf.transpose(Cyx)))
+                ))
+
             mag = tf.math.real(eigs)
 
             # Case to determine if all eigenvalues are real and within [0,1]
-            case = tf.reduce_all(tf.stack([tf.reduce_all(tf.equal(0., tf.math.imag(eigs))), tf.reduce_all(tf.less_equal(1e-7, tf.reduce_min(mag))), tf.reduce_all(tf.greater_equal(0.9999999, tf.reduce_max(mag)))]))
-
+            case = tf.reduce_all(tf.stack([tf.reduce_all(tf.less_equal(1e-7, tf.math.imag(eigs))), tf.reduce_all(tf.less_equal(1e-7, tf.reduce_min(mag))), tf.reduce_all(tf.greater_equal(0.9999999, tf.reduce_max(mag)))]))
+        
             ub, lb, k = tf.cond(case, lambda: real(ub, lb, k), lambda: nonreal(ub, lb, k))
             return[C, ub, lb, k, k0, eigs, case]
 
@@ -186,16 +209,11 @@ class Correlation:
             else:
                 k = (ub + lb) // 2
             '''
-
         # Ensure correct shape of input vectors
         var_1_temp = tf.reshape(var_1, [-1, 1])
         var_2_temp = tf.reshape(var_2, [-1, 1])
        
         #Copula Transformation
-        # NO ITERATING OVER TENSORS
-        #x = tf.divide(tf.constant([rankdata(xc, method='ordinal') for xc in tf.transpose(var_1)]), var_1.shape[0])
-        #y = tf.divide(tf.constant([rankdata(yc, method='ordinal') for yc in tf.transpose(var_2)]), var_2.shape[0])
-
         x = (1+tf.argsort(tf.argsort(tf.transpose(var_1)))) / tf.shape(var_1)[0]
         y = (1+tf.argsort(tf.argsort(tf.transpose(var_2)))) / tf.shape(var_2)[0]
 
@@ -208,28 +226,18 @@ class Correlation:
         Y = tf.concat([y, ones], 1)
 
         # Random linear projection
-        normX = tf.random.normal([X.shape[1], k], 0, s)
-        normY = tf.random.normal([Y.shape[1], k], 0, s)
+        normX = (s/tf.cast(tf.shape(X)[1],tf.float32))*tf.random.normal([X.shape[1], k])
+        normY = (s/tf.cast(tf.shape(Y)[1],tf.float32))*tf.random.normal([Y.shape[1], k])
 
         X = tf.matmul(tf.cast(X, tf.float32), normX)
         Y = tf.matmul(tf.cast(Y, tf.float32), normY)
         
         # Apply nonlinear function to random projection
-        fX = tf.map_fn(fn=f, elems=X)
-        fY = tf.map_fn(fn=f, elems=Y)
+        fX = tf.sin(X)
+        fY = tf.sin(Y)
 
         # Compute covariance matrix and eigen values
-        mean_x = tf.reduce_mean(fX, axis=0)
-        mean_y = tf.reduce_mean(fY, axis=0)
-
-        Cxx = tf.cast(1 / (tf.shape(fX)[0] - 1), tf.float32) * tf.matmul(tf.transpose(fX - mean_x), fX - mean_x)
-        Cyx = tf.cast(1 / (tf.shape(fX)[0] - 1), tf.float32) * tf.matmul(tf.transpose(fY - mean_y), fX - mean_x)
-        Cxy = tf.cast(1 / (tf.shape(fX)[0] - 1), tf.float32) * tf.matmul(tf.transpose(fX - mean_x), fY - mean_y)
-        Cyy = tf.cast(1 / (tf.shape(fX)[0] - 1), tf.float32) * tf.matmul(tf.transpose(fY - mean_y), fY - mean_y)
-       
-        Cx = tf.concat((Cxx, Cyx), axis=0)
-        Cy = tf.concat((Cxy, Cyy), axis=0)
-        C = tf.concat((Cx, Cy), axis=1)
+        C = cov(tf.transpose(tf.concat((fX, fY), axis=1)), tf.transpose(tf.concat((fX, fY), axis=1)))
 
         k = tf.constant(k)
         k0 = k
@@ -237,7 +245,7 @@ class Correlation:
         ub = k
         eigs = tf.reshape(tf.convert_to_tensor((), dtype=tf.complex64), shape=(-1,))
         case = tf.constant(False)
- 
+
         C, ub, lb, k, k0, eigs, case = tf.while_loop(while_case, while_body, [C, ub, lb, k, k0, eigs, case], [C.get_shape(), ub.get_shape(), lb.get_shape(), k.get_shape(), k0.get_shape(), tf.TensorShape([None,]), case.get_shape()])
 
         '''
@@ -276,8 +284,8 @@ class Correlation:
 
     http://papers.nips.cc/paper/5138-the-randomized-dependence-coefficient.pdf
     """
-    @staticmethod
-    def rdc_np(x, y, f=np.sin, k=20, s=1/6., n=1):
+    #@staticmethod
+    def rdc_np(self, x, y, f=np.sin, k=20, s=1/6., n=1):
         """
         Computes the Randomized Dependence Coefficient
         x,y: numpy arrays 1-D or 2-D
@@ -311,24 +319,26 @@ class Correlation:
         O = np.ones(cx.shape[0])
         X = np.column_stack([cx, O])
         Y = np.column_stack([cy, O])
-    
+   
         # Random linear projections
         Rx = (s/X.shape[1])*np.random.randn(X.shape[1], k)
         Ry = (s/Y.shape[1])*np.random.randn(Y.shape[1], k)
+
         X = np.dot(X, Rx)
         Y = np.dot(Y, Ry)
-    
+   
         # Apply non-linear function to random projections
-        fX = f(X)
-        fY = f(Y)
+        fX = f(X) 
+        fY = f(Y) 
+
         C = np.cov(np.hstack([fX, fY]).T)
+
+        C = self.C
 
         # Due to numerical issues, if k is too large,
         # then rank(fX) < k or rank(fY) < k, so we need
         # to find the largest k such that the eigenvalues
         # (canonical correlations) are real-valued
-        k = 20
-
         k0 = k
         lb = 1
         ub = k
@@ -342,6 +352,13 @@ class Correlation:
 
             eigs = np.linalg.eigvals(np.dot(np.dot(np.linalg.pinv(Cxx), Cxy),
                                             np.dot(np.linalg.pinv(Cyy), Cyx)))
+
+            eigs1 = tf.linalg.eig(
+                tf.matmul(
+                    tf.matmul(tf.linalg.pinv(Cxx), tf.transpose(Cxy)), 
+                    tf.transpose(tf.matmul(tf.linalg.pinv(Cyy), tf.transpose(Cyx)))
+                ))[0]
+
 
             # Binary search if k is too large
             if not (np.all(np.isreal(eigs)) and
@@ -361,13 +378,20 @@ class Correlation:
 
 def compare_rdc():
     c = Correlation()
+    
+    a = tf.random.uniform(shape=(10000,), minval=0.0, maxval=1.0)
+    b = tf.random.uniform(shape=(10000,), minval=0.0, maxval=1.0)
 
-    a = tf.constant([1.0, 2.0, 3.0, 4.0], dtype=tf.float64)
-    b = tf.constant([4.0, 3.0, 2.0, 1.0], dtype=tf.float64)
-
-    print("RDC TF: ", c.rdc(a, b).numpy())
-    print("RDC NP: ", c.rdc_np(a.numpy(), b.numpy()))
-
+    start = time.time()
+    for i in range(10):
+        print("RDC TF: ", c.rdc(a, b, k=20).numpy())
+    end = time.time()
+    print("Calculation Time: {}".format(end - start))
+    start = time.time()
+    for i in range(10):
+        print("RDC NP: ", c.rdc_np(a.numpy(), b.numpy(), k=20))
+    end = time.time()
+    print("Calculation Time: {}".format(end - start))
 
 if __name__ == "__main__":
     compare_rdc()
