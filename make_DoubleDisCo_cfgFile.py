@@ -105,9 +105,9 @@ class ReleaseMaker():
         # assuming (0.6, 0.6) edges for ABCD.
         # These values would necessarily be updated after running the validation framework and optimizing the edges and boundaries
         # for a given NN configuration
-        globalCount = 0
         for region in regions:
 
+            globalCount = 0
             iReg = regions.index(region)
             for njet in range(minNjet,maxNjet+1):
 
