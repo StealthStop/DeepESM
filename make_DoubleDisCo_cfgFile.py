@@ -38,13 +38,14 @@ class ReleaseMaker():
         trainVars  = cfg["trainVars"]
         mask       = cfg["Mask"]
         mask_njet  = cfg["Mask_nJet"]
+        scaleJetPt = cfg["scaleJetPt"]
 
         # When making a cfg for the NonIsoMuon we should use as tag
-        qcdCRtag = ""
+        qcdCRtag    = ""
         prependTag  = ""
         postpendTag = ""
         if doQCDCR:
-            qcdCRtag = "NonIsoMuon"
+            qcdCRtag    = "NonIsoMuon"
             prependTag  = "_NonIsoMuon"
             postpendTag = "NonIsoMuon_"
 
@@ -162,6 +163,9 @@ class ReleaseMaker():
                          .replace("jmt",         "%ss_jmt"%(qcdCRtag)) \
                          .replace("Seed",        "Seed_%s"%(qcdCRtag)) \
                          .replace("trigger",     "%s"%(qcdCRtag))
+
+                if scaleJetPt and ("Jet" in var or "Stop" in var):
+                    var = var.replace("pt", "ptrHT")
 
             if "Stop" not in var:
                 var += "_%s"%(self.channel)
