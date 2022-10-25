@@ -38,13 +38,14 @@ class ReleaseMaker():
         trainVars  = cfg["trainVars"]
         mask       = cfg["Mask"]
         mask_njet  = cfg["Mask_nJet"]
+        scaleJetPt = cfg["scaleJetPt"]
 
         # When making a cfg for the NonIsoMuon we should use as tag
-        qcdCRtag = ""
+        qcdCRtag    = ""
         prependTag  = ""
         postpendTag = ""
         if doQCDCR:
-            qcdCRtag = "NonIsoMuon"
+            qcdCRtag    = "NonIsoMuon"
             prependTag  = "_NonIsoMuon"
             postpendTag = "NonIsoMuon_"
 
@@ -105,15 +106,16 @@ class ReleaseMaker():
         # assuming (0.6, 0.6) edges for ABCD.
         # These values would necessarily be updated after running the validation framework and optimizing the edges and boundaries
         # for a given NN configuration
-        globalCount = 0
+        wroteExample = False
         for region in regions:
 
+            globalCount = 0
             iReg = regions.index(region)
             for njet in range(minNjet,maxNjet+1):
 
                 if (mask == True and njet in mask_njet): continue
 
-                if globalCount == 0:
+                if globalCount == 0 and not wroteExample:
                     f.write("    # An example of region definitions\n")
                     f.write("    # binEdges_aRegion[i]   = disc1edge\n")
                     f.write("    # binEdges_aRegion[i+1] = disc2edge\n")
@@ -121,6 +123,8 @@ class ReleaseMaker():
                     f.write("    # binEdges_aRegion[i+3] = rightBoundary\n")
                     f.write("    # binEdges_aRegion[i+4] = topBoundary\n")
                     f.write("    # binEdges_aRegion[i+5] = bottomBoundary\n\n")
+
+                    wroteExample = True
 
                 f.write("    # region = %s, Njets = %d\n"%(region, njet))
                 f.write("    binEdges_%s[%d] = %.2f\n"%(region, globalCount, disc1Edges[iReg]))
@@ -159,6 +163,9 @@ class ReleaseMaker():
                          .replace("jmt",         "%ss_jmt"%(qcdCRtag)) \
                          .replace("Seed",        "Seed_%s"%(qcdCRtag)) \
                          .replace("trigger",     "%s"%(qcdCRtag))
+
+                if scaleJetPt and ("Jet" in var or "Stop" in var):
+                    var = var.replace("pt", "ptrHT")
 
             if "Stop" not in var:
                 var += "_%s"%(self.channel)
