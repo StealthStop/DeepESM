@@ -7,7 +7,7 @@ def main_model(config, scales, means, regShape, discoShape, inputShape, output_b
     #                         other_beta_1=0.9, other_beta_2=0.999, epsilon=1e-8, amsgrad=True)
 
     if output_bias is not None:
-        output_bias = None #K.initializers.Constant(output_bias)
+        output_bias = K.initializers.Constant(output_bias)
 
     n_hidden_layers_in = list(config["input_nodes"] for x in range(config["input_layers"]))
     n_hidden_layers = list(config["disc_nodes"] for x in range(config["disc_layers"]))
@@ -15,8 +15,8 @@ def main_model(config, scales, means, regShape, discoShape, inputShape, output_b
 
     main_input = K.layers.Input(shape=(inputShape,), name='main_input')
     # Set the rescale inputs to have unit variance centered at 0 between -1 and 1
-    norm_layer = K.layers.Lambda(lambda x: (x - K.backend.constant(means)) * K.backend.constant(scales), name='normalizeData')(main_input)
-    #norm_layer = K.layers.BatchNormalization(name="normData")(main_input)
+    #norm_layer = K.layers.Lambda(lambda x: (x - K.backend.constant(means)) * K.backend.constant(scales), name='normalizeData')(main_input)
+    norm_layer = K.layers.BatchNormalization(name="normData")(main_input)
     iD = 0
     layer = norm_layer
     #for n in n_hidden_layers_in:
@@ -42,11 +42,9 @@ def main_model(config, scales, means, regShape, discoShape, inputShape, output_b
     '''
     iPre = 0
     for n in n_hidden_layers_in:
-        layer = K.layers.Dense(n, activation='relu',name="pre_disc_%d"%(iPre))(layer)
+        layer = K.layers.Dense(n, activation='relu', name="pre_disc_%d"%(iPre))(layer)
         iPre += 1
         layer = K.layers.BatchNormalization(name="pre_disc_%d"%(iPre))(layer)        
-        iPre += 1
-        layer = K.layers.Dropout(config["dropout"],seed=config["seed"], name="dropout_%d"%(iPre))(layer)
         iPre += 1
     layerPre = layer
 
@@ -55,9 +53,7 @@ def main_model(config, scales, means, regShape, discoShape, inputShape, output_b
         iD += 1
         layer = K.layers.Dense(n, activation='relu', name="disc_%d"%(iD))(layer)
         iPre += 1
-        layer = K.layers.BatchNormalization(name="pre_disc_%d"%(iPre))(layer)        
-        iPre += 1
-        layer = K.layers.Dropout(config["dropout"],seed=config["seed"], name="dropout_%d"%(iPre))(layer)
+        layer = K.layers.Dropout(config["dropout"],seed=None, name="dropout_%d"%(iPre))(layer)
 
     iD += 1
     first_output = K.layers.Dense(discoShape, activation='sigmoid', name='disc_%d'%(iD), bias_initializer=output_bias)(layer)
@@ -67,9 +63,7 @@ def main_model(config, scales, means, regShape, discoShape, inputShape, output_b
         iD += 1
         layer = K.layers.Dense(n, activation='relu', name="disc_%d"%(iD))(layer)
         iPre += 1
-        layer = K.layers.BatchNormalization(name="pre_disc_%d"%(iPre))(layer)        
-        iPre += 1
-        layer = K.layers.Dropout(config["dropout"],seed=config["seed"], name="dropout_%d"%(iPre))(layer)
+        layer = K.layers.Dropout(config["dropout"],seed=None, name="dropout_%d"%(iPre))(layer)
 
     iD += 1
     second_output = K.layers.Dense(discoShape, activation='sigmoid', name='disc_%d'%(iD), bias_initializer=output_bias)(layer)

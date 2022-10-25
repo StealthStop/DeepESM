@@ -271,8 +271,8 @@ class DataLoader(K.utils.Sequence):
         for i,Var in enumerate(self.config["trainVars"]):
             var = [x[Var] for x in dsets]
             varVals = np.concatenate(var).ravel()
-            self.means[i]  = np.mean(varVals)
-            self.scales[i] = 1.0 / np.std(varVals)
+            self.means[i]  = np.mean(varVals, dtype=np.float64)
+            self.scales[i] = 1/np.std(varVals, dtype=np.float64)
 
         # Start with a loop over the data sets that are mixed up
         for iMix in mixer:

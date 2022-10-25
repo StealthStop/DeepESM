@@ -113,7 +113,7 @@ class Train:
 
         channel = "ToSemiLep"
         if "0l" in tree:
-            channel = "ToHadronic"
+            channel = "ToHad"
 
         ################### Samples to train on #####################
         extra = "_[TV]"
@@ -273,7 +273,7 @@ class Train:
 
             normedweight_bg = tf.boolean_mask(normedweight, mask_sg)
 
-            #dcorr = cor.rdc(val_1_bg, val_2_bg)
+            #rdc = cor.rdc(val_1_bg, val_2_bg)
             #dcorr = cor.distance_corr(val_1, val_2, normedweight, 1)
             dcorr = cor.distance_corr(val_1_bg, val_2_bg, normedweight_bg, 1)
 
@@ -328,10 +328,10 @@ class Train:
             nbC = tf.reduce_sum(tf.sigmoid(1e2*(temp1 - d1))*tf.sigmoid(1e2*(d2 - temp2)))
             nbD = tf.reduce_sum(tf.sigmoid(1e2*(d1 - temp1))*tf.sigmoid(1e2*(d2 - temp2)))
            
-            nbA = nbA + 1
-            nbB = nbB + 1
-            nbC = nbC + 1
-            nbD = nbD + 1
+            nbA = nbA + 0.01
+            nbB = nbB + 0.01
+            nbC = nbC + 0.01
+            nbD = nbD + 0.01
 
             ''' 
             min_N = 1 #tf.reduce_mean(nbTot) * 0.001
@@ -376,9 +376,9 @@ class Train:
 
             fracs = ((nbA * nbD - nbB * nbC)/(nbA * nbD + nbB * nbC))**2
 
-            #frac = tf.reduce_sum(fracs)
+            frac = tf.reduce_sum(fracs)
             #frac = K.losses.mean_squared_error(tf.zeros_like(fracs), fracs)
-            frac = tf.reduce_mean(fracs)
+            #frac = tf.reduce_mean(fracs)
 
             return c * tf.cast(case, "float32") * (frac)
         return closureLoss 
@@ -402,11 +402,9 @@ class Train:
 
             cce = K.losses.BinaryCrossentropy()
 
-            #sample_weight = val_1_disco_true * (self.config['sigWeight'] - 1) + 1
-
             # Calculate loss function
-            val_1_disco_loss = cce(val_1_disco_true, val_1_disco_pred)#, sample_weight = sample_weight)
-            val_2_disco_loss = cce(val_2_disco_true, val_2_disco_pred)#, sample_weight = sample_weight)
+            val_1_disco_loss = cce(val_1_disco_true, val_1_disco_pred)
+            val_2_disco_loss = cce(val_2_disco_true, val_2_disco_pred)
 
             return c * tf.cast(case, "float32") * (val_1_disco_loss + val_2_disco_loss)
         return loss_model_disc
@@ -422,7 +420,7 @@ class Train:
         g = tf.random.Generator.from_seed(self.config["seed"]) 
         current_epoch = K.backend.variable(1.)
 
-        opt = K.optimizers.Nadam(learning_rate=0.00001)
+        opt = K.optimizers.Adam(learning_rate=self.config["lr"])
 
         self.cb = CustomCallback(current_epoch)
         model.compile(loss=[self.loss_disc(c=self.config["disc_lambda"], current_epoch=self.cb.current_epoch, start_epoch=self.config["disc_start"]), self.loss_disco(c=self.config["bkg_disco_lambda"], current_epoch=self.cb.current_epoch, start_epoch=self.config["disco_start"]), self.loss_closure(c=self.config["abcd_close_lambda"], g=g, nBinEdge=1, current_epoch=self.cb.current_epoch, start_epoch=self.config["abcd_start"])], optimizer=opt, metrics=[K.metrics.Precision(), K.metrics.Recall()])
@@ -523,7 +521,7 @@ class Train:
         fwmVec          = ["fwm2_top6",    "fwm3_top6",    "fwm4_top6",   "fwm5_top6"]
         jmtVec          = ["jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
         j4Vec           = ["Jet_pt_", "Jet_eta_", "Jet_phi_"]#,"Jet_m_"]
-        jFlavVec        = ["Jet_flavb_", "Jet_flavc_", "Jet_flavuds_", "Jet_flavq_", "Jet_flavg_"]
+        jFlavVec        = ["Jet_flavb_", "Jet_flavuds_", "Jet_flavq_", "Jet_flavg_", "Jet_flavc_"]
         jCSVVec        	= ["Jet_CSVb_"]
         jCombVec        = ["combined7thToLastJet_pt_cm", "combined7thToLastJet_eta_cm", "combined7thToLastJet_m_cm", "combined7thToLastJet_phi_cm"]
         jqgDiscVec      = ["Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_"]
@@ -547,7 +545,7 @@ class Train:
         nJets = int(self.config["nJets"]); theVars = None
 
         #theVars = j4Vec + jCSVVec + jCombVec + lVec + lvMETVec
-        theVars = j4Vec + jFlavVec + jCombVec
+        theVars = j4Vec + jCombVec + jFlavVec 
 
         if not self.config["scaleJetPt"]:
             theVars += htVec
@@ -624,7 +622,8 @@ class Train:
                 needeval = True
                 break
 
-        if needeval: self.evalLoader = None #DataLoader(self.config, sgEvalSet, bgEvalSet)
+        tf.print(bgEvalSet)
+        if needeval: self.evalLoader = DataLoader(self.config, sgEvalSet, bgEvalSet)
 
         cfg_string = json.dumps(self.config)
        

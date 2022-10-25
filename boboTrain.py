@@ -67,9 +67,7 @@ if __name__ == '__main__':
     parser.add_argument("--abcdStart",    dest="abcdStart",    help="list of starting epochs for abcd",              default=[10],     nargs="+")
     parser.add_argument("--reg",          dest="reg",          help="list of reg lambda values",                     default=[0.001],    nargs="+")
     parser.add_argument("--nodes",        dest="nodes",        help="list of nodes values",                          default=[200],      nargs="+")
-    parser.add_argument("--reglr",        dest="reglr",        help="regression lr",                                 default=[0.0001],   nargs="+")
-    parser.add_argument("--disclr",       dest="disclr",       help="disc lr",                                       default=[0.001],    nargs="+")
-    parser.add_argument("--otherlr",       dest="otherlr",     help="disc lr",                                       default=[0.001],    nargs="+")
+    parser.add_argument("--lrs",          dest="lrs",          help="learning rate",                                 default=[0.0001],   nargs="+")
     parser.add_argument("--factors",      dest="factors",      help="list of factors to multiply",                   default=[1.0],      nargs="+")
     parser.add_argument("--epochs",       dest="epochs",       help="how many epochs",                               default=[20],       nargs="+")
     parser.add_argument("--trainYear",    dest="trainYear",    help="which year(s) to train on",                     default="2016preVFP", type=str)
@@ -115,10 +113,11 @@ if __name__ == '__main__':
                                         for tBkgd in args.trainBkgd:
                                             for vBkgd in args.evalBkgd:
                                                 for epoch in args.epochs:
+                                                    for lr in args.lrs:
 
                                                         #if float(bcorr) == 0.0 and float(abcd) == 0.0: continue
 
-                                                        config = {"case" : 0, "atag" : "%s_v%s"%(args.tag,vBkgd), "abcd_close_lambda" : float(factor)*float(abcd), "disc_lambda": float(factor)*float(disc), "mass_reg_lambda": float(reg), "bkg_disco_lambda": float(factor)*float(bcorr), "input_nodes": int(nodes), "disc_nodes": int(nodes), "mass_reg_nodes":0, "input_layers": 2, "disc_layers":2, "mass_reg_layers":0, "dropout":0.1, "batch":1000, "epochs": int(epoch), "disco_start": int(bcorrStart), "abcd_start": int(abcdStart), "disc_start": int(discStart)}
+                                                        config = {"case" : 0, "atag" : "%s_v%s"%(args.tag,vBkgd), "abcd_close_lambda" : float(factor)*float(abcd), "disc_lambda": float(factor)*float(disc), "mass_reg_lambda": float(reg), "bkg_disco_lambda": float(factor)*float(bcorr), "input_nodes": int(nodes), "disc_nodes": int(nodes), "mass_reg_nodes":0, "input_layers": 1, "disc_layers":1, "mass_reg_layers":0, "dropout":0.3, "batch":2500, "epochs": int(epoch), "disco_start": int(bcorrStart), "abcd_start": int(abcdStart), "disc_start": int(discStart), "lr": float(lr)}
 
                                                         #Training all at once
                                                         generate_json(taskPath, config, jobid)
