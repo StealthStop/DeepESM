@@ -59,17 +59,18 @@ if __name__ == '__main__':
     parser.add_argument("--trainMass",    dest="trainMass",    help="lower and upper mass range bounds",             default=[300,1400], nargs="+")
     parser.add_argument("--evalMass",     dest="evalMass",     help="which mass point to validate on",               default=550,        type=int)
     parser.add_argument("--tag",          dest="tag",          help="tag to use in output",                          default="TEST",     type=str)
-    parser.add_argument("--bcorr",        dest="bcorr",        help="list of bcorr lambda values",                   default=[1000],     nargs="+")
-    parser.add_argument("--bcorrStart",   dest="bcorrStart",   help="list of starting epochs for disco",             default=[5],     nargs="+")
-    parser.add_argument("--disc",         dest="disc",         help="list of disc lambda values",                    default=[10.0],     nargs="+")
+    parser.add_argument("--bcorr",        dest="bcorr",        help="list of bcorr lambda values",                   default=[10.0],     nargs="+")
+    parser.add_argument("--bcorrStart",   dest="bcorrStart",   help="list of starting epochs for disco",             default=[0],     nargs="+")
+    parser.add_argument("--disc",         dest="disc",         help="list of disc lambda values",                    default=[2.0],     nargs="+")
     parser.add_argument("--discStart",    dest="discStart",    help="list of starting epochs for disc",             default=[0],     nargs="+")
-    parser.add_argument("--abcd",         dest="abcd",         help="list of abcd lambda values",                    default=[10.0],     nargs="+")
-    parser.add_argument("--abcdStart",    dest="abcdStart",    help="list of starting epochs for abcd",              default=[10],     nargs="+")
+    parser.add_argument("--abcd",         dest="abcd",         help="list of abcd lambda values",                    default=[5.0],     nargs="+")
+    parser.add_argument("--abcdStart",    dest="abcdStart",    help="list of starting epochs for abcd",              default=[0],     nargs="+")
     parser.add_argument("--reg",          dest="reg",          help="list of reg lambda values",                     default=[0.001],    nargs="+")
     parser.add_argument("--nodes",        dest="nodes",        help="list of nodes values",                          default=[200],      nargs="+")
     parser.add_argument("--lrs",          dest="lrs",          help="learning rate",                                 default=[0.0001],   nargs="+")
+    parser.add_argument("--batch",        dest="batch",        help="batch size",                                    default=[2048],   nargs="+")
     parser.add_argument("--factors",      dest="factors",      help="list of factors to multiply",                   default=[1.0],      nargs="+")
-    parser.add_argument("--epochs",       dest="epochs",       help="how many epochs",                               default=[20],       nargs="+")
+    parser.add_argument("--epochs",       dest="epochs",       help="how many epochs",                               default=[50],       nargs="+")
     parser.add_argument("--trainYear",    dest="trainYear",    help="which year(s) to train on",                     default="2016preVFP", type=str)
     parser.add_argument("--evalYear",     dest="evalYear",     help="which year to eval on",                         default="2016preVFP", type=str)
     parser.add_argument("--seed",         dest="seed",         help="which seed to init with",                       default="-1",     type=str)
@@ -114,15 +115,16 @@ if __name__ == '__main__':
                                             for vBkgd in args.evalBkgd:
                                                 for epoch in args.epochs:
                                                     for lr in args.lrs:
+                                                        for batch in args.batch:
 
-                                                        #if float(bcorr) == 0.0 and float(abcd) == 0.0: continue
+                                                            #if float(bcorr) == 0.0 and float(abcd) == 0.0: continue
 
-                                                        config = {"case" : 0, "atag" : "%s_v%s"%(args.tag,vBkgd), "abcd_close_lambda" : float(factor)*float(abcd), "disc_lambda": float(factor)*float(disc), "mass_reg_lambda": float(reg), "bkg_disco_lambda": float(factor)*float(bcorr), "input_nodes": int(nodes), "disc_nodes": int(nodes), "mass_reg_nodes":0, "input_layers": 1, "disc_layers":1, "mass_reg_layers":0, "dropout":0.3, "batch":2500, "epochs": int(epoch), "disco_start": int(bcorrStart), "abcd_start": int(abcdStart), "disc_start": int(discStart), "lr": float(lr)}
+                                                            config = {"case" : 0, "atag" : "%s_v%s"%(args.tag,vBkgd), "abcd_close_lambda" : float(factor)*float(abcd), "disc_lambda": float(factor)*float(disc), "mass_reg_lambda": float(reg), "bkg_disco_lambda": float(factor)*float(bcorr), "input_nodes": int(nodes), "disc_nodes": int(nodes), "mass_reg_nodes":0, "input_layers": 1, "disc_layers":1, "mass_reg_layers":0, "dropout":0.3, "batch": int(batch), "epochs": int(epoch), "disco_start": int(bcorrStart), "abcd_start": int(abcdStart), "disc_start": int(discStart), "lr": float(lr)}
 
-                                                        #Training all at once
-                                                        generate_json(taskPath, config, jobid)
+                                                            #Training all at once
+                                                            generate_json(taskPath, config, jobid)
 
-                                                        jobid += 1
+                                                            jobid += 1
 
     # We incremented one too far
     jobid -= 1
