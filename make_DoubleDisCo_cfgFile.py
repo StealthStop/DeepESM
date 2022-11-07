@@ -167,9 +167,6 @@ class ReleaseMaker():
                 if scaleJetPt and ("Jet" in var or "Stop" in var):
                     var = var.replace("pt", "ptrHT")
 
-            if "Stop" not in var:
-                var += "_%s"%(self.channel)
-
             f.write("    inputVar[%d] = \"%s\" \n" %(iVar, var))
             iVar += 1
 
