@@ -83,11 +83,11 @@ def write_slide_big(f, o, flist):
     for p in flist:
         plots += glob(os.path.join(o,p))
 
-    if plots != [] and len(plots) > 19:
+    if plots != [] and len(plots) > 15:
         f.write('''
 \\begin{frame}
 \\begin{columns}
-\\column{0.20\\textwidth}
+\\column{0.25\\textwidth}
     \\begin{figure}
     \\includegraphics[width = 0.8\\textwidth]{%s}
     \\vspace{0.1em}
@@ -97,7 +97,7 @@ def write_slide_big(f, o, flist):
     \\vspace{0.1em}
     \\includegraphics[width = 0.8\\textwidth]{%s}
     \\end{figure}
-\\column{0.20\\textwidth}
+\\column{0.25\\textwidth}
     \\begin{figure}
     \\includegraphics[width = 0.8\\textwidth]{%s}
     \\vspace{0.1em}
@@ -107,7 +107,7 @@ def write_slide_big(f, o, flist):
     \\vspace{0.1em}
     \\includegraphics[width = 0.8\\textwidth]{%s}
     \\end{figure}
-\\column{0.20\\textwidth}
+\\column{0.25\\textwidth}
     \\begin{figure}
     \\includegraphics[width = 0.8\\textwidth]{%s}
     \\vspace{0.1em}
@@ -117,17 +117,7 @@ def write_slide_big(f, o, flist):
     \\vspace{0.1em}
     \\includegraphics[width = 0.8\\textwidth]{%s}
     \\end{figure}
-\\column{0.20\\textwidth}
-    \\begin{figure}
-    \\includegraphics[width = 0.8\\textwidth]{%s}
-    \\vspace{0.1em}
-    \\includegraphics[width = 0.8\\textwidth]{%s}
-    \\vspace{0.1em}
-    \\includegraphics[width = 0.8\\textwidth]{%s}
-    \\vspace{0.1em}
-    \\includegraphics[width = 0.8\\textwidth]{%s}
-    \\end{figure}
-\\column{0.20\\textwidth}
+\\column{0.25\\textwidth}
     \\begin{figure}
     \\includegraphics[width = 0.8\\textwidth]{%s}
     \\vspace{0.1em}
@@ -139,7 +129,7 @@ def write_slide_big(f, o, flist):
     \\end{figure}
 \\end{columns}
 \\end{frame}
-''' % (plots[0], plots[1], plots[2], plots[3], plots[4], plots[5], plots[6], plots[7], plots[8], plots[9], plots[10], plots[11], plots[12], plots[13], plots[14], plots[15], plots[16], plots[17], plots[18], plots[19]))
+''' % (plots[0], plots[1], plots[2], plots[3], plots[4], plots[5], plots[6], plots[7], plots[8], plots[9], plots[10], plots[11], plots[12], plots[13], plots[14], plots[15]))
 
 if __name__ == "__main__":
     #Collect all training output dirs

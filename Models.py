@@ -26,20 +26,20 @@ def main_model(config, scales, means, regShape, discoShape, inputShape, output_b
 
     #iD += 1
     #layer = K.layers.BatchNormalization(name="disc_%d"%(iD))(main_input)        
-    '''
     layer = norm_layer
     iM = 0
     for n in n_hidden_layers_M:
         layer = K.layers.Dense(n, activation='relu', name="mass_reg_%d"%(iM))(layer)
         iM += 1
-    layer = K.layers.Dropout(config["dropout"],seed=config["seed"])(layer)
+        layer = K.layers.Dropout(config["dropout"], name="mass_reg_%d"%(iM), seed=config["seed"])(layer)
+        iM += 1
+        layer = K.layers.BatchNormalization(name="mass_reg_%d"%(iM))(layer)        
+        iM += 1
     mass_reg = K.layers.Dense(regShape, activation=None, name='mass_reg')(layer)
-    
-
+ 
     layerSplit = K.layers.concatenate([norm_layer, mass_reg], name='concat_mass_layer')
-           
+
     layer = layerSplit
-    '''
     iPre = 0
     for n in n_hidden_layers_in:
         layer = K.layers.Dense(n, activation='relu', name="pre_disc_%d"%(iPre))(layer)
@@ -47,7 +47,7 @@ def main_model(config, scales, means, regShape, discoShape, inputShape, output_b
         layer = K.layers.BatchNormalization(name="pre_disc_%d"%(iPre))(layer)        
         iPre += 1
     layerPre = layer
-
+           
     layer = layerPre
     for n in n_hidden_layers:
         iD += 1
@@ -72,5 +72,5 @@ def main_model(config, scales, means, regShape, discoShape, inputShape, output_b
     disco = K.layers.concatenate([first_output, second_output], name='disco')
     closure = K.layers.concatenate([first_output, second_output], name='closure')
 
-    model = K.models.Model(inputs=main_input, outputs=[disc, disco, closure], name='model')
+    model = K.models.Model(inputs=main_input, outputs=[disc, disco, closure, mass_reg], name='model')
     return model#, theOptimizer

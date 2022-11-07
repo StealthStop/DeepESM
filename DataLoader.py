@@ -204,7 +204,7 @@ class DataLoader(K.utils.Sequence):
 
         batchInputs  = self.df["inputs"][self.batchIndexContainer]
         batchMass    = self.df[self.config['massLabel']][self.batchIndexContainer]
-        #batchMassReg = self.df[self.config["regressionLabel"]][self.batchIndexContainer]
+        batchMassReg = self.df[self.config["regressionLabel"]][self.batchIndexContainer]/1000
 
         model      = self.df[self.config["modelLabel"]][self.batchIndexContainer]
         mass       = self.df[self.config["massLabel"]][self.batchIndexContainer]
@@ -217,7 +217,7 @@ class DataLoader(K.utils.Sequence):
         batchDisCo = np.vstack((labelSig, labelSig)).T
     
         #return batchInputs, tuple((batchDisCo, batchDisCo, batchMassReg))
-        return batchInputs, tuple((batchDisCo, batchDisCo, batchDisCo))
+        return batchInputs, tuple((batchDisCo, batchDisCo, batchDisCo, batchMassReg))
 
     # Required function that tells tensorflow how many batches per epoch
     def __len__(self):

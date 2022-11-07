@@ -26,7 +26,7 @@ from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_prec
 import tracemalloc
 
 import datetime
-plt.rcParams['pdf.fonttype'] = 42
+#plt.rcParams['png.fonttype'] = 42
 
 def timeStamp():
     return datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
@@ -102,7 +102,7 @@ class Validation:
                 continue
 
         ax.legend(loc=1, frameon=False)
-        fig.savefig(self.config["outputDir"]+"/%s.pdf"%(name), dpi=fig.dpi)        
+        fig.savefig(self.config["outputDir"]+"/%s.png"%(name), dpi=fig.dpi)        
         plt.close(fig)
 
     # Member function to plot the discriminant variable while making a selection on another discriminant
@@ -144,8 +144,8 @@ class Validation:
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(handles[-2:], labels[-2:], loc=2, frameon=False)
  
-        if Njets == -1: fig.savefig(self.config["outputDir"]+"/Disc%s_BvsS_m%s.pdf"%(tag1,mass))
-        else:           fig.savefig(self.config["outputDir"]+"/Disc%s_BvsS_m%s_Njets%d.pdf"%(tag1,mass,Njets))
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/Disc%s_BvsS_m%s.png"%(tag1,mass))
+        else:           fig.savefig(self.config["outputDir"]+"/Disc%s_BvsS_m%s_Njets%d.png"%(tag1,mass,Njets))
 
         plt.close(fig)
 
@@ -185,8 +185,8 @@ class Validation:
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(handles[-2:], labels[-2:], loc=2, frameon=False)
 
-        if Njets == -1: fig.savefig(self.config["outputDir"]+"/%s%s_Disc%s_Compare_Shapes.pdf"%(tag3, mass, tag1))
-        else:           fig.savefig(self.config["outputDir"]+"/%s%s_Njets%d_Disc%s_Compare_Shapes.pdf"%(tag3, mass, Njets, tag1))
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/%s%s_Disc%s_Compare_Shapes.png"%(tag3, mass, tag1))
+        else:           fig.savefig(self.config["outputDir"]+"/%s%s_Njets%d_Disc%s_Compare_Shapes.png"%(tag3, mass, Njets, tag1))
 
         plt.close(fig)
 
@@ -201,7 +201,7 @@ class Validation:
         plt.ylabel('loss')
         plt.xlabel('epoch')
         plt.legend(['train', 'test'], loc='best')
-        fig.savefig(self.config["outputDir"]+"/%s.pdf"%(name), dpi=fig.dpi)
+        fig.savefig(self.config["outputDir"]+"/%s.png"%(name), dpi=fig.dpi)
         plt.close(fig)
 
     def plotAccVsEpochAll(self, h, n, val, title, name):
@@ -218,7 +218,7 @@ class Validation:
 
         plt.yscale("log")
         plt.legend(l, loc='best')
-        fig.savefig(self.config["outputDir"]+"/%s.pdf"%(name), dpi=fig.dpi)
+        fig.savefig(self.config["outputDir"]+"/%s.png"%(name), dpi=fig.dpi)
         plt.close(fig)
 
     def plotDiscPerNjet(self, tag, samples, sigMask, nBins=100):
@@ -240,7 +240,7 @@ class Validation:
                     if yt.size != 0 and wt.size != 0:
                         plt.hist(yt, bins, alpha=0.9, histtype='step', lw=2, label=sample+" Train "+key, density=True, log=self.doLog, weights=wt)
             plt.legend(loc='best')
-            fig.savefig(self.config["outputDir"]+"/nJet_"+sample+tag+".pdf", dpi=fig.dpi)
+            fig.savefig(self.config["outputDir"]+"/nJet_"+sample+tag+".png", dpi=fig.dpi)
             plt.close(fig)
 
     def plotROC(self, dataMaskEval=None, dataMaskVal=None, tag="", y_eval=None, y_val=None, evalData=None, valData=None, xEval=None, xVal=None, yEval=None, yVal=None, evalLab=None, valLab=None, doMass=False, minMass=300, maxMass=1400):
@@ -359,7 +359,7 @@ class Validation:
 
         newtag = tag.replace(" ", "_")
         plt.legend(loc='best')
-        fig.savefig(self.config["outputDir"]+"/roc_plot"+newtag+".pdf", dpi=fig.dpi)
+        fig.savefig(self.config["outputDir"]+"/roc_plot"+newtag+".png", dpi=fig.dpi)
         plt.close(fig)
 
     # Plot disc1 vs disc2 for both background and signal
@@ -374,11 +374,11 @@ class Validation:
         ax1.set_xlabel("Disc. 1")
         ax1.set_ylabel("Disc. 2")
         plt.legend(loc='best');
-        if Njets == -1: fig.savefig(self.config["outputDir"]+"/2D_SigVsBkgd_Disc1VsDisc2_m%s.pdf"%(mass), dpi=fig.dpi)        
-        else:           fig.savefig(self.config["outputDir"]+"/2D_SigVsBkgd_Disc1VsDisc2_m%s_Njets%d.pdf"%(mass,Njets), dpi=fig.dpi)  
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/2D_SigVsBkgd_Disc1VsDisc2_m%s.png"%(mass), dpi=fig.dpi)        
+        else:           fig.savefig(self.config["outputDir"]+"/2D_SigVsBkgd_Disc1VsDisc2_m%s_Njets%d.png"%(mass,Njets), dpi=fig.dpi)  
         plt.close(fig)
 
-    def plotPandR(self, pval, rval, ptrain, rtrain, valLab, trainLab):
+    def plotPandR(self, pval, rval, ptrain, rtrain, valLab, trainLab, name):
         fig = plt.figure()
         hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
         plt.ylim(0,1)
@@ -389,7 +389,46 @@ class Validation:
         plt.ylabel('Precision')
         plt.title('Precision and Recall curve', pad=45.0)
         plt.legend(loc='best')
-        fig.savefig(self.config["outputDir"]+"/PandR_plot.pdf", dpi=fig.dpi)        
+        fig.savefig(self.config["outputDir"]+"/PandR_plot_{}.png".format(name), dpi=fig.dpi)        
+        plt.close(fig)
+
+    def plotPandR2D(self, labels, d1_val, d2_val, sample_weight=None, name=None):
+
+        bins = []
+        ncuts = 5
+        cut = 1./float(ncuts)   
+
+        for i in range(0,ncuts):
+            cond = d1_val > cut * i
+            cond &= d2_val > cut * i
+            try:
+                precision_val,  recall_val, thresholds = precision_recall_curve(labels[cond],   d2_val[cond],   sample_weight=sample_weight[cond])
+                ap_val  = average_precision_score(labels[cond], d2_val[cond],  sample_weight=sample_weight[cond])
+            except Exception as e:
+                
+                print(e)
+                print("Probably not enough events in the last bin, possibly try rebinning for P and R 2D plot")            
+                continue
+
+            bins.append({})
+
+            bins[i]["cut"] = cut * i
+            bins[i]["pval"] = precision_val
+            bins[i]["rval"] = recall_val
+            bins[i]["apVal"] = ap_val
+
+        fig = plt.figure()
+        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
+        plt.ylim(0,1)
+        plt.xlim(0,1)
+        for x in bins:
+            plt.plot(x["pval"], x["rval"], label='Val d1,d2 > {:.2f} (AP = {:.3f})'.format(x["cut"], x["apVal"]))
+            #plt.plot(ptrain, rtrain, color='xkcd:red', label='Train (AP = {:.3f})'.format(trainLab))
+        plt.xlabel('Recall')
+        plt.ylabel('Precision')
+        plt.title('Precision and Recall curve', pad=45.0)
+        plt.legend(loc='best')
+        fig.savefig(self.config["outputDir"]+"/PandR2D_plot_{}.png".format(name), dpi=fig.dpi)        
         plt.close(fig)
 
     def cutAndCount(self, c1s, c2s, b1, b2, bw, s1, s2, sw):
@@ -652,8 +691,8 @@ class Validation:
         hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
 
         fig.tight_layout()
-        if Njets == -1: fig.savefig(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2.pdf"%(tag,mass), dpi=fig.dpi)
-        else:           fig.savefig(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2_Njets%d.pdf"%(tag,mass,Njets), dpi=fig.dpi)
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2.png"%(tag,mass), dpi=fig.dpi)
+        else:           fig.savefig(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2_Njets%d.png"%(tag,mass,Njets), dpi=fig.dpi)
 
         plt.close(fig)
 
@@ -674,8 +713,8 @@ class Validation:
         ax.add_line(l1); ax.add_line(l2)
         fig.tight_layout()
 
-        if Njets == -1: fig.savefig(self.config["outputDir"]+"/%s_vs_Disc1Disc2.pdf"%(tag), dpi=fig.dpi)
-        else:           fig.savefig(self.config["outputDir"]+"/%s_vs_Disc1Disc2_Njets%s.pdf"%(tag,Njets), dpi=fig.dpi)
+        if Njets == -1: fig.savefig(self.config["outputDir"]+"/%s_vs_Disc1Disc2.png"%(tag), dpi=fig.dpi)
+        else:           fig.savefig(self.config["outputDir"]+"/%s_vs_Disc1Disc2_Njets%s.png"%(tag,Njets), dpi=fig.dpi)
 
         plt.close(fig)
 
@@ -731,8 +770,8 @@ class Validation:
 
        fig.tight_layout()
 
-       if Njets == -1: fig.savefig(self.config["outputDir"]+"/%s_Slices_Disc%d.pdf"%(tag,disc), dpi=fig.dpi)
-       else:           fig.savefig(self.config["outputDir"]+"/%s_Slices_Disc%d_Njets%s.pdf"%(tag,disc,Njets), dpi=fig.dpi)
+       if Njets == -1: fig.savefig(self.config["outputDir"]+"/%s_Slices_Disc%d.png"%(tag,disc), dpi=fig.dpi)
+       else:           fig.savefig(self.config["outputDir"]+"/%s_Slices_Disc%d_Njets%s.png"%(tag,disc,Njets), dpi=fig.dpi)
 
        plt.close(fig)
 
@@ -759,9 +798,9 @@ class Validation:
         fig.tight_layout()
 
         if Njets == -1:
-            fig.savefig(self.config["outputDir"]+"/InvSign_vs_NonClosure.pdf", dpi=fig.dpi)        
+            fig.savefig(self.config["outputDir"]+"/InvSign_vs_NonClosure.png", dpi=fig.dpi)        
         else:
-            fig.savefig(self.config["outputDir"]+"/InvSign_vs_NonClosure_Njets%d.pdf"%(Njets), dpi=fig.dpi)        
+            fig.savefig(self.config["outputDir"]+"/InvSign_vs_NonClosure_Njets%d.png"%(Njets), dpi=fig.dpi)        
 
         plt.close(fig)
 
@@ -792,7 +831,7 @@ class Validation:
         plt.legend(loc='best')
         plt.text(0.05, 0.94, r"Significance = %.2f"%(sign), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
 
-        fig.savefig(self.config["outputDir"]+"/Njets_Region_%s.pdf"%(label))
+        fig.savefig(self.config["outputDir"]+"/Njets_Region_%s.png"%(label))
 
         plt.close(fig)
 
@@ -876,9 +915,9 @@ class Validation:
         ax2.set_ylim([-0.6, 0.6])
         
         if tag != "":
-            fig.savefig(self.config["outputDir"]+"/Njets_Region_A_PredVsActual_%s.pdf"%(tag))
+            fig.savefig(self.config["outputDir"]+"/Njets_Region_A_PredVsActual_%s.png"%(tag))
         else:
-            fig.savefig(self.config["outputDir"]+"/Njets_Region_A_PredVsActual.pdf")
+            fig.savefig(self.config["outputDir"]+"/Njets_Region_A_PredVsActual.png")
         
         plt.close(fig)
 
@@ -1057,7 +1096,7 @@ class Validation:
 
         y_eval_disc1, y_eval_sg_disc1, y_eval_bg_disc1 = self.getResults(output_train, output_eval_sg, output_eval_bg, outputNum=0, columnNum=0)
         y_eval_disc2, y_eval_sg_disc2, y_eval_bg_disc2 = self.getResults(output_train, output_eval_sg, output_eval_bg, outputNum=0, columnNum=1)
-        #y_eval_mass,  y_eval_mass_sg,  y_eval_mass_bg  = self.getResults(output_train, output_eval_sg, output_eval_bg, outputNum=2, columnNum=0)
+        y_eval_mass,  y_eval_mass_sg,  y_eval_mass_bg  = self.getResults(output_train, output_eval_sg, output_eval_bg, outputNum=3, columnNum=0)
 
         # Part of the training samples that were not used for training
         output_val, output_val_sg, output_val_bg = self.getOutput(self.model, valData["inputs"], valSig["inputs"], valBkg["inputs"])
@@ -1066,20 +1105,20 @@ class Validation:
 
         y_val_disc1,  y_val_sg_disc1,  y_val_bg_disc1  = self.getResults(output_val,   output_val_sg,  output_val_bg,  outputNum=0, columnNum=0)
         y_val_disc2,  y_val_sg_disc2,  y_val_bg_disc2  = self.getResults(output_val,   output_val_sg,  output_val_bg,  outputNum=0, columnNum=1)
-        #y_val_mass,   y_val_mass_sg,   y_val_mass_bg   = self.getResults(output_val,   output_val_sg,  output_val_bg,  outputNum=2, columnNum=0)
+        y_val_mass,   y_val_mass_sg,   y_val_mass_bg   = self.getResults(output_val,   output_val_sg,  output_val_bg,  outputNum=3, columnNum=0)
 
 
         nBins = 20
         nBinsReg = 100
-        masses = [550., 850., 1150.]
+        masses = [350., 550., 850., 1150.]
 
         colors = ["red", "green", "blue", "magenta", "cyan"]; labels = ["Bkg Train", "Bkg Val"]
 
         #self.plotDisc([y_eval_mass_bg, y_val_mass_bg], colors, labels, [evalBkg["weight"], valBkg["weight"]], "mass",     'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
         #self.plotDisc([y_eval_mass_bg, y_val_mass_bg], colors, labels, [evalBkg["weight"], valBkg["weight"]], "mass_log", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg, doLog=True)
 
-        #tempColors = ["black"]; tempNames = ["ttbar"]; tempMass = [y_eval_mass_bg*1000]; tempEvents = [evalBkg["weight"]]; tempMassVal = [y_val_mass_bg*1000]; tempEventsVal = [valBkg["weight"]]
-        '''i = 0
+        tempColors = ["black"]; tempNames = ["ttbar"]; tempMass = [y_eval_mass_bg*1000]; tempEvents = [evalBkg["weight"]]; tempMassVal = [y_val_mass_bg*1000]; tempEventsVal = [valBkg["weight"]]
+        i = 0
         for imass in masses:
             self.plotDisc([y_eval_mass_sg[(evalSig["mass"]==imass)&sigMaskEval]*1000, y_val_mass_sg[valSig["mass"]==imass]*1000], colors, labels, [evalSig["weight"][(evalSig["mass"]==imass)&sigMaskEval], valSig["weight"][valSig["mass"]==imass]], "mass_%d"%(imass), 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
 
@@ -1092,16 +1131,16 @@ class Validation:
             tempEventsVal.append(valSig["weight"][valSig["mass"]==imass])
 
             i += 1
-        '''
+        
         self.plotDisc([y_eval_bg_disc1, y_val_bg_disc1], colors, labels, [evalBkg["weight"], valBkg["weight"]], "Disc1", 'Norm Events', 'Disc. 1')
         self.plotDisc([y_eval_bg_disc2, y_val_bg_disc2], colors, labels, [evalBkg["weight"], valBkg["weight"]], "Disc2", 'Norm Events', 'Disc. 2')
 
-        #self.plotDisc(tempMass, tempColors, tempNames, tempEvents, "mass_split",     'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
-        #self.plotDisc(tempMass, tempColors, tempNames, tempEvents, "mass_split_log", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg, doLog=True)
+        self.plotDisc(tempMass, tempColors, tempNames, tempEvents, "mass_split",     'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
+        self.plotDisc(tempMass, tempColors, tempNames, tempEvents, "mass_split_log", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg, doLog=True)
 
-        #self.plotDisc(tempMassVal, tempColors, tempNames, tempEventsVal, "mass_split_val",     'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
-        #self.plotDisc(tempMassVal, tempColors, tempNames, tempEventsVal, "mass_split_val_log", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg, doLog=True)
-        '''
+        self.plotDisc(tempMassVal, tempColors, tempNames, tempEventsVal, "mass_split_val",     'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
+        self.plotDisc(tempMassVal, tempColors, tempNames, tempEventsVal, "mass_split_val_log", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg, doLog=True)
+
         for NJets in NJetsRange:
             
             njets = float(NJets)
@@ -1110,7 +1149,7 @@ class Validation:
             bkgNjetsMaskEval = evalBkg["njets"] == njets; sigNjetsMaskEval = evalSig["njets"] == njets
             bkgNjetsMaskVal  = valBkg["njets"]  == njets; sigNjetsMaskVal  = valSig["njets"]  == njets
 
-            tempColors = ["black"]; tempNames = ["ttbar"]; tempMass = [y_eval_mass_bg[bkgNjetsMaskEval]]; tempEvents = [evalBkg["weight"][bkgNjetsMaskEval]]; tempMassVal = [y_val_mass_bg[bkgNjetsMaskVal]]; tempEventsVal = [valBkg["weight"][bkgNjetsMaskVal]]
+            tempColors = ["black"]; tempNames = ["ttbar"]; tempMass = [y_eval_mass_bg[bkgNjetsMaskEval]*1000]; tempEvents = [evalBkg["weight"][bkgNjetsMaskEval]]; tempMassVal = [y_val_mass_bg[bkgNjetsMaskVal]*1000]; tempEventsVal = [valBkg["weight"][bkgNjetsMaskVal]]
             i = 0
             for imass in masses:
                 if imass >= self.config["minStopMass"] and imass <= self.config["maxStopMass"]:
@@ -1118,10 +1157,10 @@ class Validation:
 
                     tempColors.append(colors[i])
                     tempNames.append("mass %d"%(imass))
-                    tempMass.append(y_eval_mass_sg[(evalSig["mass"]==imass)&sigMaskEval&sigNjetsMaskEval])
+                    tempMass.append(y_eval_mass_sg[(evalSig["mass"]==imass)&sigMaskEval&sigNjetsMaskEval]*1000)
                     tempEvents.append(evalSig["weight"][(evalSig["mass"]==imass)&sigMaskEval&sigNjetsMaskEval])
 
-                    tempMassVal.append(y_val_mass_sg[(valSig["mass"]==imass)&sigMaskVal&sigNjetsMaskVal])
+                    tempMassVal.append(y_val_mass_sg[(valSig["mass"]==imass)&sigMaskVal&sigNjetsMaskVal]*1000)
                     tempEventsVal.append(valSig["weight"][(valSig["mass"]==imass)&sigMaskVal&sigNjetsMaskVal])
 
                     i += 1
@@ -1132,17 +1171,17 @@ class Validation:
             self.plotDisc(tempMassVal, tempColors, tempNames, tempEventsVal, "mass_split_val_Njets%s"%(NJets),     'Norm Events', 'predicted mass', arange=(-10, 2000), bins=nBinsReg)
 
             self.plotDisc(tempMassVal, tempColors, tempNames, tempEventsVal, "mass_split_val_Njets%s_log"%(NJets), 'Norm Events', 'predicted mass', arange=(-10, 2000), bins=nBinsReg, doLog=True)
-        '''
+        
         # Plot Acc vs Epoch
         if self.result_log != None:
             self.plotAccVsEpoch('loss', 'val_loss', 'model loss', 'loss_train_val')
             #for rank in ["disco", "disc", "mass_reg"]: self.plotAccVsEpoch('%s_loss'%(rank), 'val_%s_loss'%(rank), '%s loss'%(rank), '%s_loss_train_val'%(rank))        
-            for rank in ["disco", "disc", "closure"]: self.plotAccVsEpoch('%s_loss'%(rank), 'val_%s_loss'%(rank), '%s loss'%(rank), '%s_loss_train_val'%(rank))        
+            for rank in ["disco", "disc", "closure", "mass_reg"]: self.plotAccVsEpoch('%s_loss'%(rank), 'val_%s_loss'%(rank), '%s loss'%(rank), '%s_loss_train_val'%(rank))        
 
             #self.plotAccVsEpochAll(['disc', 'mass_reg' , 'disco'], ['Combined Disc Loss', 'Mass Regression Loss', 'DisCo Loss'], '',     'train output loss',      'output_loss_train')
             #self.plotAccVsEpochAll(['disc', 'mass_reg' , 'disco'], ['Combined Disc Loss', 'Mass Regression Loss', 'DisCo Loss'], 'val_', 'validation output loss', 'output_loss_val')
-            self.plotAccVsEpochAll(['disc', 'disco', 'closure'], ['Combined Disc Loss', 'DisCo Loss', 'Closure Loss'], '',     'train output loss',      'output_loss_train')
-            self.plotAccVsEpochAll(['disc', 'disco', 'closure'], ['Combined Disc Loss', 'DisCo Loss', 'Closure Loss'], 'val_', 'validation output loss', 'output_loss_val')
+            self.plotAccVsEpochAll(['disc', 'disco', 'closure', 'mass_reg'], ['Combined Disc Loss', 'DisCo Loss', 'Closure Loss', 'Mass Reg. Loss'], '',     'train output loss',      'output_loss_train')
+            self.plotAccVsEpochAll(['disc', 'disco', 'closure', 'mass_reg'], ['Combined Disc Loss', 'DisCo Loss', 'Closure Loss', 'Mass Reg. Loss'], 'val_', 'validation output loss', 'output_loss_val')
 
         # Plot disc per njet
         self.plotDiscPerNjet("_Disc1", {"Bkg": [evalBkg, y_eval_bg_disc1, evalBkg["weight"]], "Sig": [evalSig, y_eval_sg_disc1, evalSig["weight"]]}, sigMaskEval, nBins=nBins)
@@ -1356,15 +1395,36 @@ class Validation:
         self.plotROC(massMaskDataEval&sigMaskDataEval, massMaskDataVal&sigMaskDataVal, "_"+self.config["bkgd"][0]+"_nJet_disc2", y_eval_disc2, y_val_disc2, evalData, valData)
         self.plotROC(sigMaskDataEval, sigMaskDataVal, "_mass_split_disc1", y_eval_disc1, y_val_disc1, evalData, valData, doMass=True, minMass=self.config['minStopMass'], maxMass=self.config['maxStopMass'])
         self.plotROC(sigMaskDataEval, sigMaskDataVal, "_mass_split_disc2", y_eval_disc2, y_val_disc2, evalData, valData, doMass=True, minMass=self.config['minStopMass'], maxMass=self.config['maxStopMass'])
-        
+       
         # Plot validation precision recall
-        precision_val_disc1,  recall_val_disc1,  _ = precision_recall_curve(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_disc1[massMaskDataVal&sigMaskDataVal])#,   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
-        precision_eval_disc1, recall_eval_disc1, _ = precision_recall_curve(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_disc1[massMaskDataEval&sigMaskDataEval])#, sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
-        ap_val_disc1  = average_precision_score(valData["label"],  y_val_disc1)#,  sample_weight=valData["weight"])
-        ap_eval_disc1 = average_precision_score(evalData["label"], y_eval_disc1)#, sample_weight=evalData["weight"])
+        precision_val_disc1,  recall_val_disc1,  _ = precision_recall_curve(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_disc1[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
+        precision_eval_disc1, recall_eval_disc1, _ = precision_recall_curve(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_disc1[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
+        ap_val_disc1  = average_precision_score(valData["label"],  y_val_disc1,  sample_weight=valData["weight"])
+        ap_eval_disc1 = average_precision_score(evalData["label"], y_eval_disc1, sample_weight=evalData["weight"])
         
-        self.plotPandR(precision_val_disc1, recall_val_disc1, precision_eval_disc1, recall_eval_disc1, ap_val_disc1, ap_eval_disc1)
+        self.plotPandR(precision_val_disc1, recall_val_disc1, precision_eval_disc1, recall_eval_disc1, ap_val_disc1, ap_eval_disc1, "disc1")
         
+        precision_val_disc2,  recall_val_disc2,  _ = precision_recall_curve(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_disc2[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
+        precision_eval_disc2, recall_eval_disc2, _ = precision_recall_curve(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_disc2[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
+        ap_val_disc2  = average_precision_score(valData["label"],  y_val_disc2,  sample_weight=valData["weight"])
+        ap_eval_disc2 = average_precision_score(evalData["label"], y_eval_disc2, sample_weight=evalData["weight"])
+        
+        self.plotPandR(precision_val_disc2, recall_val_disc2, precision_eval_disc2, recall_eval_disc2, ap_val_disc2, ap_eval_disc2, "disc2")
+
+        self.plotPandR2D(valData["label"][sigMaskDataVal], y_val_disc2[sigMaskDataVal], y_val_disc1[sigMaskDataVal], sample_weight=valData["weight"][sigMaskDataVal], name="disc1")
+        self.plotPandR2D(valData["label"][sigMaskDataVal], y_val_disc1[sigMaskDataVal], y_val_disc2[sigMaskDataVal], sample_weight=valData["weight"][sigMaskDataVal], name="disc2")
+
+        masses = ["350", "550", "850", "1150"]
+
+        for mass in masses:
+
+            tempMassMaskDataVal  = valData["mass"]==float(mass)
+            tempMassMaskDataVal |= valData["mass"]==float(173.0)
+
+            self.plotPandR2D(valData["label"][tempMassMaskDataVal&sigMaskDataVal], y_val_disc2[tempMassMaskDataVal&sigMaskDataVal], y_val_disc1[tempMassMaskDataVal&sigMaskDataVal], sample_weight=valData["weight"][tempMassMaskDataVal&sigMaskDataVal], name="disc1_mass{}".format(mass))
+            self.plotPandR2D(valData["label"][tempMassMaskDataVal&sigMaskDataVal], y_val_disc1[tempMassMaskDataVal&sigMaskDataVal], y_val_disc2[tempMassMaskDataVal&sigMaskDataVal], sample_weight=valData["weight"][tempMassMaskDataVal&sigMaskDataVal], name="disc2_mass{}".format(mass))
+
+
         for key in self.metric:
             print(key, self.metric[key])
 

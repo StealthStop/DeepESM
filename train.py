@@ -115,6 +115,8 @@ class Train:
         if "0l" in tree:
             channel = "ToHad"
 
+        if "2l" in tree:
+            channel="To2L"
         ################### Samples to train on #####################
         extra = "_[TV]"
 
@@ -255,7 +257,7 @@ class Train:
     # Define loss functions
     def loss_mass_reg(self, c):
         def regLoss(y_true, y_pred):
-            return c * K.losses.mean_squared_error(y_true/1000.0, y_pred)
+            return c * K.losses.mean_squared_error(y_true, y_pred)
         return regLoss
 
     def loss_disco(self, c, current_epoch, start_epoch):
@@ -423,7 +425,7 @@ class Train:
         opt = K.optimizers.Adam(learning_rate=self.config["lr"])
 
         self.cb = CustomCallback(current_epoch)
-        model.compile(loss=[self.loss_disc(c=self.config["disc_lambda"], current_epoch=self.cb.current_epoch, start_epoch=self.config["disc_start"]), self.loss_disco(c=self.config["bkg_disco_lambda"], current_epoch=self.cb.current_epoch, start_epoch=self.config["disco_start"]), self.loss_closure(c=self.config["abcd_close_lambda"], g=g, nBinEdge=1, current_epoch=self.cb.current_epoch, start_epoch=self.config["abcd_start"])], optimizer=opt, metrics=[K.metrics.Precision(), K.metrics.Recall()])
+        model.compile(loss={'disc': self.loss_disc(c=self.config["disc_lambda"], current_epoch=self.cb.current_epoch, start_epoch=self.config["disc_start"]), 'disco': self.loss_disco(c=self.config["bkg_disco_lambda"], current_epoch=self.cb.current_epoch, start_epoch=self.config["disco_start"]), 'closure': self.loss_closure(c=self.config["abcd_close_lambda"], g=g, nBinEdge=1, current_epoch=self.cb.current_epoch, start_epoch=self.config["abcd_start"]), 'mass_reg': self.loss_mass_reg(c=self.config["mass_reg_lambda"])}, optimizer=opt, metrics={'disc': [K.metrics.Precision(), K.metrics.Recall()], 'mass_reg': K.metrics.MeanSquaredError()})
         #model.compile(loss=[self.loss_disc(c=self.config["disc_lambda"]), self.loss_disco(c=self.config["bkg_disco_lambda"], current_epoch=1), self.loss_mass_reg(c=self.config["mass_reg_lambda"])], optimizer="adam")#, metrics=self.config["metrics"])
         return model, self.cb
 
@@ -526,7 +528,7 @@ class Train:
         jCombVec        = ["combined7thToLastJet_pt_cm", "combined7thToLastJet_eta_cm", "combined7thToLastJet_m_cm", "combined7thToLastJet_phi_cm"]
         jqgDiscVec      = ["Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_"]
         lvMETVec        = ["lvMET_cm_pt", "lvMET_cm_eta", "lvMET_cm_phi", "lvMET_cm_m",]
-        lVec            = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1", "GoodLeptons_m_1", ]
+        lVec            = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1", "GoodLeptons_m_1", "GoodLeptons_pt_2", "GoodLeptons_eta_2", "GoodLeptons_phi_2", "GoodLeptons_m_2",]
         stop1OldSeed    = ["Stop1_mass_cm_OldSeed", "Stop1_pt_cm_OldSeed", "Stop1_phi_cm_OldSeed", "Stop1_eta_cm_OldSeed"]
         stop2OldSeed    = ["Stop2_mass_cm_OldSeed", "Stop2_pt_cm_OldSeed", "Stop2_phi_cm_OldSeed", "Stop2_eta_cm_OldSeed"]
         stop1TopSeed    = ["Stop1_mass_cm_TopSeed", "Stop1_pt_cm_TopSeed", "Stop1_phi_cm_TopSeed", "Stop1_eta_cm_TopSeed"]
@@ -545,7 +547,7 @@ class Train:
         nJets = int(self.config["nJets"]); theVars = None
 
         #theVars = j4Vec + jCSVVec + jCombVec + lVec + lvMETVec
-        theVars = j4Vec + jCombVec + jFlavVec 
+        theVars = j4Vec + jCombVec + jFlavVec #+ lVec 
 
         if not self.config["scaleJetPt"]:
             theVars += htVec
@@ -622,7 +624,6 @@ class Train:
                 needeval = True
                 break
 
-        tf.print(bgEvalSet)
         if needeval: self.evalLoader = DataLoader(self.config, sgEvalSet, bgEvalSet)
 
         cfg_string = json.dumps(self.config)
