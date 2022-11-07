@@ -25,12 +25,14 @@ from Validation import Validation
 from Correlation import Correlation as cor
 from DataLoader import DataLoader
 from Models import main_model
+from MeanShiftTF import MeanShift
+from CustomCallback import CustomCallback
 
 def timeStamp():
     return datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
 
 class Train:
-    def __init__(self, USER, inputs, outputDir, nJets, useJECs, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=False, scaleJetPt=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", evalMass=500, evalModel="RPV_SYY_SHH", evalYear = "2016preVFP", trainYear = "2016preVFP_2016postVFP_2017_2018", tree = "myMiniTree", maskNjet = [-1], procCats=False, massCats=False, njetsCats=False):
+    def __init__(self, USER, inputs, outputDir, nJets, useJECs, debug, seed, replay, saveAndPrint, hyperconfig, doQuickVal=True, scaleJetPt=False, minStopMass=300, maxStopMass=1400, trainModel="RPV_SYY_SHH", evalMass=500, evalModel="RPV_SYY_SHH", evalYear = "2016preVFP", trainYear = "2016preVFP_2016postVFP_2017_2018", tree = "myMiniTree", maskNjet = [-1], procCats=False, massCats=False, njetsCats=False, debugModel=False):
 
         print("%s [INFO]: Creating instance of Train."%(timeStamp()))
 
@@ -69,6 +71,7 @@ class Train:
 
         self.doQuickVal           = doQuickVal
         self.saveAndPrint         = saveAndPrint
+        self.debugModel           = debugModel
         self.config["trainModel"] = trainModel
         self.config["evalMass"]   = evalMass
         self.config["evalModel"]  = evalModel
@@ -110,8 +113,10 @@ class Train:
 
         channel = "ToSemiLep"
         if "0l" in tree:
-            channel = "ToHadronic"
+            channel = "ToHad"
 
+        if "2l" in tree:
+            channel="To2L"
         ################### Samples to train on #####################
         extra = "_[TV]"
 
@@ -187,6 +192,7 @@ class Train:
                 Signal_2016postVFP_eval.append("2016postVFP*%s*mStop-%s"%(model,mass))
                 Signal_2017_eval.append("2017*%s*mStop-%s"%(model,mass))
                 Signal_2018_eval.append("2018*%s*mStop-%s"%(model,mass))
+        
 
         for model in trainModel.split("_"):
             Signal_2016preVFP  += list("2016preVFP*%s*mStop-"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
@@ -195,11 +201,11 @@ class Train:
             Signal_2018        += list("2018*%s*mStop-"%(model)+str(m) for m in range(self.config["minStopMass"],self.config["maxStopMass"]+50,50))
 
         TT = []; TTeval = []; Signal = []; SignalEval = []; self.config["lumi"] = 0
-        if "2016preVFP" in self.config["trainYear"] or "Run2" in self.config["trainYear"]: 
+        if "2016preVFP" in self.config["trainYear"] or "Run2" in self.config["trainYear"] or "2016All" in self.config["trainYear"]: 
             TT                  += TT_2016preVFP
             Signal              += Signal_2016preVFP
             self.config["lumi"] += 19520 
-        if "2016postVFP" in self.config["trainYear"] or "Run2" in self.config["trainYear"]: 
+        if "2016postVFP" in self.config["trainYear"] or "Run2" in self.config["trainYear"] or "2016All" in self.config["trainYear"]: 
             TT                  += TT_2016postVFP
             Signal              += Signal_2016postVFP
             self.config["lumi"] += 16810
@@ -212,16 +218,16 @@ class Train:
             Signal              += Signal_2018
             self.config["lumi"] += 59800
 
-        if "2016preVFP" in self.config["evalYear"]: 
+        if "2016preVFP" in self.config["evalYear"] or "Run2" in self.config["evalYear"] or "2016All" in self.config["evalYear"]: 
             TTeval              += TT_2016preVFP_eval
             SignalEval          += Signal_2016preVFP_eval
-        if "2016postVFP" in self.config["evalYear"]: 
+        if "2016postVFP" in self.config["evalYear"] or "Run2" in self.config["evalYear"] or "2016All" in self.config["evalYear"]: 
             TTeval              += TT_2016postVFP_eval
             SignalEval          += Signal_2016postVFP_eval
-        if "2017" in self.config["evalYear"]:
+        if "2017" in self.config["evalYear"] or "Run2" in self.config["evalYear"]:
             TTeval              += TT_2017_eval
             SignalEval          += Signal_2017_eval
-        if "2018" in self.config["evalYear"]:
+        if "2018" in self.config["evalYear"] or "Run2" in self.config["evalYear"]:
             TTeval              += TT_2018_eval
             SignalEval          += Signal_2018_eval
 
@@ -254,66 +260,174 @@ class Train:
             return c * K.losses.mean_squared_error(y_true, y_pred)
         return regLoss
 
-    def loss_disco(self, c1, c2, g):
-        def discoLoss(y_mask, y_pred):            
+    def loss_disco(self, c, current_epoch, start_epoch):
+        def discoLoss(y_mask, y_pred):
+            case = tf.greater(current_epoch, start_epoch)
+
             val_1 = tf.reshape(y_pred[:,  :1], [-1])
-            val_2 = tf.reshape(y_pred[:, 2:3], [-1])
+            val_2 = tf.reshape(y_pred[:, 1:2], [-1])
             normedweight = tf.ones_like(val_1)
 
             #Mask all signal events
-            mask_sg = tf.reshape(y_mask[:,  1:2], [-1])
+            mask_sg = tf.reshape(tf.abs(1 - y_mask[:,  :1]), [-1])
             val_1_bg = tf.boolean_mask(val_1, mask_sg)
             val_2_bg = tf.boolean_mask(val_2, mask_sg)
-            temp1 = tf.boolean_mask(val_1, mask_sg)
-            temp2 = tf.boolean_mask(val_2, mask_sg)
 
             normedweight_bg = tf.boolean_mask(normedweight, mask_sg)
 
+            #rdc = cor.rdc(val_1_bg, val_2_bg)
+            #dcorr = cor.distance_corr(val_1, val_2, normedweight, 1)
+            dcorr = cor.distance_corr(val_1_bg, val_2_bg, normedweight_bg, 1)
+
+            return c * tf.cast(case, "float32") * (dcorr)
+        return discoLoss
+    
+    def loss_closure(self, c, g, nBinEdge, current_epoch, start_epoch):
+        def closureLoss(y_mask, y_pred):
+
+            case = tf.greater(current_epoch, start_epoch)
+
+            val_1 = tf.reshape(y_pred[:,  :1], [-1])
+            val_2 = tf.reshape(y_pred[:, 1:2], [-1])
+            normedweight = tf.ones_like(val_1)
+
+            #Mask all signal events
+            mask_sg = tf.reshape(tf.abs(1 - y_mask[:,  :1]), [-1])
+            temp1 = tf.boolean_mask(val_1, mask_sg)
+            temp2 = tf.boolean_mask(val_2, mask_sg)
+
+            #temptile1 = tf.reshape(tf.tile(temp1, [nBinEdge]), shape=(nBinEdge,-1))
+            #temptile2 = tf.reshape(tf.tile(temp2, [nBinEdge]), shape=(nBinEdge,-1))
+
             d1 = g.uniform(shape=(), minval=0.0, maxval=1.0)
             d2 = g.uniform(shape=(), minval=0.0, maxval=1.0)
-        
+            #d1 = 0.5
+            #d2 = 0.5
+
+            #d1_peak = tf.reshape(tf.range(0.2, 1.0, 0.2), shape=(4, 1))
+            #d2_peak = tf.reshape(tf.range(0.2, 1.0, 0.2), shape=(4, 1))
+            
+            #histy_bins = tf.histogram_fixed_width_bins(val_1, (0.0, 1.0), nbins=5, dtype=tf.dtype.float32)
+            
+            #H = tf.map_fn(lambda i: tf.histogram_fixed_width(val_2[histy_bins == i], (0.0, 1.0), nbins=5), tf.range(5), dtype=tf.dtype.float32)
+
+            #tot = tf.reduce_sum(H)
+
+            #H = H / tot
+
+            #tf.print(H)
+            #tf.print(tf.reduce_sum(H))
+
+
             dval1 = d1 / 2.0
             dval2 = d2 / 2.0
 
-            nbTot = 2.0*tf.reduce_sum(tf.sigmoid(0.0*val_1_bg))
+            nbTot = 2.0*tf.reduce_sum(tf.sigmoid(0.0*temp1))
 
             # Calculate non-closure in full ABCD region defined by (d1, d2) edges
-            nbA = tf.reduce_sum(tf.sigmoid(25e0*(val_1_bg-d1))*tf.sigmoid(25e0*(val_2_bg-d2)))
-            nbB = tf.reduce_sum(tf.sigmoid(25e0*(val_2_bg-d2))) - nbA
-            nbC = tf.reduce_sum(tf.sigmoid(25e0*(val_1_bg-d1))) - nbA
-            nbD = nbTot - nbA - nbB - nbC
+            nbA = tf.reduce_sum(tf.sigmoid(1e2*(temp1-d1))*tf.sigmoid(1e2*(temp2-d2)))
+            nbB = tf.reduce_sum(tf.sigmoid(1e2*(d1 - temp1))*tf.sigmoid(1e2*(temp2-d2)))
+            nbC = tf.reduce_sum(tf.sigmoid(1e2*(temp1 - d1))*tf.sigmoid(1e2*(d2 - temp2)))
+            nbD = tf.reduce_sum(tf.sigmoid(1e2*(d1 - temp1))*tf.sigmoid(1e2*(d2 - temp2)))
+           
+            nbA = nbA + 0.01
+            nbB = nbB + 0.01
+            nbC = nbC + 0.01
+            nbD = nbD + 0.01
 
-            nbApred = nbB*nbC/nbD
-            frac = abs(nbApred - nbA)/nbA
+            ''' 
+            min_N = 1 #tf.reduce_mean(nbTot) * 0.001
 
-            return c2 * frac + c1 * cor.distance_corr(temp1, temp2, normedweight_bg, 1)
-        return discoLoss
+            nbA = nbA[nbD > min_N]
+            nbB = nbB[nbD > min_N]
+            nbC = nbC[nbD > min_N]
+            nbD = nbD[nbD > min_N]
+            nbTot = nbTot[nbD > min_N]
 
-    def loss_disc(self, c):
-        def loss_model_disc(y_true, y_pred):            
+            nbA = nbA[nbC > min_N]
+            nbB = nbB[nbC > min_N]
+            nbC = nbC[nbC > min_N]
+            nbD = nbD[nbC > min_N]
+            nbTot = nbTot[nbC > min_N]
+
+            nbA = nbA[nbB > min_N]
+            nbB = nbB[nbB > min_N]
+            nbC = nbC[nbB > min_N]
+            nbD = nbD[nbB > min_N]
+            nbTot = nbTot[nbB > min_N]
+
+            nbA = nbA[nbA > min_N]
+            nbB = nbB[nbA > min_N]
+            nbC = nbC[nbA > min_N]
+            nbD = nbD[nbA > min_N]
+            nbTot = nbTot[nbA > min_N]
+            '''
+            #nbApred = nbB*nbC/nbD
+            
+            #fracs = abs(nbA - nbApred) / (nbA)
+             
+            # New pull based loss function
+            '''
+            var = nbD ** 2 * nbA + nbC **2 * nbB + nbB ** 2 * nbC + nbA ** 2 * nbD
+            var = nbD ** 2 * cov(nbA, nbA) + nbC ** 2 * cov(nbB, nbB) + nbB ** 2 * cov(nbC, nbC) + nbA ** 2 *cov(nbD, nbD) 
+            covar = - 2 * nbC * nbD * cov(nbA, nbB) - 2 * nbB * nbD * cov(nbA, nbC) + 2 * nbA * nbD * cov(nbA, nbD) + 2 * nbB * nbC * cov(nbB, nbC) - 2 * nbA * nbC * cov(nbB, nbD) - 2 * nbA * nbB * cov(nbC, nbD)
+            dl = tf.sqrt(var)
+
+            fracs = (nbA * nbD - nbB * nbC) / dl
+            '''
+
+            fracs = ((nbA * nbD - nbB * nbC)/(nbA * nbD + nbB * nbC))**2
+
+            frac = tf.reduce_sum(fracs)
+            #frac = K.losses.mean_squared_error(tf.zeros_like(fracs), fracs)
+            #frac = tf.reduce_mean(fracs)
+
+            return c * tf.cast(case, "float32") * (frac)
+        return closureLoss 
+            
+    def loss_disc(self, c, current_epoch, start_epoch):
+        def loss_model_disc(y_true, y_pred):         
+            case = tf.greater(current_epoch, start_epoch)
+
             # Decat truth and predicted
-            val_1_disco_true = tf.reshape(y_true[:,  :2], [-1])
-            val_2_disco_true = tf.reshape(y_true[:, 2:4], [-1])
+            val_1_disco_true = y_true[:, :1]
+            val_2_disco_true = y_true[:, 1:]
+            #val_1_disco_true = tf.reshape(y_true[:, :4], [-1])
+            #val_2_disco_true = tf.reshape(y_true[:, 4:], [-1])
+            #val_disco_true = tf.reshape(y_true[:, :4], [-1])
 
-            val_1_disco_pred = tf.reshape(y_pred[:,  :2], [-1])
-            val_2_disco_pred = tf.reshape(y_pred[:, 2:4], [-1])
+            val_1_disco_pred = y_pred[:, :1]
+            val_2_disco_pred = y_pred[:, 1:]
+            #val_1_disco_pred = tf.reshape(y_pred[:, :4], [-1])
+            #val_2_disco_pred = tf.reshape(y_pred[:, 4:], [-1])
+            #val_disco_pred = tf.reshape(y_pred[:, :4], [-1])
+
+            cce = K.losses.BinaryCrossentropy()
 
             # Calculate loss function
-            val_1_disco_loss = K.losses.binary_crossentropy(val_1_disco_true, val_1_disco_pred)
-            val_2_disco_loss = K.losses.binary_crossentropy(val_2_disco_true, val_2_disco_pred)
+            val_1_disco_loss = cce(val_1_disco_true, val_1_disco_pred)
+            val_2_disco_loss = cce(val_2_disco_true, val_2_disco_pred)
 
-            return c * (val_1_disco_loss + val_2_disco_loss)
-
+            return c * tf.cast(case, "float32") * (val_1_disco_loss + val_2_disco_loss)
         return loss_model_disc
 
-    def make_model(self, scales, means, regShape, discoShape, inputShape):
+    def make_model(self, scales, means, regShape, discoShape, inputShape, bias):
 
         print("%s [INFO]: Constructing model."%(timeStamp()))
 
-        model, optimizer = main_model(self.config, scales, means, regShape, discoShape, inputShape)
+        model = main_model(self.config, scales, means, regShape, discoShape, inputShape, bias)
+        if self.debugModel:
+            K.utils.plot_model(model, show_shapes=True, to_file="model.png")
+            model.summary()
         g = tf.random.Generator.from_seed(self.config["seed"]) 
-        model.compile(loss=[self.loss_disc(c=self.config["disc_lambda"]), self.loss_disco(c1=self.config["bkg_disco_lambda"], c2=self.config["abcd_close_lambda"], g=g), self.loss_mass_reg(c=self.config["mass_reg_lambda"])], optimizer=optimizer, metrics=self.config["metrics"])
-        return model
+        current_epoch = K.backend.variable(1.)
+
+        opt = K.optimizers.Adam(learning_rate=self.config["lr"])
+
+        self.cb = CustomCallback(current_epoch)
+        model.compile(loss={'disc': self.loss_disc(c=self.config["disc_lambda"], current_epoch=self.cb.current_epoch, start_epoch=self.config["disc_start"]), 'disco': self.loss_disco(c=self.config["bkg_disco_lambda"], current_epoch=self.cb.current_epoch, start_epoch=self.config["disco_start"]), 'closure': self.loss_closure(c=self.config["abcd_close_lambda"], g=g, nBinEdge=1, current_epoch=self.cb.current_epoch, start_epoch=self.config["abcd_start"]), 'mass_reg': self.loss_mass_reg(c=self.config["mass_reg_lambda"])}, optimizer=opt, metrics={'disc': [K.metrics.Precision(), K.metrics.Recall()], 'mass_reg': K.metrics.MeanSquaredError()})
+        #model.compile(loss=[self.loss_disc(c=self.config["disc_lambda"]), self.loss_disco(c=self.config["bkg_disco_lambda"], current_epoch=1), self.loss_mass_reg(c=self.config["mass_reg_lambda"])], optimizer="adam")#, metrics=self.config["metrics"])
+        return model, self.cb
 
     def getSamplesToRun(self, names):
         s = glob(names)
@@ -322,14 +436,17 @@ class Train:
         return s
 
     def get_callbacks(self):
-        tbCallBack = K.callbacks.TensorBoard(log_dir=self.logdir+"/log_graph",            histogram_freq=0,   write_graph=True,               write_images=True)
+        #tbCallBack = K.callbacks.TensorBoard(log_dir=self.logdir+"/log_graph",            histogram_freq=0,   write_graph=True,               write_images=True)
         log_model  = K.callbacks.ModelCheckpoint(self.config["outputDir"]+"/BestNN.hdf5", monitor='val_loss', verbose=self.config["verbose"], save_best_only=True)
-        earlyStop  = K.callbacks.EarlyStopping(monitor="val_loss",                        min_delta=0,        patience=5, verbose=0,          mode="auto", baseline=None)
+        earlyStop  = K.callbacks.EarlyStopping(monitor="disc_loss",                        min_delta=0,        patience=10, verbose=0,          mode="auto", baseline=None)
+
         callbacks  = []
         if self.config["verbose"] == 1: 
             #callbacks = [log_model, tbCallBack, earlyStop]
             #callbacks = [log_model, tbCallBack]
-            callbacks = [tbCallBack]
+            #callbacks = [log_model, earlyStop]
+            #callbacks = [tbCallBack]
+            callbacks = []
         return callbacks
 
     def gpu_allow_mem_grow(self):
@@ -345,11 +462,11 @@ class Train:
         #https://github.com/leimao/Frozen_Graph_TensorFlow/tree/master/TensorFlow_v2
 
         # Save model as hdf5 format
-        #model.save(self.config["outputDir"]+"/keras_model")
+        model.save(self.config["outputDir"]+"/keras_model")
 
         # Convert Keras model to ConcreteFunction
         full_model = tf.function(lambda x: model(x))
-        full_model = full_model.get_concrete_function(x=tf.TensorSpec(model.inputs[0].shape, model.inputs[0].dtype))
+        full_model= full_model.get_concrete_function(x=tf.TensorSpec(model.inputs[0].shape, model.inputs[0].dtype))
 
         # Get frozen ConcreteFunction
         frozen_func = convert_variables_to_constants_v2(full_model)
@@ -402,14 +519,16 @@ class Train:
         print("%s [INFO]: Defining input variables."%(timeStamp()))
 
         htVec           = ["HT_trigger_pt30"]
-        nJets           = ["NGoodJets_pt30_double"]
+        nJetsVec        = ["NGoodJets_pt30_double"]
         fwmVec          = ["fwm2_top6",    "fwm3_top6",    "fwm4_top6",   "fwm5_top6"]
         jmtVec          = ["jmt_ev0_top6", "jmt_ev1_top6", "jmt_ev2_top6"]
-        j4Vec           = ["Jet_ptrHT_", "Jet_eta_", "Jet_phi_"] # "Jet_m_", "Jet_phi_"]
-        jFlavVec        = ["Jet_flavb_", "Jet_flavc_", "Jet_flavuds_", "Jet_flavq_", "Jet_flavg_"]
+        j4Vec           = ["Jet_pt_", "Jet_eta_", "Jet_phi_"]#,"Jet_m_"]
+        jFlavVec        = ["Jet_flavb_", "Jet_flavuds_", "Jet_flavq_", "Jet_flavg_", "Jet_flavc_"]
         jCSVVec        	= ["Jet_CSVb_"]
         jCombVec        = ["combined7thToLastJet_pt_cm", "combined7thToLastJet_eta_cm", "combined7thToLastJet_m_cm", "combined7thToLastJet_phi_cm"]
         jqgDiscVec      = ["Jet_ptD_", "Jet_axismajor_", "Jet_axisminor_"]
+        lvMETVec        = ["lvMET_cm_pt", "lvMET_cm_eta", "lvMET_cm_phi", "lvMET_cm_m",]
+        lVec            = ["GoodLeptons_pt_1", "GoodLeptons_eta_1", "GoodLeptons_phi_1", "GoodLeptons_m_1", "GoodLeptons_pt_2", "GoodLeptons_eta_2", "GoodLeptons_phi_2", "GoodLeptons_m_2",]
         stop1OldSeed    = ["Stop1_mass_cm_OldSeed", "Stop1_pt_cm_OldSeed", "Stop1_phi_cm_OldSeed", "Stop1_eta_cm_OldSeed"]
         stop2OldSeed    = ["Stop2_mass_cm_OldSeed", "Stop2_pt_cm_OldSeed", "Stop2_phi_cm_OldSeed", "Stop2_eta_cm_OldSeed"]
         stop1TopSeed    = ["Stop1_mass_cm_TopSeed", "Stop1_pt_cm_TopSeed", "Stop1_phi_cm_TopSeed", "Stop1_eta_cm_TopSeed"]
@@ -427,7 +546,8 @@ class Train:
 
         nJets = int(self.config["nJets"]); theVars = None
 
-        theVars = j4Vec + jCSVVec 
+        #theVars = j4Vec + jCSVVec + jCombVec + lVec + lvMETVec
+        theVars = j4Vec + jCombVec + jFlavVec #+ lVec 
 
         if not self.config["scaleJetPt"]:
             theVars += htVec
@@ -436,9 +556,11 @@ class Train:
         theVars += jmtVec
 
         if "0l" in self.config["tree"]:
+            #pass
             theVars += stop1TopSeed 
             theVars += stop2TopSeed
         else:
+            #pass
             theVars += stop1OldSeed 
             theVars += stop2OldSeed
 
@@ -451,7 +573,7 @@ class Train:
                 if "phi" in var:
                     start = 1
         
-                for nJet in range(start,nJets):
+                for nJet in range(start,7):
                     newVars.append(var + str(nJet+1))
 
             else: newVars.append(var)
@@ -476,7 +598,6 @@ class Train:
         temp = "*"
 
         print("%s [INFO]: Preparing input data sets."%(timeStamp()))
-
         #Get Data set used in training and validation
         sgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+mass+temp+"Train.root") for mass in self.config["signal"]) , [])
         bgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Train.root") for bkgd in self.config["bkgd"][1]), [])
@@ -504,6 +625,12 @@ class Train:
                 break
 
         if needeval: self.evalLoader = DataLoader(self.config, sgEvalSet, bgEvalSet)
+
+        cfg_string = json.dumps(self.config)
+       
+        with open("config.json", "w") as f:
+            f.write(cfg_string)
+        f.close()
        
         self.loader     = DataLoader(self.config, sgTrainSet, bgTrainSet)
         self.valLoader  = DataLoader(self.config, sgValSet,   bgValSet)
@@ -524,12 +651,16 @@ class Train:
 
         regShape, domainShape, discoShape, inputShape = self.loader.getShapes()
 
+        initial_bias = np.log(self.loader.getNumSigEvents()/self.loader.getNumBkgEvents())
+
         # Make model
         print("%s [INFO]: Preparing the training model."%(timeStamp()))
         # Kelvin says no
         self.gpu_allow_mem_grow()
-        model     = self.make_model(scales, means, regShape, discoShape, inputShape)
+        g = tf.random.Generator.from_seed(self.config["seed"]) 
+        model, self.cb     = self.make_model(scales, means, regShape, discoShape, inputShape, initial_bias)
         callbacks = self.get_callbacks()
+        callbacks.append(self.cb)
 
         # Training model
         print("%s [INFO]: Training the model."%(timeStamp()))
@@ -551,7 +682,11 @@ class Train:
                 self.save_model_pb(model)
             except Exception as e:
                 print("%s [WARNING]: Could not save model pb !"%(timeStamp()), e)
-       
+      
+        self.config['outputDir'] += "/" +  self.config['evalYear']
+        if not os.path.isdir(self.config['outputDir']):        
+            os.makedirs(self.config['outputDir'])
+ 
         #Plot results
         print("%s [INFO]: Running validation of model."%(timeStamp()))
         val = Validation(model, self.config, self.loader, self.valLoader, self.evalLoader, self.testLoader, result_log)
@@ -566,17 +701,24 @@ class Train:
 
     def replay(self):
 
-        model = K.models.load_model(self.config["outputDir"]+"/keras_model")
+        self.defineVars()
 
-        sgTrainSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+mass+"*Train.root") for mass in self.config["signal"]) , [])
-        bgTrainSet = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+bkgd+"*Train.root") for bkgd in self.config["bkgd"][1]), [])
-        sgTestSet  = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+mass+"*Test.root")  for mass in self.config["signal"]) , [])
-        bgTestSet  = sum( (getSamplesToRun(self.config["dataSet"]+"MyAnalysis_"+bkgd+"*Test.root")  for bkgd in self.config["bkgd"][1]), [])
+        current_epoch = K.backend.variable(1.)
+        self.cb = CustomCallback(current_epoch)
 
-        trainData, trainSg, trainBg = get_data(sgTrainSet, bgTrainSet, self.config)
+        g = tf.random.Generator.from_seed(self.config["seed"]) 
 
-        val = Validation(model, self.config, trainData, trainSg, trainBg)
-        metric = val.makePlots(doQuickVal, evalMass)
+        self.importData()
+
+        model = K.models.load_model(self.config["outputDir"]+"/keras_model", custom_objects={'loss_model_disc': self.loss_disc(c=self.config["disc_lambda"], current_epoch=self.cb.current_epoch, start_epoch=self.config["disc_start"]), 'discoLoss': self.loss_disco(c=self.config["bkg_disco_lambda"], current_epoch=self.cb.current_epoch, start_epoch=self.config["disco_start"]), 'closureLoss': self.loss_closure(c=self.config["abcd_close_lambda"], g=g, nBinEdge=1, current_epoch=self.cb.current_epoch, start_epoch=self.config["abcd_start"]) })
+
+        self.config['outputDir'] += "/" + self.config['evalYear']
+        if not os.path.isdir(self.config['outputDir']):        
+            os.makedirs(self.config['outputDir'])
+ 
+        #trainData, trainSg, trainBg = get_data(sgTrainSet, bgTrainSet, self.config)
+        val = Validation(model, self.config, self.loader, self.valLoader, self.evalLoader, self.testLoader)
+        metric = val.makePlots(self.doQuickVal, self.config["evalMass"], self.config["evalModel"])
         del val
 
 if __name__ == '__main__':
@@ -601,6 +743,7 @@ if __name__ == '__main__':
     parser.add_argument("--seed",         dest="seed",         help="Use specific seed for env",      type=int,            default=-1                                     )
     parser.add_argument("--nJets",        dest="nJets",        help="Minimum number of jets",         type=int,            default=7                                      )
     parser.add_argument("--debug",        dest="debug",        help="Debug with small set of events", action="store_true", default=False                                  )
+    parser.add_argument("--debugModel",   dest="debugModel",   help="Debug model, no training done",  action="store_true", default=False                                  )
     parser.add_argument("--scaleJetPt",   dest="scaleJetPt",   help="Scale Jet pt by HT",             default=False,       action="store_true"                            )
     parser.add_argument("--useJECs",      dest="useJECs",      help="Use JEC/JER variations",         action="store_true", default=False                                  )
     parser.add_argument("--maskNjet",     dest="maskNjet",     help="mask Njet bin(s) in training",   default=[-1], nargs="+", type=int                                   )
@@ -643,7 +786,7 @@ if __name__ == '__main__':
     else: 
         hyperconfig = {"atag" : "Perfect", "disc_lambda": 5.0, "bkg_disco_lambda": 1000.0, "mass_reg_lambda": 0.0001, "abcd_close_lambda" : 2.0, "disc_nodes":300, "mass_reg_nodes":100, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch":20000, "epochs":20, "other_lr" : 0.001, "disc_lr":0.001, "mass_reg_lr" : 1.0}
 
-    t = Train(USER, args.inputs, outputDir, args.nJets, args.useJECs, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.scaleJetPt, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.trainModel, evalMass=args.evalMass, evalModel=args.evalModel, evalYear=args.evalYear, trainYear=args.trainYear, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats)
+    t = Train(USER, args.inputs, outputDir, args.nJets, args.useJECs, args.debug, masterSeed, replay, args.saveAndPrint, hyperconfig, args.quickVal, args.scaleJetPt, minStopMass=args.minMass, maxStopMass=args.maxMass, trainModel=args.trainModel, evalMass=args.evalMass, evalModel=args.evalModel, evalYear=args.evalYear, trainYear=args.trainYear, tree=args.tree, maskNjet=args.maskNjet, procCats=args.procCats, massCats=args.massCats, njetsCats=args.njetsCats, debugModel=args.debugModel)
 
     if replay: t.replay()
 
