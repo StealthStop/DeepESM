@@ -26,6 +26,7 @@ from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_prec
 import tracemalloc
 
 import datetime
+import math
 #plt.rcParams['png.fonttype'] = 42
 
 def timeStamp():
@@ -615,7 +616,6 @@ class Validation:
                    bd > minBkgEvts:
 
                     tempmetric = tempclosureerr**2.0 + (1.0 / tempsignificance)**2.0
-
                     #tempmetric = 1.0 / tempsignificance
 
                 #if tempmetric < metric:
@@ -1134,7 +1134,9 @@ class Validation:
         
         self.plotDisc([y_eval_bg_disc1, y_val_bg_disc1], colors, labels, [evalBkg["weight"], valBkg["weight"]], "Disc1", 'Norm Events', 'Disc. 1')
         self.plotDisc([y_eval_bg_disc2, y_val_bg_disc2], colors, labels, [evalBkg["weight"], valBkg["weight"]], "Disc2", 'Norm Events', 'Disc. 2')
-
+        #if self.config['scaleLog']:
+        #    tempMass = np.exp(tempMass)
+        #    tempMassVal = np.exp(tempMassVal)
         self.plotDisc(tempMass, tempColors, tempNames, tempEvents, "mass_split",     'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg)
         self.plotDisc(tempMass, tempColors, tempNames, tempEvents, "mass_split_log", 'Norm Events', 'predicted mass', arange=(0, 2000), bins=nBinsReg, doLog=True)
 
@@ -1363,11 +1365,29 @@ class Validation:
                 self.config["Awchi2ndof"] = float(wtotalChi2/ndof)
             else:
                 self.config["Achi2ndof"] = 9999.0
+
+            # Compute significance with signal contamination factored in
+            # Replace inverse significance in old metric with this
+
+            tempTotalSig = 0.0
+
+            for i in range(len(bkgdNjets["A"])):
+
+                # Per njet bin, compute the closure prediction for number of background events in the A region
+                predBgRegA = (bkgdNjets["B"][i][0] + sigNjets["B"][i][0] * bkgdNjets["C"][i][0] + sigNjets["C"][i][0]) / (bkgdNjets["D"][i][0] + sigNjets["D"][i][0])
+
+                # Calculate significance per njet bin and sum into total significance
+
+                tempTotalSig += (sigNjets["A"][i][0] / math.sqrt(predBgRegA)) ** 2
+
+            # Take the square root as this is the quadrature sum of the significance per njet bin
+            self.config["TotalSignificance"] = math.sqrt(tempTotalSig)
+
             self.config["Asignificance"] = float(signA)
             self.config["Bsignificance"] = float(signB)
             self.config["Csignificance"] = float(signC)
             self.config["Dsignificance"] = float(signD)
-            self.config["TotalSignificance"] = (signA**2.0 + signB**2.0 + signC**2.0 + signD**2.0)**0.5
+            #self.config["TotalSignificance"] = (signA**2.0 + signB**2.0 + signC**2.0 + signD**2.0)**0.5
 
             if    self.config["TotalSignificance"] > 0.0: self.metric["InvTotalSignificance"] = 1.0/self.config["TotalSignificance"]
             else: self.metric["InvTotalSignificance"] = 999.0
