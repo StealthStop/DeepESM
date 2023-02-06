@@ -68,7 +68,7 @@ if __name__ == '__main__':
     parser.add_argument("--reg",          dest="reg",          help="list of reg lambda values",                     default=[0.001],    nargs="+")
     parser.add_argument("--nodes",        dest="nodes",        help="list of nodes values",                          default=[200],      nargs="+")
     parser.add_argument("--lrs",          dest="lrs",          help="learning rate",                                 default=[0.0001],   nargs="+")
-    parser.add_argument("--batch",        dest="batch",        help="batch size",                                    default=[2048],   nargs="+")
+    parser.add_argument("--batch",        dest="batch",        help="batch size",                                    default=[4096],   nargs="+")
     parser.add_argument("--factors",      dest="factors",      help="list of factors to multiply",                   default=[1.0],      nargs="+")
     parser.add_argument("--epochs",       dest="epochs",       help="how many epochs",                               default=[50],       nargs="+")
     parser.add_argument("--trainYear",    dest="trainYear",    help="which year(s) to train on",                     default="2016preVFP", type=str)
@@ -119,7 +119,7 @@ if __name__ == '__main__':
 
                                                             #if float(bcorr) == 0.0 and float(abcd) == 0.0: continue
 
-                                                            config = {"case" : 0, "atag" : "%s_v%s"%(args.tag,vBkgd), "abcd_close_lambda" : float(factor)*float(abcd), "disc_lambda": float(factor)*float(disc), "mass_reg_lambda": float(reg), "bkg_disco_lambda": float(factor)*float(bcorr), "input_nodes": int(nodes), "disc_nodes": int(nodes), "mass_reg_nodes":int(nodes), "input_layers": 1, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch": int(batch), "epochs": int(epoch), "disco_start": int(bcorrStart), "abcd_start": int(abcdStart), "disc_start": int(discStart), "lr": float(lr)}
+                                                            config = {"case" : 0, "atag" : "%s_v%s"%(args.tag,vBkgd), "abcd_close_lambda" : float(factor)*float(abcd), "disc_lambda": float(factor)*float(disc), "mass_reg_lambda": float(reg), "bkg_disco_lambda": float(factor)*float(bcorr), "input_nodes": int(nodes), "disc_nodes": int(nodes), "mass_reg_nodes": int(nodes), "input_layers": 1, "disc_layers":1, "mass_reg_layers":1, "dropout":0.3, "batch": int(batch), "epochs": int(epoch), "disco_start": int(bcorrStart), "abcd_start": int(abcdStart), "disc_start": int(discStart), "lr": float(lr)}
 
                                                             #Training all at once
                                                             generate_json(taskPath, config, jobid)
@@ -167,10 +167,10 @@ if __name__ == '__main__':
     shutil.copy2("%s/CustomOptimizer.py"%(workDir), "%s/CustomOptimizer.py"%(taskPath))
     shutil.copy2("%s/MeanShiftTF.py"%(workDir),     "%s/MeanShiftTF.py"%(taskPath))
     shutil.copy2("%s/CustomCallback.py"%(workDir),     "%s/CustomCallback.py"%(taskPath))
-    if args.channel != "2l":
-        shutil.copy2("%s/utils/makeQuickLook.py"%(workDir),     "%s/makeQuickLook.py"%(taskPath))
-    else:
-        shutil.copy2("%s/utils/makeQuickLook_2l.py"%(workDir),     "%s/makeQuickLook.py"%(taskPath))
+    #if args.channel != "2l":
+    shutil.copy2("%s/utils/makeQuickLook.py"%(workDir),     "%s/makeQuickLook.py"%(taskPath))
+    #else:
+    #    shutil.copy2("%s/utils/makeQuickLook_2l.py"%(workDir),     "%s/makeQuickLook.py"%(taskPath))
 
     USER = os.getenv("USER")
 

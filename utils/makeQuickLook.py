@@ -165,6 +165,10 @@ if __name__ == "__main__":
     ]
 
     flist2 = [
+        '2D_SG550_Disc1VsDisc2_Njets6.png',
+        '2D_BG_Disc1VsDisc2_Njets6.png',
+        '2D_valSG550_Disc1VsDisc2_Njets6.png',
+        '2D_valBG_Disc1VsDisc2_Njets6.png',
         '2D_SG550_Disc1VsDisc2_Njets7.png',
         '2D_BG_Disc1VsDisc2_Njets7.png',
         '2D_valSG550_Disc1VsDisc2_Njets7.png',
@@ -185,9 +189,21 @@ if __name__ == "__main__":
         '2D_BG_Disc1VsDisc2_Njets11.png',
         '2D_valSG550_Disc1VsDisc2_Njets11.png',
         '2D_valBG_Disc1VsDisc2_Njets11.png',
+        '2D_SG550_Disc1VsDisc2_Njets12.png',
+        '2D_BG_Disc1VsDisc2_Njets12.png',
+        '2D_valSG550_Disc1VsDisc2_Njets12.png',
+        '2D_valBG_Disc1VsDisc2_Njets12.png',
+        '2D_SG550_Disc1VsDisc2_Njets13.png',
+        '2D_BG_Disc1VsDisc2_Njets13.png',
+        '2D_valSG550_Disc1VsDisc2_Njets13.png',
+        '2D_valBG_Disc1VsDisc2_Njets13.png',
     ]
 
     flist3 = [
+        'NonClosure_vs_Disc1Disc2_Njets6.png',
+        'NonClosureUnc_vs_Disc1Disc2_Njets6.png',
+        'Sign_vs_Disc1Disc2_Njets6.png',
+        'SignUnc_vs_Disc1Disc2_Njets6.png',
         'NonClosure_vs_Disc1Disc2_Njets7.png',
         'NonClosureUnc_vs_Disc1Disc2_Njets7.png',
         'Sign_vs_Disc1Disc2_Njets7.png',
@@ -208,6 +224,14 @@ if __name__ == "__main__":
         'NonClosureUnc_vs_Disc1Disc2_Njets11.png',
         'Sign_vs_Disc1Disc2_Njets11.png',
         'SignUnc_vs_Disc1Disc2_Njets11.png',
+        'NonClosure_vs_Disc1Disc2_Njets12.png',
+        'NonClosureUnc_vs_Disc1Disc2_Njets12.png',
+        'Sign_vs_Disc1Disc2_Njets12.png',
+        'SignUnc_vs_Disc1Disc2_Njets12.png',
+        'NonClosure_vs_Disc1Disc2_Njets13.png',
+        'NonClosureUnc_vs_Disc1Disc2_Njets13.png',
+        'Sign_vs_Disc1Disc2_Njets13.png',
+        'SignUnc_vs_Disc1Disc2_Njets13.png',
     ]
 
     with open("./quickLook.tex", "w") as f:

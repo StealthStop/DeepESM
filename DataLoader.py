@@ -140,8 +140,8 @@ class DataLoader(K.utils.Sequence):
         max_entries_bg = None
         max_entries_sg = None
         if self.config["debug"]:
-            max_entries_bg = 10000
-            max_entries_sg = 100
+            max_entries_bg = 2000
+            max_entries_sg = 200
 
         variations = ["", "JECup", "JECdown", "JERup", "JERdown"]
         if self.config["debug"] or not self.config["useJECs"]:
@@ -172,7 +172,10 @@ class DataLoader(K.utils.Sequence):
                     for var in tempVars:
                         newVar = var.replace("JERup", "").replace("JECup", "").replace("JERdown", "").replace("JECdown", "")
 
-                        if ("Jet_pt_" in newVar or "Stop1_pt_" in newVar or "Stop2_pt" in newVar) and self.config["scaleJetPt"]:
+                        if ("Jet_m_" in newVar or "Stop1_m_" in newVar or "Stop2_m_" in newVar) and self.config["scaleLog"]:
+                            npf[var] = np.log(1 + tempnpf[var]).astype('float16')
+
+                        elif ("Jet_pt_" in newVar or "Stop1_pt_" in newVar or "Stop2_pt" in newVar) and self.config["scaleJetPt"]:
                             npf[newVar] = tempnpf[var] /tempnpf["HT_trigger_pt30"+suffix].astype('float16')
                         else:
                             npf[newVar] = tempnpf[var].astype('float16')
@@ -204,7 +207,10 @@ class DataLoader(K.utils.Sequence):
 
         batchInputs  = self.df["inputs"][self.batchIndexContainer]
         batchMass    = self.df[self.config['massLabel']][self.batchIndexContainer]
-        batchMassReg = self.df[self.config["regressionLabel"]][self.batchIndexContainer]/1000
+        if self.config["scaleLog"]:
+            batchMassReg = np.log(1 + self.df[self.config["regressionLabel"]][self.batchIndexContainer])
+        else:
+            batchMassReg = self.df[self.config["regressionLabel"]][self.batchIndexContainer]/self.config["massScale"]
 
         model      = self.df[self.config["modelLabel"]][self.batchIndexContainer]
         mass       = self.df[self.config["massLabel"]][self.batchIndexContainer]

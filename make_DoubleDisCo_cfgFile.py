@@ -39,6 +39,7 @@ class ReleaseMaker():
         mask       = cfg["Mask"]
         mask_njet  = cfg["Mask_nJet"]
         scaleJetPt = cfg["scaleJetPt"]
+        massScale  = cfg["massScale"]
 
         # When making a cfg for the NonIsoMuon we should use as tag
         qcdCRtag    = ""
@@ -57,11 +58,12 @@ class ReleaseMaker():
         f.write("    modelFile      = \"keras_frozen.pb\"\n")
         f.write("    inputOp        = \"x\"\n")
         f.write("    outputOpVec[0] = \"Identity\"\n")
-        f.write("    outputOpVec[1] = \"Identity_2\"\n")
+        f.write("    outputOpVec[1] = \"Identity_3\"\n")
         f.write("    outputCmVec[0] = 4\n")
         f.write("    outputCmVec[1] = 1\n")
         f.write("    year           = \"%s\"\n" %(self.year))
         f.write("    name           = \"%s%s_%s\"\n" %(postpendTag, self.channel, self.model))
+        f.write("    massScale      = %s \n"%(massScale))
 
         # Here we use Good jets for 0L in the CR
         # So in that case, revert qcdCRtag to empty for the remainder of the function
@@ -158,14 +160,14 @@ class ReleaseMaker():
             if doQCDCR and self.channel != "0l":
                 var = var.replace("Jet",         "Jet%ss"%(qcdCRtag)) \
                          .replace("fwm",         "%ss_fwm"%(qcdCRtag)) \
-                         .replace("GoodLeptons", "%s"%(qcdCRtag)) \
+                         .replace("GoodLeptons", "%s"%("Good" + qcdCRtag + "s")) \
                          .replace("lvMET",       "%ss_lvMET"%(qcdCRtag)) \
                          .replace("jmt",         "%ss_jmt"%(qcdCRtag)) \
                          .replace("Seed",        "Seed_%s"%(qcdCRtag)) \
                          .replace("trigger",     "%s"%(qcdCRtag))
 
-                if scaleJetPt and ("Jet" in var or "Stop" in var):
-                    var = var.replace("pt", "ptrHT")
+            if scaleJetPt and ("Jet" in var or "Stop" in var):
+                var = var.replace("pt", "ptrHT")
 
             f.write("    inputVar[%d] = \"%s\" \n" %(iVar, var))
             iVar += 1
