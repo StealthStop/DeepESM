@@ -23,6 +23,7 @@ conda update -n base -c defaults conda <<< $'y\n'
 conda create -n tf python=3.7 anaconda <<< $'y\n'
 conda activate tf
 conda install -n tf libgcc pandas scikit-learn tensorboard tensorflow=2.2.0 tensorflow-gpu Keras=2.4.3 matplotlib numpy=1.18.5 dask h5py protobuf pydot pytorch torchvision cudatoolkit <<< $'y\n'
+conda install -c conda-forge shap
 pip install uproot
 pip install coffea
 pip install mplhep==0.1.35
