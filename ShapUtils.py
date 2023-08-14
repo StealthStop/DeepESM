@@ -8,7 +8,7 @@ from sklearn.preprocessing import StandardScaler
 shap.initjs()
 from shap.plots import waterfall
 
-def explain_my_data(model, data_scaled, data_reg, instance_index):
+def waterfall(model, data_scaled, data_reg, instance_index):
   """Creates a SHAP waterfall plot for a given prediction."""
   explainer = shap.KernelExplainer(model.predict, data_scaled)
   shap_values = explainer.shap_values(data_scaled)
