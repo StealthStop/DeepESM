@@ -725,7 +725,8 @@ class Train:
         val = Validation(model, self.config, self.loader, self.valLoader, self.evalLoader, self.testLoader, result_log)
 
         #work in progress
-        waterfall(model, getFlatData(self), getFlatData(self), 0)
+        #SHAP result for first model prediction
+        waterfall2(model, getFlatData(self), 0)
         
         metric = val.makePlots(self.doQuickVal, self.config["evalMass"], self.config["evalModel"])
         del val
