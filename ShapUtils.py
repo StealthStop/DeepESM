@@ -10,7 +10,7 @@ from sklearn.preprocessing import StandardScaler
 shap.initjs()
 from shap.plots import waterfall
 
-def waterfall(model, data_scaled, data_reg, instance_index):
+def waterfall1(model, data_scaled, data_reg, instance_index):
   """
   Creates a SHAP waterfall plot for a given prediction.
   """
