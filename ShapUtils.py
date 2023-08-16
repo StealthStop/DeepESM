@@ -1,13 +1,9 @@
 #SHAP tools file
 
 import numpy as np
-import pandas as pd
 import shap
 import sklearn
 import tensorflow as tf
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-shap.initjs()
 from shap.plots import waterfall
 
 def waterfall1(model, data_scaled, data_reg, instance_index):
