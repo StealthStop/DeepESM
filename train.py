@@ -24,11 +24,11 @@ from tensorflow.python.framework.convert_to_constants import convert_variables_t
 from Validation import Validation
 from Correlation import Correlation as cor
 from DataLoader import DataLoader
-from DataLoader import getFlatData
+from DataLoader import getFlatData as getFlatData
 from Models import main_model
 from MeanShiftTF import MeanShift
 from CustomCallback import CustomCallback
-from ShapUtils import waterfall2
+from ShapUtils import waterfall2 as waterfall
 
 def timeStamp():
     return datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
@@ -727,7 +727,7 @@ class Train:
 
         #work in progress
         #SHAP result for first model prediction
-        waterfall2(model, getFlatData(self), 0)
+        waterfall(model, getFlatData(self), 0)
         
         metric = val.makePlots(self.doQuickVal, self.config["evalMass"], self.config["evalModel"])
         del val
