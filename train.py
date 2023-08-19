@@ -23,7 +23,6 @@ from tensorflow.python.framework.convert_to_constants import convert_variables_t
 
 from Validation import Validation
 from Correlation import Correlation as cor
-from DataLoader.py import getFlatData
 from DataLoader import DataLoader
 from Models import main_model
 from MeanShiftTF import MeanShift
@@ -727,7 +726,7 @@ class Train:
 
         #work in progress
         #SHAP result for first model prediction
-        waterfall(model, getFlatData(self), 0)
+        waterfall(model, self.valLoader.getFlatData(), 0)
         
         metric = val.makePlots(self.doQuickVal, self.config["evalMass"], self.config["evalModel"])
         del val
