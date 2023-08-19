@@ -23,7 +23,7 @@ from tensorflow.python.framework.convert_to_constants import convert_variables_t
 
 from Validation import Validation
 from Correlation import Correlation as cor
-from DataLoader import getFlatData
+from DataLoader.py import getFlatData
 from DataLoader import DataLoader
 from Models import main_model
 from MeanShiftTF import MeanShift
