@@ -727,7 +727,7 @@ class Train:
         #work in progress
         #SHAP result for first model prediction
         #flat_data = self.valLoader.getFlatData()
-
+        temp = "*"
         sgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+mass+temp+"Train.root") for mass in self.config["signal"]) , [])
         bgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Train.root") for bkgd in self.config["bkgd"][1]), [])
         
