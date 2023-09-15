@@ -726,12 +726,8 @@ class Train:
 
         #work in progress
         #SHAP result for first model prediction
-        #flat_data = self.valLoader.getFlatData()
-        temp = "*"
-        sgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+mass+temp+"Train.root") for mass in self.config["signal"]) , [])
-        bgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Train.root") for bkgd in self.config["bkgd"][1]), [])
         
-        waterfall(model, DataLoader(self.config, sgTrainSet, bgTrainSet).getFlatData(), 0)
+        waterfall(model, loader.getFlatData(), 0)
         
         metric = val.makePlots(self.doQuickVal, self.config["evalMass"], self.config["evalModel"])
         del val
