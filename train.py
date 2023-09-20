@@ -12,7 +12,6 @@ from glob import glob
 import multiprocessing
 import tensorflow as tf
 import tensorflow.keras as K
-from DataLoader import getFlatData
 
 import sys, ast
 os.environ['KMP_WARNINGS'] = '0'
