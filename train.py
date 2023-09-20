@@ -727,7 +727,7 @@ class Train:
         #work in progress
         #SHAP result for first model prediction
         
-        waterfall(model, self.loader, 0)
+        waterfall(model, getFlatData(self), 0)
         
         metric = val.makePlots(self.doQuickVal, self.config["evalMass"], self.config["evalModel"])
         del val
