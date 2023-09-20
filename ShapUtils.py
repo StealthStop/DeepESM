@@ -13,7 +13,7 @@ def waterfall2(model, data, instance_index):
   """
   Creates a SHAP waterfall plot for a given prediction.
   """
-  inputs = data["inputs"]
+  inputs = np.array(data["inputs"])
   names = data["vars"]
   explainer = shap.KernelExplainer(model.predict, inputs, feature_names=names)
   shap_values = explainer.shap_values(inputs)
