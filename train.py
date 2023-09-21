@@ -730,7 +730,7 @@ class Train:
         temp = "*"
         sgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+mass+temp+"Train.root") for mass in self.config["signal"]) , [])
         bgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Train.root") for bkgd in self.config["bkgd"][1]), [])
-        loader = DateLoader(self.config, sgTrainSet, bgTrainSet)
+        loader = DataLoader(self.config, sgTrainSet, bgTrainSet)
         data = loader.df["inputs"][0]
         waterfall(model, data, 0)
         
