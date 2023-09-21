@@ -30,7 +30,7 @@ def waterfall3(model, data, instance_index):
     """
     Creates a SHAP waterfall plot for a given prediction.
     """
-    inputs = np.array(data["inputs"])
+    inputs = data
     names = data["vars"]
 
     # Use the modified predict_with_model function
