@@ -22,12 +22,9 @@ def waterfall2(model, data, instance_index):
 
   save_plot("waterfall_plot.png")
 
-def predict_with_model(model, inputs):
-    # Ensure that 'inputs' is in the correct format and shape
-    predictions = model.predict(inputs)
-    predictions = np.array(predictions)
+def predict(data, model):
 
-    return predictions
+  return model.predict([data[:,i] for i in range(data.shape[1])]).flatten()
 
 def waterfall3(model, data, instance_index):
     """
@@ -37,7 +34,7 @@ def waterfall3(model, data, instance_index):
     names = data["vars"]
 
     # Use the modified predict_with_model function
-    explainer = shap.KernelExplainer(predict_with_model(model, x), inputs, feature_names=names)
+    explainer = shap.KernelExplainer(predict(inputs, model), inputs, feature_names=names)
     shap_values = explainer.shap_values(inputs)
     explanation = shap.Explanation(
         values=shap_values[0][instance_index],
