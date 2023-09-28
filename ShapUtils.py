@@ -64,7 +64,7 @@ def waterfall3(model, data, instance_index):
 
     save_plot("waterfall_plot.png")
   
-def waterfall4(explanation)
+def waterfall4(explanation):
   shap.plots.waterfall(explanation)
   save_plot("waterfall_plot.png")
 
@@ -79,7 +79,7 @@ def summary_plot1(model, data):
   shap_values = explainer.shap_values(inputs)
   shap.summary_plot(shap_values, inputs, feature_names=names)
 
-def beeswarm_plot(explanation)
+def beeswarm_plot(explanation):
   shap.plots.beeswarm(explanation)
   save_plot("beeswarm_plot.png")
   
