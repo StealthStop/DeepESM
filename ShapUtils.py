@@ -9,7 +9,28 @@ from shap.plots import waterfall
 from shap import kmeans
 import pandas as pd
 
- 
+def predict(data, model):
+
+  return model.predict([data[:,i] for i in range(data.shape[1])]).flatten()
+
+def get_explination(model, data, instance_index):
+  """
+  Gets shap explanation of model prediction for a specific prediction index
+  """
+  inputs = data
+  names = data["vars"]
+
+  # Use the modified predict_with_model function
+  explainer = shap.KernelExplainer(predict(inputs, model), inputs, feature_names=names)
+  shap_values = explainer.shap_values(inputs)
+  explanation = shap.Explanation(
+      values=shap_values[0][instance_index],
+      base_values=explainer.expected_value[0],
+      data=data.iloc[instance_index],
+      feature_names=data.columns.tolist()
+  )
+  return explanation
+  
 def waterfall2(model, data, instance_index):
   """
   Creates a SHAP waterfall plot for a given prediction.
@@ -67,6 +88,11 @@ def waterfall3(model, data, instance_index):
 
     save_plot("waterfall_plot.png")
   
+def waterfall4(explanation):
+  shap.plots.waterfall(explanation)
+  save_plot("waterfall_plot.png")
+
+  
 def summary_plot1(model, data):
   """
   Creates a SHAP summary plot.
@@ -76,6 +102,11 @@ def summary_plot1(model, data):
   explainer = shap.KernelExplainer(model.predict, inputs, feature_names=names)
   shap_values = explainer.shap_values(inputs)
   shap.summary_plot(shap_values, inputs, feature_names=names)
+
+def beeswarm_plot(explanation):
+  shap.plots.beeswarm(explanation)
+  save_plot("beeswarm_plot.png")
+  
 
 def save_plot(name):
   """
