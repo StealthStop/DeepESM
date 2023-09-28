@@ -727,11 +727,11 @@ class Train:
 
         #work in progress
         #SHAP result for first model prediction
-        temp = "*"
-        sgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+mass+temp+"Train.root") for mass in self.config["signal"]) , [])
-        bgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Train.root") for bkgd in self.config["bkgd"][1]), [])
-        loader = DataLoader(self.config, sgTrainSet, bgTrainSet)
-        data = loader.df["inputs"][0]
+        #temp = "*"
+        #sgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+mass+temp+"Train.root") for mass in self.config["signal"]) , [])
+        #bgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Train.root") for bkgd in self.config["bkgd"][1]), [])
+        #loader = DataLoader(self.config, sgTrainSet, bgTrainSet)
+        data = self.loader.getFlatData()
         waterfall(model, data, 0)
         
         metric = val.makePlots(self.doQuickVal, self.config["evalMass"], self.config["evalModel"])
