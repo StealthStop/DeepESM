@@ -27,6 +27,8 @@ from DataLoader import DataLoader
 from Models import main_model
 from MeanShiftTF import MeanShift
 from CustomCallback import CustomCallback
+from ShapUtils import waterfall3 as waterfall
+
 
 def timeStamp():
     return datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
@@ -723,6 +725,15 @@ class Train:
         print("%s [INFO]: Running validation of model."%(timeStamp()))
         val = Validation(model, self.config, self.loader, self.valLoader, self.evalLoader, self.testLoader, result_log)
 
+        #work in progress
+        #SHAP result for first model prediction
+        temp = "*"
+        sgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+mass+temp+"Train.root") for mass in self.config["signal"]) , [])
+        bgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Train.root") for bkgd in self.config["bkgd"][1]), [])
+        loader = DataLoader(self.config, sgTrainSet, bgTrainSet)
+        data = loader.df["inputs"][0]
+        waterfall(model, data, 0)
+        
         metric = val.makePlots(self.doQuickVal, self.config["evalMass"], self.config["evalModel"])
         del val
         
