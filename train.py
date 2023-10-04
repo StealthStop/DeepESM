@@ -27,7 +27,7 @@ from DataLoader import DataLoader
 from Models import main_model
 from MeanShiftTF import MeanShift
 from CustomCallback import CustomCallback
-from ShapUtils import summary_plt
+from ShapUtils import makeSomePlots
 
 
 def timeStamp():
@@ -732,7 +732,7 @@ class Train:
         #bgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Train.root") for bkgd in self.config["bkgd"][1]), [])
         #loader = DataLoader(self.config, sgTrainSet, bgTrainSet)
         data = self.loader.getFlatData()
-        summary_plt(model, data, 50)
+        makeSomePlots(model, data)
         
         metric = val.makePlots(self.doQuickVal, self.config["evalMass"], self.config["evalModel"])
         del val
