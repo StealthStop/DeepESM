@@ -107,8 +107,6 @@ def makeSomePlots(model, data):
     # Changing this to summary plot for now because that seems like the most interesting to me (Bryan)
     # This should be changed back to waterfall if we want to look at individual events
     # Generate a waterfall plot for the first prediction
-    shap.waterfall_plot(explainer.expected_value[0], shap_values[0][0], feature_names=names, max_display=10)
-    save_plot("waterfall_plot.png")
   
     shap.summary_plot(shap_values, features=inputs[:50,:], feature_names=names)
     save_plot("summary_plot.png")
