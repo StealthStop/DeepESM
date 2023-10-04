@@ -86,10 +86,6 @@ def summary_plt(model, data, numEvents):
     shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names)
 
     save_plot("waterfall_plot.png")
-
-def explainer1(model, data, instance_index):
-  def predict_disc1(data):
-        return model.predict(data)[0][:,0]
   
   
 def waterfall4(explanation):
