@@ -732,7 +732,7 @@ class Train:
         #bgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Train.root") for bkgd in self.config["bkgd"][1]), [])
         #loader = DataLoader(self.config, sgTrainSet, bgTrainSet)
         data = self.loader.getFlatData()
-        summary_plt(model, data, 0)
+        summary_plt(model, data, 50)
         
         metric = val.makePlots(self.doQuickVal, self.config["evalMass"], self.config["evalModel"])
         del val
