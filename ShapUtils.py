@@ -47,7 +47,7 @@ def waterfall2(model, data, instance_index):
 # Wrapper function around Keras predict
 # This function needs to be passed into the Kernel Explainer instead of the actual prediction
 # See https://shap-lrjball.readthedocs.io/en/latest/example_notebooks/kernel_explainer/Census%20income%20classification%20with%20Keras.html for detailed example
-def waterfall3(model, data, instance_index):
+def waterfall3(model, data, instance_index, outpath):
     """
     Creates a SHAP waterfall plot for a given prediction.
     """
@@ -61,11 +61,10 @@ def waterfall3(model, data, instance_index):
     # Need to be conservative about the number of events to make plots
     # For each event, Shap will remove one variable at a time and rerun inferencing
     # Modify numEvents below to change the number of points in each plot
-    numEvents = 50
+    numEvents = 100
 
     inputs = data["inputs"]
     inputs = inputs[:numEvents,:]
-    print(inputs)
     names = data["vars"]
 
     # Use the modified predict_with_model function
@@ -74,7 +73,7 @@ def waterfall3(model, data, instance_index):
     # Selecting 50 events to make the waterfall plot with
     # Note that we are using 500 perterbations of each event to estimate the average shapely values for that event
     # Be careful with scaling
-    shap_values = explainer.shap_values(inputs[:50,:], nsamples=500)
+    shap_values = explainer.shap_values(inputs[:numEvents,:], nsamples=500)
     #explanation = shap.Explanation(
     #    values=shap_values,
     #    base_values=explainer.expected_value,
@@ -84,10 +83,29 @@ def waterfall3(model, data, instance_index):
     
     # Changing this to summary plot for now because that seems like the most interesting to me (Bryan)
     # This should be changed back to waterfall if we want to look at individual events
-    shap.summary_plot(shap_values, features=inputs[:50,:], feature_names=names)
+    shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names)
 
-    save_plot("waterfall_plot.png")
+    save_plot("{}/summary_disc1_plot.png".format(outpath))
   
+    explainer = shap.KernelExplainer(predict_disc2, inputs, feature_names=names)
+
+    # Selecting 50 events to make the waterfall plot with
+    # Note that we are using 500 perterbations of each event to estimate the average shapely values for that event
+    # Be careful with scaling
+    shap_values = explainer.shap_values(inputs[:numEvents,:], nsamples=500)
+    #explanation = shap.Explanation(
+    #    values=shap_values,
+    #    base_values=explainer.expected_value,
+    #    data=data[instance_index,:],
+    #    feature_names=data["vars"]
+    #)
+    
+    # Changing this to summary plot for now because that seems like the most interesting to me (Bryan)
+    # This should be changed back to waterfall if we want to look at individual events
+    shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names)
+
+    save_plot("{}/summary_disc2_plot.png".format(outpath))
+
 def waterfall4(explanation):
   shap.plots.waterfall(explanation)
   save_plot("waterfall_plot.png")
