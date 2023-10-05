@@ -111,7 +111,7 @@ def makeSomePlots(model, data):
     shap.summary_plot(shap_values, features=inputs[:50,:], feature_names=names)
     save_plot("summary_plot.png")
   
-    shap.plots.beeswarm(shap_values, features=inputs[:50,:], feature_names=names)
+    shap.plots.beeswarm(shap_values)
     save_plot("beeswarm_plot.png")
   
   
