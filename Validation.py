@@ -530,6 +530,7 @@ class Validation:
         wBkgC   = []; uwBkgC  = []; wSigC   = []; uwSigC  = []
         wBkgD   = []; uwBkgD  = []; wSigD   = []; uwSigD  = []
         sFracsA = []; sFracsB = []; sFracsC = []; sFracsD = []
+        normSigFracs = []
 
         for c1k, c2s in bcts["A"].items():
             for c2k, temp in c2s.items():
@@ -605,6 +606,7 @@ class Validation:
                     sFracsB.append([float(tempsbfracB), float(tempsbfracBunc)])
                     sFracsC.append([float(tempsbfracC), float(tempsbfracCunc)])
                     sFracsD.append([float(tempsbfracD), float(tempsbfracDunc)])
+                    normSigFracs.append([float(tempsbfracA)**-1 * (tempsbfracB + tempsbfracC - tempsbfracD)])
 
                 # Compute metric if...
                 # signal fraction in B, C, and D regions is < 10%
@@ -615,8 +617,9 @@ class Validation:
                    bc > minBkgEvts and \
                    bd > minBkgEvts:
 
-                    tempmetric = tempclosureerr**2.0 + (1.0 / tempsignificance)**2.0
-                    #tempmetric = 1.0 / tempsignificance
+                    if tempsignificance > 0.0:
+                        tempmetric = tempclosureerr**2.0 + (1.0 / tempsignificance)**2.0
+                       #tempmetric = 1.0 / tempsignificance
 
                 #if tempmetric < metric:
                 if c1k == "0.60" and c2k == "0.60":
@@ -626,7 +629,7 @@ class Validation:
                     significance = tempsignificance
                     closureErr = tempclosureerr
                 
-        return finalc1, finalc2, significance, closureErr, np.array(edges), np.array(signs), np.array(closeErrs), {"A" : np.array(sFracsA), "B" : np.array(sFracsB), "C" : np.array(sFracsC), "D" : np.array(sFracsD)}, {"A" : np.array(wBkgA), "B" : np.array(wBkgB), "C" : np.array(wBkgC), "D" : np.array(wBkgD)}, {"A" : np.array(uwBkgA), "B" : np.array(uwBkgB), "C" : np.array(uwBkgC), "D" : np.array(uwBkgD)}, {"A" : np.array(wSigA), "B" : np.array(wSigB), "C" : np.array(wSigC), "D" : np.array(wSigD)}, {"A" : np.array(uwSigA), "B" : np.array(uwSigB), "C" : np.array(uwSigC), "D" : np.array(uwSigD)}
+        return finalc1, finalc2, significance, closureErr, np.array(edges), np.array(signs), np.array(closeErrs), {"A" : np.array(sFracsA), "B" : np.array(sFracsB), "C" : np.array(sFracsC), "D" : np.array(sFracsD)}, {"A" : np.array(wBkgA), "B" : np.array(wBkgB), "C" : np.array(wBkgC), "D" : np.array(wBkgD)}, {"A" : np.array(uwBkgA), "B" : np.array(uwBkgB), "C" : np.array(uwBkgC), "D" : np.array(uwBkgD)}, {"A" : np.array(wSigA), "B" : np.array(wSigB), "C" : np.array(wSigC), "D" : np.array(wSigD)}, {"A" : np.array(uwSigA), "B" : np.array(uwSigB), "C" : np.array(uwSigC), "D" : np.array(uwSigD)}, normSigFracs
 
     # Define closure as how far away prediction for region D is compared to actual 
     def predictABCD(self, bNB, bNC, bND, bNBerr, bNCerr, bNDerr):
@@ -926,6 +929,21 @@ class Validation:
 
         return totalChi2, wtotalChi2, ndof
 
+    def saveValData(self, var_list, var_names, edges, tag):
+        
+        out_dict = {}
+        for i,e in enumerate(edges):
+            out_dict["({},{})".format(e[0],e[1])] = {}
+
+            for j,var in enumerate(var_list):
+                out_dict["({},{})".format(e[0],e[1])][var_names[j]] = var[i][0]
+
+        valData_json = json.dumps(out_dict, indent=4)
+
+        with open("{}/ValData_{}.json".format(self.config["outputDir"],tag), "w") as outfile:
+            outfile.write(valData_json)
+        outfile.close()
+
     def makePlots(self, doQuickVal=True, evalMass="400", evalModel="RPV_SYY_SHH"):
         NJetsRange = range(self.config["minNJetBin"], self.config["maxNJetBin"]+1)
 
@@ -1107,7 +1125,6 @@ class Validation:
         y_val_disc2,  y_val_sg_disc2,  y_val_bg_disc2  = self.getResults(output_val,   output_val_sg,  output_val_bg,  outputNum=0, columnNum=1)
         y_val_mass,   y_val_mass_sg,   y_val_mass_bg   = self.getResults(output_val,   output_val_sg,  output_val_bg,  outputNum=3, columnNum=0)
 
-
         nBins = 20
         nBinsReg = 100
         masses = [350., 550., 850., 1150.]
@@ -1236,6 +1253,12 @@ class Validation:
             totNjetsAPred = []
             bkgdNjetsSign = []
             
+            # Saving information for money plot using all possible bin edge choices (no masking)
+            bc, sc = self.cutAndCount(c1s, c2s, y_eval_bg_disc1, y_eval_bg_disc2, evalBkg["weight"], y_eval_sg_disc1, y_eval_sg_disc2, evalSig["weight"])
+            c1, c2, significance, closureErr, edges, signs, closeErrs, sFracs, wBkg, uwBkg, wSig, uwSig, normSigFracs= self.findABCDedges(bc, sc)
+            var_names = ["Sign", "NonClosure", "normSigFracs"]
+            self.saveValData([signs, closeErrs, normSigFracs], var_names, edges, self.config["atag"])
+
             for NJets in NJetsRange:
            
                 njets = float(NJets)
@@ -1251,7 +1274,7 @@ class Validation:
 
                 # Get number of background and signal counts for each A, B, C, D region for every possible combination of cuts on disc 1 and disc 2
                 bc, sc = self.cutAndCount(c1s, c2s, y_eval_bg_disc1[bkgFullMaskEval], y_eval_bg_disc2[bkgFullMaskEval], evalBkg["weight"][bkgFullMaskEval], y_eval_sg_disc1[sigFullMaskEval], y_eval_sg_disc2[sigFullMaskEval], evalSig["weight"][sigFullMaskEval])
-                c1, c2, significance, closureErr, edges, signs, closeErrs, sFracs, wBkg, uwBkg, wSig, uwSig = self.findABCDedges(bc, sc)
+                c1, c2, significance, closureErr, edges, signs, closeErrs, sFracs, wBkg, uwBkg, wSig, uwSig, normSigFracs = self.findABCDedges(bc, sc)
                 if len(signs) > 0:
                     self.plotVarVsBinEdges(signs[:,0], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 20.0, 2.0, "Sign",    int(NJets))
                     self.plotVarVsBinEdges(signs[:,1], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 20.0, 0.5, "SignUnc", int(NJets))

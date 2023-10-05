@@ -43,8 +43,8 @@ def get_loader(config):
             sg = []
             #sg += [x for x in ds if "Train" in x and "-{}".format(i_mass) in x]
     else:
-        #sg = [x for x in ds if "Train" in x and "-{}".format(mass) in x]
-        sg = []
+        sg = [x for x in ds if "Train" in x and "-{}".format(mass) in x]
+        #sg = []
     bg = [x for x in ds if "Train" in x and "{}".format(channel) in x]
 
     return DataLoader(config, sg, bg)
@@ -53,6 +53,7 @@ config = get_config()
 loader = get_loader(config)
 
 flat = loader.getFlatData()
+print(flat)
 print(flat['model'])
 data = flat['inputs']
 labels = flat['label']

@@ -167,6 +167,7 @@ if __name__ == '__main__':
     shutil.copy2("%s/CustomOptimizer.py"%(workDir), "%s/CustomOptimizer.py"%(taskPath))
     shutil.copy2("%s/MeanShiftTF.py"%(workDir),     "%s/MeanShiftTF.py"%(taskPath))
     shutil.copy2("%s/CustomCallback.py"%(workDir),     "%s/CustomCallback.py"%(taskPath))
+    shutil.copy2("%s/ShapUtils.py"%(workDir),     "%s/ShapUtils.py"%(taskPath))
     #if args.channel != "2l":
     shutil.copy2("%s/utils/makeQuickLook.py"%(workDir),     "%s/makeQuickLook.py"%(taskPath))
     #else:
