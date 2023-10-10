@@ -12,6 +12,7 @@ from glob import glob
 import multiprocessing
 import tensorflow as tf
 import tensorflow.keras as K
+import ShapUtils
 
 import sys, ast
 os.environ['KMP_WARNINGS'] = '0'
@@ -27,7 +28,7 @@ from DataLoader import DataLoader
 from Models import main_model
 from MeanShiftTF import MeanShift
 from CustomCallback import CustomCallback
-from ShapUtils
+
 
 
 def timeStamp():
