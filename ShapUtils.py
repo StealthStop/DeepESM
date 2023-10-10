@@ -117,4 +117,3 @@ def save_plot(name):
   """
   plt.savefig(name, bbox_inches='tight', format='png')
   plt.close()
-  save_plot("waterfall_plot.png")
