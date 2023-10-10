@@ -27,7 +27,7 @@ from DataLoader import DataLoader
 from Models import main_model
 from MeanShiftTF import MeanShift
 from CustomCallback import CustomCallback
-from ShapUtils import summary_plt
+from ShapUtils
 
 
 def timeStamp():
@@ -310,6 +310,10 @@ class Train:
             temp1 = tf.boolean_mask(val_1, mask_sg)
             temp2 = tf.boolean_mask(val_2, mask_sg)
 
+            #mask_bg = tf.reshape(y_mask[:, :1], [-1])
+            #temps1 = tf.boolean_mask(val_1, mask_bg)
+            #temps2 = tf.boolean_mask(val_2, mask_bg)
+
             #temptile1 = tf.reshape(tf.tile(temp1, [nBinEdge]), shape=(nBinEdge,-1))
             #temptile2 = tf.reshape(tf.tile(temp2, [nBinEdge]), shape=(nBinEdge,-1))
 
@@ -348,6 +352,16 @@ class Train:
             nbB = nbB + 0.01
             nbC = nbC + 0.01
             nbD = nbD + 0.01
+
+            #nsA = tf.reduce_sum(tf.sigmoid(1e2*(temps1-d1))*tf.sigmoid(1e2*(temps2-d2)))
+            #nsB = tf.reduce_sum(tf.sigmoid(1e2*(d1 - temps1))*tf.sigmoid(1e2*(temps2-d2)))
+            #nsC = tf.reduce_sum(tf.sigmoid(1e2*(temps1 - d1))*tf.sigmoid(1e2*(d2 - temps2)))
+            #nsD = tf.reduce_sum(tf.sigmoid(1e2*(d1 - temps1))*tf.sigmoid(1e2*(d2 - temps2)))
+
+            #nsA = nsA + 0.01
+            #nsB = nsB + 0.01
+            #nsC = nsC + 0.01
+            #nsD = nsD + 0.01
 
             ''' 
             min_N = 1 #tf.reduce_mean(nbTot) * 0.001
@@ -390,8 +404,11 @@ class Train:
             fracs = (nbA * nbD - nbB * nbC) / dl
             '''
 
+            #normSigFracs = (nsA / nbA)**-1 * (nsB / nbB + nsC / nbC - nsD / nbD) 
+
             fracs = ((nbA * nbD - nbB * nbC)/(nbA * nbD + nbB * nbC))**2
 
+            #normSigFrac = tf.reduce_sum(normSigFracs)
             frac = tf.reduce_sum(fracs)
             #frac = K.losses.mean_squared_error(tf.zeros_like(fracs), fracs)
             #frac = tf.reduce_mean(fracs)
@@ -732,7 +749,9 @@ class Train:
         #bgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Train.root") for bkgd in self.config["bkgd"][1]), [])
         #loader = DataLoader(self.config, sgTrainSet, bgTrainSet)
         data = self.loader.getFlatData()
-        summary_plt(model, data, 0)
+        summary_plot(model, data, 0, self.config["outputDir"])
+        bar_and_heat_plots(model, data, self.config["outputDir"])
+        
         
         metric = val.makePlots(self.doQuickVal, self.config["evalMass"], self.config["evalModel"])
         del val
