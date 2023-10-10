@@ -27,7 +27,7 @@ from DataLoader import DataLoader
 from Models import main_model
 from MeanShiftTF import MeanShift
 from CustomCallback import CustomCallback
-from ShapUtils
+import ShapUtils
 
 
 def timeStamp():
