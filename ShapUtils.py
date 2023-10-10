@@ -101,21 +101,14 @@ def bar_and_heat_plots(model, data, outpath):
     # Note that we are using 500 perterbations of each event to estimate the average shapely values for that event
     # Be careful with scaling
     shap_values = explainer.shap_values(inputs[:numEvents,:], nsamples=500)
-    
+
     # Changing this to summary plot for now because that seems like the most interesting to me (Bryan)
     # This should be changed back to waterfall if we want to look at individual events
-    shap.plots.bar(shap_values)
-    save_plot("{}/bar_plot_disc1_plot.png".format(outpath))
-    shap.plots.heatmap(shap_values)
-    save_plot("{}/heatmap_disc1_plot.png".format(outpath))
-  
-    explainer = shap.KernelExplainer(predict_disc2, inputs, feature_names=names)
-    shap_values = explainer.shap_values(inputs[:numEvents,:], nsamples=500)
-  
-    shap.plots.bar(shap_values)
-    save_plot("{}/bar_plot_disc2_plot.png".format(outpath))
-    shap.plots.heatmap(shap_values)
-    save_plot("{}/heatmap_disc2_plot.png".format(outpath))
+    shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="bar")
+    save_plot("bar_plot_disc1_plot.png")
+    shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="heatmap")
+    save_plot("heatmap_plot_disc1_plot.png")
+
 
 
 def save_plot(name):
