@@ -12,7 +12,7 @@ from glob import glob
 import multiprocessing
 import tensorflow as tf
 import tensorflow.keras as K
-import ShapUtils
+from ShapUtils import bar_and_heat_plots
 
 import sys, ast
 os.environ['KMP_WARNINGS'] = '0'
@@ -750,7 +750,6 @@ class Train:
         #bgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Train.root") for bkgd in self.config["bkgd"][1]), [])
         #loader = DataLoader(self.config, sgTrainSet, bgTrainSet)
         data = self.loader.getFlatData()
-        summary_plot(model, data, 0, self.config["outputDir"])
         bar_and_heat_plots(model, data, self.config["outputDir"])
         
         
