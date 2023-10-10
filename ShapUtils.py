@@ -106,13 +106,13 @@ def bar_and_heat_plots(model, data, outpath):
     # This should be changed back to waterfall if we want to look at individual events
     shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="bar")
     save_plot("bar_plot_disc1_plot.png")
-    shap.plots.heatmap(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="heatmap")
+    shap.plots.heatmap(shap_values, feature_names=names, plot_type="heatmap")
     save_plot("heatmap_plot_disc1_plot.png")
     shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="violin")
     save_plot("violin_plot_disc1_plot.png")
     shap.plots.violin(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="layered_violin")
     save_plot("layered_violin_plot_disc1_plot.png")
-    shap.plot.decision(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="decision")
+    shap.plot.decision(shap_values, feature_names=names, plot_type="decision")
     save_plot("decision_plot_disc1_plot.png")
     
 
