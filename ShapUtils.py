@@ -110,6 +110,8 @@ def bar_and_heat_plots(model, data, outpath):
 
     # Changing this to summary plot for now because that seems like the most interesting to me (Bryan)
     # This should be changed back to waterfall if we want to look at individual events
+    shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names)
+    save_plot("summary_plot_disc1_plot.png")
     shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="bar")
     save_plot("bar_plot_disc1_plot.png")
     shap.plots.heatmap(explanation)
@@ -118,6 +120,9 @@ def bar_and_heat_plots(model, data, outpath):
     save_plot("violin_plot_disc1_plot.png")
     shap.plots.violin(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="layered_violin")
     save_plot("layered_violin_plot_disc1_plot.png")
+    shap.plots.waterfall(explanation[0])
+    save_plot("waterfall_plot_disc1_plot.png")
+
 
     
 
