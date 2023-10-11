@@ -101,19 +101,24 @@ def bar_and_heat_plots(model, data, outpath):
     # Note that we are using 500 perterbations of each event to estimate the average shapely values for that event
     # Be careful with scaling
     shap_values = explainer.shap_values(inputs[:numEvents,:], nsamples=500)
+    explanation = shap.Explanation(
+       values=shap_values,
+       base_values=explainer.expected_value,
+       data=inputs,
+       feature_names=names
+    )
 
     # Changing this to summary plot for now because that seems like the most interesting to me (Bryan)
     # This should be changed back to waterfall if we want to look at individual events
     shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="bar")
     save_plot("bar_plot_disc1_plot.png")
-    shap.plots.heatmap(shap_values, feature_names=names, plot_type="heatmap")
+    shap.plot.heatmap(explanation)
     save_plot("heatmap_plot_disc1_plot.png")
     shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="violin")
     save_plot("violin_plot_disc1_plot.png")
     shap.plots.violin(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="layered_violin")
     save_plot("layered_violin_plot_disc1_plot.png")
-    shap.plot.decision(shap_values, feature_names=names, plot_type="decision")
-    save_plot("decision_plot_disc1_plot.png")
+
     
 
 
