@@ -121,8 +121,7 @@ def make_shap_plots(model, data, outpath):
 
     inputs_pd = pd.DataFrame(inputs)
 
-    sv = explainer.shap_values(inputs_pd.loc[[5]])
-    exp = shap.Explanation(sv, explainer.expected_value, data=inputs_pd.loc[[5]], feature_names=names)
+    exp = shap.Explanation(shap_values.values[:,:,1], shap_values.base_values[:,1], data=inputs.values, feature_names=names)
     shap.plots.waterfall(exp[0])
     save_plot("waterfall_plot_disc1_plot.png")
 
