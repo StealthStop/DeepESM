@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 from shap.plots import waterfall
 from shap import kmeans
 import pandas as pd
+from shap.plots import waterfall
+from shap.maskers import Independent
 
 def predict(data, model):
   return model.predict([data[:,i] for i in range(data.shape[1])]).flatten()
@@ -117,8 +119,9 @@ def make_shap_plots(model, data, outpath):
     shap.plots.violin(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="layered_violin")
     save_plot("layered_violin_plot_disc1_plot.png")
 
-    explanation = shap.Explanation(values=shap_values[0][instance_index], base_values=explainer.expected_value[0], data=inputs[instance_index], feature_names=names)
-    shap.plots.waterfall(explanation)
+    sv = explainer.shap_values(inputs.loc[[5]])
+    exp = shap.Explanation(sv, explainer.expected_value, data=inputs.loc[[5]], feature_names=names)
+    shap.plots.waterfall(exp[0])
     save_plot("waterfall_plot_disc1_plot.png")
 
 
@@ -142,10 +145,6 @@ def make_shap_plots(model, data, outpath):
   
     shap.plots.violin(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="layered_violin")
     save_plot("layered_violin_plot_disc2_plot.png")
-
-    explanation = shap.Explanation(values=shap_values[0][instance_index], base_values=explainer.expected_value[0], data=inputs[instance_index], feature_names=names)
-    shap.plots.waterfall(explanation)
-    save_plot("waterfall_plot_disc2_plot.png")
 
 
     
