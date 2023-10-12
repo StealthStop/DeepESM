@@ -27,7 +27,7 @@ from DataLoader import DataLoader
 from Models import main_model
 from MeanShiftTF import MeanShift
 from CustomCallback import CustomCallback
-import ShapUtils
+from ShapUtils import make_shap_plots
 
 
 def timeStamp():
@@ -749,8 +749,7 @@ class Train:
         #bgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Train.root") for bkgd in self.config["bkgd"][1]), [])
         #loader = DataLoader(self.config, sgTrainSet, bgTrainSet)
         data = self.loader.getFlatData()
-        summary_plot(model, data, 0, self.config["outputDir"])
-        bar_and_heat_plots(model, data, self.config["outputDir"])
+        make_shap_plots(model, data, self.config["outputDir"])
         
         
         metric = val.makePlots(self.doQuickVal, self.config["evalMass"], self.config["evalModel"])
