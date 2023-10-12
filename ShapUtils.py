@@ -119,8 +119,8 @@ def make_shap_plots(model, data, outpath):
     shap.plots.violin(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="layered_violin")
     save_plot("layered_violin_plot_disc1_plot.png")
 
-    sv = explainer.shap_values(inputs.loc[[5]])
-    exp = shap.Explanation(sv, explainer.expected_value, data=inputs.loc[[5]], feature_names=names)
+    sv = explainer.shap_values(inputs.iloc[[5]])
+    exp = shap.Explanation(sv, explainer.expected_value, data=inputs.iloc[[5]], feature_names=names)
     shap.plots.waterfall(exp[0])
     save_plot("waterfall_plot_disc1_plot.png")
 
