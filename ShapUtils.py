@@ -77,7 +77,7 @@ def summary_plot(model, data, instance_index, outpath):
 
 def make_shap_plots(model, data, outpath):
     """
-    Makes a bar plot and a heat plot.
+    Creates shap summary, bar, heatmap, violin, and layer violin plots.
     """
     def predict_disc1(data):
         return model.predict(data)[0][:,0]
@@ -94,7 +94,6 @@ def make_shap_plots(model, data, outpath):
     inputs = inputs[:numEvents,:]
     names = data["vars"]
 
-  
     #Making shap values for disc1
     explainer = shap.KernelExplainer(predict_disc1, inputs, feature_names=names)
     shap_values = explainer.shap_values(inputs[:numEvents,:], nsamples=500)
@@ -102,19 +101,19 @@ def make_shap_plots(model, data, outpath):
 
     #making the plots for disc1
     shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names)
-    save_plot("summary_plot_disc1_plot.png")
+    save_plot("{}/summary_plot_disc1_plot.png".format(outpath))
   
     shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="bar")
-    save_plot("bar_plot_disc1_plot.png")
+    save_plot("{}/bar_plot_disc1_plot.png".format(outpath))
   
     shap.plots.heatmap(explanation)
-    save_plot("heatmap_plot_disc1_plot.png")
+    save_plot("{}/heatmap_plot_disc1_plot.png".format(outpath))
   
     shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="violin")
-    save_plot("violin_plot_disc1_plot.png")
+    save_plot("{}/violin_plot_disc1_plot.png".format(outpath))
   
     shap.plots.violin(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="layered_violin")
-    save_plot("layered_violin_plot_disc1_plot.png")
+    save_plot("{}/layered_violin_plot_disc1_plot.png".format(outpath))
 
 
     #Making shap values for disc2
@@ -124,23 +123,19 @@ def make_shap_plots(model, data, outpath):
 
     #making the plots for disc2
     shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names)
-    save_plot("summary_plot_disc2_plot.png")
+    save_plot("{}/summary_plot_disc2_plot.png".format(outpath))
   
     shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="bar")
-    save_plot("bar_plot_disc2_plot.png")
+    save_plot("{}/bar_plot_disc2_plot.png".format(outpath))
   
     shap.plots.heatmap(explanation)
-    save_plot("heatmap_plot_disc2_plot.png")
+    save_plot("{}/heatmap_plot_disc2_plot.png".format(outpath))
   
     shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="violin")
-    save_plot("violin_plot_disc2_plot.png")
+    save_plot("{}/violin_plot_disc2_plot.png".format(outpath))
   
     shap.plots.violin(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="layered_violin")
-    save_plot("layered_violin_plot_disc2_plot.png")
-
-
-    
-
+    save_plot("{}/layered_violin_plot_disc2_plot.png".format(outpath))
 
 
 def save_plot(name):
