@@ -119,18 +119,17 @@ def make_shap_plots(model, data, outpath):
     shap.plots.violin(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="layered_violin")
     save_plot("layered_violin_plot_disc1_plot.png")
 
-    inputs_pd = pd.DataFrame(inputs)
-
-    exp = shap.Explanation(shap_values.values[:,:,1], shap_values.base_values[:,1], data=inputs.values, feature_names=names)
-    shap.plots.waterfall(exp[0])
-    save_plot("waterfall_plot_disc1_plot.png")
+    #work in progress
+    # explanation = shap.Explanation(values=shap_values[0][instance_index], base_values=explainer.expected_value[0], data=inputs[instance_index], feature_names=names)
+    # shap.plots.waterfall(explanation)
+    # save_plot("waterfall_plot_disc1_plot.png")
 
 
     #Making shap values for disc2
-    explainer = shap.KernelExplainer(predict_disc2, inputs, feature_names=names)
-    shap_values = explainer.shap_values(inputs[:numEvents,:], nsamples=500)
-    explanation = shap.Explanation(values=shap_values, base_values=explainer.expected_value, data=inputs, feature_names=names)
-
+    explanation = shap.Explanation(values=shap_values[0][instance_index], base_values=explainer.expected_value[0], data=inputs[instance_index], feature_names=names)
+    shap.plots.waterfall(explanation)
+    save_plot("waterfall_plot_disc1_plot.png")
+  
     #making the plots for disc2
     shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names)
     save_plot("summary_plot_disc2_plot.png")
@@ -146,6 +145,11 @@ def make_shap_plots(model, data, outpath):
   
     shap.plots.violin(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="layered_violin")
     save_plot("layered_violin_plot_disc2_plot.png")
+
+    #work in progress
+    # explanation = shap.Explanation(values=shap_values[0][instance_index], base_values=explainer.expected_value[0], data=inputs[instance_index], feature_names=names)
+    # shap.plots.waterfall(explanation)
+    # save_plot("waterfall_plot_disc2_plot.png")
 
 
     
