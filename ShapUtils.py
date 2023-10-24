@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from shap.plots import waterfall
 from shap import kmeans
 import pandas as pd
-from shap.plots import waterfall
 
 
 def predict(data, model):
@@ -124,21 +123,18 @@ def make_shap_plots(model, data, outpath):
 
     # shap.plots.violin(shap_values, features=inputs[:10,:], feature_names=names, plot_type="layered_violin")
     # save_plot("layered_violin10_plot_disc1_plot.png")
-  
-    explainer = shap.KernelExplainer(predict_disc1, inputs[:numEvents,:], feature_names=names)
+    explainer = shap.explainer(predict_disc1, inputs[:numEvents,:], feature_names=names)
     shap_values = explainer.shap_values(inputs[:numEvents,:])
-    values = shap_values[0]
-    base_values = [explainer.expected_value[0]]*len(shap_values[0])
-  
-    # explainer = shap.Explainer(predict_disc1, inputs[:numEvents,:], feature_names=names)
+    explanation = shap.Explanation(values=shap_values[0][1],
+                               base_values=explainer.expected_value[0],
+                               data=inputs[:numEvents,:].iloc[1],
+                               feature_names=inputs[:numEvents,:].columns.tolist())
+    shap.waterfall.plot(explanation, max_display=10, show=False)
+    
     # shap_values = explainer(inputs[:numEvents,:], nsamples=500)
-    tmp = shap.Explanation(values = np.array(values, dtype=np.float32),
-                       base_values = np.array(base_values, dtype=np.float32),
-                       data=np.array(inputs[:numEvents,:]),
-                       feature_names=names)
+
     # shap_values_explaination = shap.Explanation(shap_values, feature_names=names) 
     # shap.plots.heatmap(shap_values_explaination)
-    shap.plots.waterfall(tmp[0], max_display=20)
     # shap.plots._waterfall.waterfall_legacy(explainer.expected_value, shap_values[0])
     save_plot("waterfall_disc1_plot.png")
 
