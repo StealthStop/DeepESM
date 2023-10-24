@@ -128,7 +128,8 @@ def make_shap_plots(model, data, outpath):
     explainer = shap.Explainer(predict_disc1, inputs, feature_names=names)
     shap_values = explainer(inputs)
     shap.plots.waterfall(shap_values[0], max_display=20)
-  
+    save_plot("waterfall_disc1_plot.png")
+
     # shap.plots._waterfall.waterfall_legacy(explainer.expected_value, shap_values[0], max_display=10)
     # save_plot("waterfall_plot_disc1_plot.png")
 
