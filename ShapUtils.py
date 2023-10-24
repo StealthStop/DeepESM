@@ -125,7 +125,7 @@ def make_shap_plots(model, data, outpath):
     shap.plots.violin(shap_values, features=inputs[:10,:], feature_names=names, plot_type="layered_violin")
     save_plot("layered_violin10_plot_disc1_plot.png")
 
-    shap.plots._waterfall.waterfall_legacy(explainer.expected_value, shap_values[0])
+    shap.plots._waterfall.waterfall_legacy(explainer.expected_value, shap_values[0], max_display=10)
     save_plot("waterfall_plot_disc1_plot.png")
 
 
@@ -150,7 +150,7 @@ def make_shap_plots(model, data, outpath):
     shap.plots.violin(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="layered_violin")
     save_plot("layered_violin_plot_disc2_plot.png")
 
-    shap.plots._waterfall.waterfall_legacy(explainer.expected_value, shap_values[0])
+    shap.plots._waterfall.waterfall_legacy(explainer.expected_value, shap_values[0], max_display=10)
     save_plot("waterfall_plot_disc2_plot.png")
 
 
