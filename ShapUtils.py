@@ -125,33 +125,37 @@ def make_shap_plots(model, data, outpath):
     shap.plots.violin(shap_values, features=inputs[:10,:], feature_names=names, plot_type="layered_violin")
     save_plot("layered_violin10_plot_disc1_plot.png")
 
-    shap.plots._waterfall.waterfall_legacy(explainer.expected_value, shap_values[0], max_display=10)
-    save_plot("waterfall_plot_disc1_plot.png")
+    explainer = shap.Explainer(predict_disc1, inputs, feature_names=names)
+    shap_values = explainer(inputs)
+    shap.plots.waterfall(shap_values[0], max_display=20)
+  
+    # shap.plots._waterfall.waterfall_legacy(explainer.expected_value, shap_values[0], max_display=10)
+    # save_plot("waterfall_plot_disc1_plot.png")
 
 
-    #Making shap values for disc2
-    explainer = shap.KernelExplainer(predict_disc2, inputs, feature_names=names)
-    shap_values = explainer.shap_values(inputs[:numEvents,:], nsamples=500)
-    explanation = shap.Explanation(values=shap_values, base_values=explainer.expected_value, data=inputs, feature_names=names)
+    # #Making shap values for disc2
+    # explainer = shap.KernelExplainer(predict_disc2, inputs, feature_names=names)
+    # shap_values = explainer.shap_values(inputs[:numEvents,:], nsamples=500)
+    # explanation = shap.Explanation(values=shap_values, base_values=explainer.expected_value, data=inputs, feature_names=names)
   
-    #making the plots for disc2
-    shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names)
-    save_plot("summary_plot_disc2_plot.png")
+    # #making the plots for disc2
+    # shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names)
+    # save_plot("summary_plot_disc2_plot.png")
   
-    shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="bar")
-    save_plot("bar_plot_disc2_plot.png")
+    # shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="bar")
+    # save_plot("bar_plot_disc2_plot.png")
   
-    shap.plots.heatmap(explanation)
-    save_plot("heatmap_plot_disc2_plot.png")
+    # shap.plots.heatmap(explanation)
+    # save_plot("heatmap_plot_disc2_plot.png")
   
-    shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="violin")
-    save_plot("violin_plot_disc2_plot.png")
+    # shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="violin")
+    # save_plot("violin_plot_disc2_plot.png")
   
-    shap.plots.violin(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="layered_violin")
-    save_plot("layered_violin_plot_disc2_plot.png")
+    # shap.plots.violin(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="layered_violin")
+    # save_plot("layered_violin_plot_disc2_plot.png")
 
-    shap.plots._waterfall.waterfall_legacy(explainer.expected_value, shap_values[0], max_display=10)
-    save_plot("waterfall_plot_disc2_plot.png")
+    # shap.plots._waterfall.waterfall_legacy(explainer.expected_value, shap_values[0], max_display=10)
+    # save_plot("waterfall_plot_disc2_plot.png")
 
 
 
