@@ -126,11 +126,11 @@ def make_shap_plots(model, data, outpath):
     save_plot("layered_violin10_plot_disc1_plot.png")
 
     explainer = shap.Explainer(predict_disc1, inputs, feature_names=names)
-    shap_values = explainer(inputs)
+    shap_values = explainer(inputs[:numEvents,:], nsamples=500)
     # shap_values_explaination = shap.Explanation(shap_values, feature_names=names) 
     # shap.plots.heatmap(shap_values_explaination)
-    # shap.plots.waterfall(shap_values[0], max_display=20)
-    shap.plots._waterfall.waterfall_legacy(explainer.expected_value, shap_values[0])
+    shap.plots.waterfall(shap_values[0], max_display=20)
+    # shap.plots._waterfall.waterfall_legacy(explainer.expected_value, shap_values[0])
     save_plot("waterfall_disc1_plot.png")
 
     # shap.plots._waterfall.waterfall_legacy(explainer.expected_value, shap_values[0], max_display=10)
