@@ -123,14 +123,20 @@ def make_shap_plots(model, data, outpath):
 
     # shap.plots.violin(shap_values, features=inputs[:10,:], feature_names=names, plot_type="layered_violin")
     # save_plot("layered_violin10_plot_disc1_plot.png")
-    explainer = shap.explainer(predict_disc1, inputs[:numEvents,:], feature_names=names)
-    shap_values = explainer.shap_values(inputs[:numEvents,:])
-    explanation = shap.Explanation(values=shap_values[0][1],
-                               base_values=explainer.expected_value[0],
-                               data=inputs[:numEvents,:].iloc[1],
-                               feature_names=inputs[:numEvents,:].columns.tolist())
-    shap.waterfall.plot(explanation, max_display=10, show=False)
-    
+    # explainer = shap.explainer(predict_disc1, inputs[:numEvents,:], feature_names=names)
+    # shap_values = explainer.shap_values(inputs[:numEvents,:])
+    # explanation = shap.Explanation(values=shap_values[0][1],
+    #                            base_values=explainer.expected_value[0],
+    #                            data=inputs[:numEvents,:].iloc[1],
+    #                            feature_names=inputs[:numEvents,:].columns.tolist())
+    # shap.waterfall.plot(explanation, max_display=10, show=False)
+
+    explainer = shap.Explainer(predict_disc1, inputs[:numEvents,:], feature_names=names)
+    shap_values = explainer(inputs[:numEvents,:])
+    # shap_values_explaination = shap.Explanation(shap_values, feature_names=names) 
+    # shap.plots.heatmap(shap_values_explaination)
+    shap.waterfall_plot(shap_values[0], max_display=20, show=False)
+  
     # shap_values = explainer(inputs[:numEvents,:], nsamples=500)
 
     # shap_values_explaination = shap.Explanation(shap_values, feature_names=names) 
