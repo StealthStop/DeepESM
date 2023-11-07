@@ -106,7 +106,7 @@ def make_shap_plots(model, data, outpath):
     shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="bar", max_display=50)
     save_plot("bar_plot_disc1_plot.png")
   
-    shap.plots.heatmap(explanation)
+    shap.plots.heatmap(explanation, max_display=50)
     save_plot("heatmap_plot_disc1_plot.png")
   
     shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="violin", max_display=50)
@@ -147,14 +147,14 @@ def make_shap_plots(model, data, outpath):
     shap_values = explainer.shap_values(inputs[:numEvents,:], nsamples=500)
     explanation = shap.Explanation(values=shap_values, base_values=explainer.expected_value, data=inputs, feature_names=names)
 
-    shap.plots.heatmap(explanation)
+    shap.plots.heatmap(explanation, max_display=50)
     save_plot("heatmap20_plot_disc1_plot.png")
 
     explainer = shap.KernelExplainer(predict_disc2, inputs, feature_names=names)
     shap_values = explainer.shap_values(inputs[:numEvents,:], nsamples=500)
     explanation = shap.Explanation(values=shap_values, base_values=explainer.expected_value, data=inputs, feature_names=names)
 
-    shap.plots.heatmap(explanation)
+    shap.plots.heatmap(explanation, max_display=50)
     save_plot("{}/heatmap20_plot_disc2_plot.png".format(outpath))
 
     
