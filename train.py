@@ -781,6 +781,9 @@ class Train:
         metric = val.makePlots(self.doQuickVal, self.config["evalMass"], self.config["evalModel"])
         del val
 
+        data = self.loader.getFlatData()
+        make_shap_plots(model, data, self.config["outputDir"])
+
 if __name__ == '__main__':
 
     tracemalloc.start()
