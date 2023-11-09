@@ -751,7 +751,6 @@ class Train:
         data = self.loader.getFlatData()
         make_shap_plots(model, data, self.config["outputDir"])
         
-        
         metric = val.makePlots(self.doQuickVal, self.config["evalMass"], self.config["evalModel"])
         del val
         
@@ -771,7 +770,7 @@ class Train:
 
         self.importData()
 
-        model = K.models.load_model(self.config["outputDir"]+"/keras_model", custom_objects={'loss_model_disc': self.loss_disc(c=self.config["disc_lambda"], current_epoch=self.cb.current_epoch, start_epoch=self.config["disc_start"]), 'discoLoss': self.loss_disco(c=self.config["bkg_disco_lambda"], current_epoch=self.cb.current_epoch, start_epoch=self.config["disco_start"]), 'closureLoss': self.loss_closure(c=self.config["abcd_close_lambda"], g=g, nBinEdge=1, current_epoch=self.cb.current_epoch, start_epoch=self.config["abcd_start"]) })
+        model = K.models.load_model(self.config["outputDir"]+"/keras_model", custom_objects={'loss_model_disc': self.loss_disc(c=self.config["disc_lambda"], current_epoch=self.cb.current_epoch, start_epoch=self.config["disc_start"]), 'discoLoss': self.loss_disco(c=self.config["bkg_disco_lambda"], current_epoch=self.cb.current_epoch, start_epoch=self.config["disco_start"]), 'closureLoss': self.loss_closure(c=self.config["abcd_close_lambda"], g=g, nBinEdge=1, current_epoch=self.cb.current_epoch, start_epoch=self.config["abcd_start"]), 'regLoss': self.loss_mass_reg(c=self.config["mass_reg_lambda"]) })
 
         self.config['outputDir'] += "/" + self.config['evalYear']
         if not os.path.isdir(self.config['outputDir']):        
@@ -781,6 +780,9 @@ class Train:
         val = Validation(model, self.config, self.loader, self.valLoader, self.evalLoader, self.testLoader)
         metric = val.makePlots(self.doQuickVal, self.config["evalMass"], self.config["evalModel"])
         del val
+
+        data = self.loader.getFlatData()
+        make_shap_plots(model, data, self.config["outputDir"])
 
 if __name__ == '__main__':
 
