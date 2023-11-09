@@ -83,6 +83,8 @@ def write_slide_big(f, o, flist):
     for p in flist:
         plots += glob(os.path.join(o,p))
 
+    print(len(plots))
+
     if plots != [] and len(plots) > 19:
         f.write('''
 \\begin{frame}
@@ -141,6 +143,52 @@ def write_slide_big(f, o, flist):
 \\end{frame}
 ''' % (plots[0], plots[1], plots[2], plots[3], plots[4], plots[5], plots[6], plots[7], plots[8], plots[9], plots[10], plots[11], plots[12], plots[13], plots[14], plots[15], plots[16], plots[17], plots[18], plots[19]))
 
+def write_slide_shap(f, o, flist):
+    plots = []
+    for p in flist:
+        plots += glob(os.path.join(o,p))
+
+    print(len(plots))
+
+    if plots != [] and len(plots) > 11:
+        f.write('''
+\\begin{frame}
+\\begin{columns}
+\\column{0.25\\textwidth}
+    \\begin{figure}
+    \\includegraphics[width = 0.8\\textwidth]{%s}
+    \\vspace{0.1em}
+    \\includegraphics[width = 0.8\\textwidth]{%s}
+    \\vspace{0.1em}
+    \\includegraphics[width = 0.8\\textwidth]{%s}
+    \\end{figure}
+\\column{0.25\\textwidth}
+    \\begin{figure}
+    \\includegraphics[width = 0.8\\textwidth]{%s}
+    \\vspace{0.1em}
+    \\includegraphics[width = 0.8\\textwidth]{%s}
+    \\vspace{0.1em}
+    \\includegraphics[width = 0.8\\textwidth]{%s}
+    \\end{figure}
+\\column{0.25\\textwidth}
+    \\begin{figure}
+    \\includegraphics[width = 0.8\\textwidth]{%s}
+    \\vspace{0.1em}
+    \\includegraphics[width = 0.8\\textwidth]{%s}
+    \\vspace{0.1em}
+    \\includegraphics[width = 0.8\\textwidth]{%s}
+    \\end{figure}
+\\column{0.25\\textwidth}
+    \\begin{figure}
+    \\includegraphics[width = 0.8\\textwidth]{%s}
+    \\vspace{0.1em}
+    \\includegraphics[width = 0.8\\textwidth]{%s}
+    \\vspace{0.1em}
+    \\includegraphics[width = 0.8\\textwidth]{%s}
+    \\end{figure}
+\\end{columns}
+\\end{frame}
+''' % (plots[0], plots[1], plots[2], plots[3], plots[4], plots[5], plots[6], plots[7], plots[8], plots[9], plots[10], plots[11]))
 if __name__ == "__main__":
     #Collect all training output dirs
     outputs = get_outdirs()
@@ -234,6 +282,21 @@ if __name__ == "__main__":
         'SignUnc_vs_Disc1Disc2_Njets13.png',
     ]
 
+    flist4 = [
+        'violin_plot_disc1_plot.png',
+        'violin_plot_disc2_plot.png',
+        'bar_plot_disc1_plot.png',
+        'bar_plot_disc2_plot.png',
+        'heatmap_plot_disc1_plot.png',
+        'heatmap_plot_disc2_plot.png',
+        'layered_violin_plot_disc1_plot.png',
+        'layered_violin_plot_disc2_plot.png',
+        'violin_plot_disc1_plot.png',
+        'violin_plot_disc2_plot.png',
+        'summary_plot_disc1_plot.png',
+        'summary_plot_disc2_plot.png',
+    ]
+
     with open("./quickLook.tex", "w") as f:
         beamer_header(f)
 
@@ -241,6 +304,7 @@ if __name__ == "__main__":
             write_slide(f, o, flist)
             write_slide_big(f, o, flist2)
             write_slide_big(f, o, flist3)
+            write_slide_shap(f, o, flist4)
 
         f.write("\\end{document}")    
 
