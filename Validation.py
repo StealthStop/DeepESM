@@ -523,6 +523,8 @@ class Validation:
         significance = 0.0; finalc1 = -1.0; finalc2 = -1.0; 
         closureErr = 0.0; metric = 999.0
         signs = []
+        signsWNC = []
+        predsigns = []
         closeErrs = []
         edges = []
         wBkgA   = []; uwBkgA  = []; wSigA   = []; uwSigA  = []
@@ -572,7 +574,8 @@ class Validation:
                 tempbfracC = bC / bTotal; tempsfracC = sC / sTotal
                 tempbfracD = bD / bTotal; tempsfracD = sD / sTotal
 
-                tempsignificance = 0.0; tempclosureerr = -999.0; tempmetric = 999.0; tempclosureerrunc = -999.0; tempsignunc = 0.0
+                tempsignificance = 0.0; tempclosureerr = -999.0; tempmetric = 999.0; tempclosureerrunc = -999.0; tempsignunc = 0.0; temppredsign = 0.0
+                tempsignificanceWNC = 0.0; tempsignuncWNC = 0.0
 
                 if bD > 0.0 and bA > 0.0:
                     tempclosureerr    = abs(1.0 - (bB * bC) / (bA * bD))
@@ -582,13 +585,18 @@ class Validation:
                                          ((bB * bC * bD2**0.5)/(bA * bD**2.0))**2.0)**0.5
 
                 if bA > 0.0:
-                    tempsignificance += (sA / (bA + (bkgNormUnc*bA)**2.0 + (tempclosureerr*bA)**2.0)**0.5)
-                    tempsignunc      += ((sA2**0.5 / (bA + (bkgNormUnc*bA)**2.0 + (tempclosureerr*bA)**2.0)**0.5)**2.0 + \
+                    tempsignificanceWNC += (sA / (bA + (bkgNormUnc*bA)**2.0 + (tempclosureerr*bA)**2.0)**0.5)
+                    tempsignificance += (sA / (bA)**0.5)
+                    temppredsign += (sA / (bB * bC / bD)**0.5)
+                    tempsignuncWNC      += ((sA2**0.5 / (bA + (bkgNormUnc*bA)**2.0 + (tempclosureerr*bA)**2.0)**0.5)**2.0 + \
                                          ((sA * bA2**0.5 * (2.0 * bA * tempclosureerr**2.0 + 2.0 * bkgNormUnc**2.0 * bA + 1)) / (bA + (bkgNormUnc*bA)**2.0 + (tempclosureerr*bA)**2.0)**1.5)**2.0 + \
                                          ((bA**2.0 * tempclosureerr * sA * tempclosureerrunc) / (bA * (bA * (tempclosureerr**2.0 + bkgNormUnc**2.0) + 1))**1.5)**2.0)**0.5
-                                       
+                    tempsignunc      += tempsignificance * (((sA)**0.5/sA)**2 + (0.5)*(1/(bA**1.5)))**0.5
+                                   
                 if tempsignificance > 0.0 and tempclosureerr > 0.0:
                     signs.append([tempsignificance, tempsignunc])
+                    signsWNC.append([tempsignificanceWNC, tempsignuncWNC])
+                    predsigns.append([temppredsign, tempsignunc])
                     closeErrs.append([abs(tempclosureerr), tempclosureerrunc])
                     edges.append([float(c1k),float(c2k)])
 
@@ -629,7 +637,7 @@ class Validation:
                     significance = tempsignificance
                     closureErr = tempclosureerr
                 
-        return finalc1, finalc2, significance, closureErr, np.array(edges), np.array(signs), np.array(closeErrs), {"A" : np.array(sFracsA), "B" : np.array(sFracsB), "C" : np.array(sFracsC), "D" : np.array(sFracsD)}, {"A" : np.array(wBkgA), "B" : np.array(wBkgB), "C" : np.array(wBkgC), "D" : np.array(wBkgD)}, {"A" : np.array(uwBkgA), "B" : np.array(uwBkgB), "C" : np.array(uwBkgC), "D" : np.array(uwBkgD)}, {"A" : np.array(wSigA), "B" : np.array(wSigB), "C" : np.array(wSigC), "D" : np.array(wSigD)}, {"A" : np.array(uwSigA), "B" : np.array(uwSigB), "C" : np.array(uwSigC), "D" : np.array(uwSigD)}, normSigFracs
+        return finalc1, finalc2, significance, closureErr, np.array(edges), np.array(signs), np.array(signsWNC), np.array(predsigns), np.array(closeErrs), {"A" : np.array(sFracsA), "B" : np.array(sFracsB), "C" : np.array(sFracsC), "D" : np.array(sFracsD)}, {"A" : np.array(wBkgA), "B" : np.array(wBkgB), "C" : np.array(wBkgC), "D" : np.array(wBkgD)}, {"A" : np.array(uwBkgA), "B" : np.array(uwBkgB), "C" : np.array(uwBkgC), "D" : np.array(uwBkgD)}, {"A" : np.array(wSigA), "B" : np.array(wSigB), "C" : np.array(wSigC), "D" : np.array(wSigD)}, {"A" : np.array(uwSigA), "B" : np.array(uwSigB), "C" : np.array(uwSigC), "D" : np.array(uwSigD)}, normSigFracs
 
     # Define closure as how far away prediction for region D is compared to actual 
     def predictABCD(self, bNB, bNC, bND, bNBerr, bNCerr, bNDerr):
@@ -707,9 +715,10 @@ class Validation:
 
         fig = plt.figure() 
         plt.hist2d(edges[:,0], edges[:,1], bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=var, cmin=10e-10, cmax=cmax, vmin = 0.0, vmax = vmax)
-        plt.colorbar()
+        cb = plt.colorbar()
+        cb.set_label(label="{}".format(tag), loc='center')
         ax = plt.gca()
-        ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge")
+        ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge");
         hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
 
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
@@ -929,14 +938,28 @@ class Validation:
 
         return totalChi2, wtotalChi2, ndof
 
-    def saveValData(self, var_list, var_names, edges, tag):
+    def saveValData(self, var_list, var_names, metavar_list, metavar_names, bg_counts, sg_counts, edges, tag):
         
         out_dict = {}
+        for k,meta in enumerate(metavar_list):
+            if "BE" in metavar_names[k]:
+                out_dict[metavar_names[k]] = "({},{})".format(meta[0], meta[1])
+            else:
+                out_dict[metavar_names[k]] = meta
+            
+        out_dict["trainLoss"] = self.result_log.history["loss"][-1]
+        out_dict["valLoss"] = self.result_log.history["val_loss"][-1]
+
+
         for i,e in enumerate(edges):
             out_dict["({},{})".format(e[0],e[1])] = {}
 
             for j,var in enumerate(var_list):
                 out_dict["({},{})".format(e[0],e[1])][var_names[j]] = var[i][0]
+
+            for key in bg_counts.keys():
+                out_dict["({},{})".format(e[0],e[1])]["BkgEvts{}".format(key)] = bg_counts[key][i][0]
+                out_dict["({},{})".format(e[0],e[1])]["SigEvts{}".format(key)] = sg_counts[key][i][0]
 
         valData_json = json.dumps(out_dict, indent=4)
 
@@ -1255,9 +1278,18 @@ class Validation:
             
             # Saving information for money plot using all possible bin edge choices (no masking)
             bc, sc = self.cutAndCount(c1s, c2s, y_eval_bg_disc1, y_eval_bg_disc2, evalBkg["weight"], y_eval_sg_disc1, y_eval_sg_disc2, evalSig["weight"])
-            c1, c2, significance, closureErr, edges, signs, closeErrs, sFracs, wBkg, uwBkg, wSig, uwSig, normSigFracs= self.findABCDedges(bc, sc)
-            var_names = ["Sign", "NonClosure", "normSigFracs"]
-            self.saveValData([signs, closeErrs, normSigFracs], var_names, edges, self.config["atag"])
+            c1, c2, significance, closureErr, edges, signs, signsWNC, predsigns, closeErrs, sFracs, wBkg, uwBkg, wSig, uwSig, normSigFracs= self.findABCDedges(bc, sc)
+
+
+            avg_sign = np.mean(signs[:, 0])
+            max_sign = np.max(signs[:, 0])
+            max_sign_be = edges[np.argmax(signs[:, 0])]
+            avg_closure = np.mean(closeErrs[:, 0])
+            count_close = np.count_nonzero(closeErrs[:,0] < 0.3)
+
+            var_names = ["Sign", "SignWithNonClosure", "PredictedSign", "NonClosure", "normSigFracs"]
+            metavar_names = ["AvgNonClosure", "AvgSign", "MaxSign", "MaxSignBE", "CountReasonable"]
+            self.saveValData([signs, signsWNC, predsigns, closeErrs, normSigFracs], var_names, [avg_closure, avg_sign, max_sign, max_sign_be, count_close/closeErrs.shape[0]], metavar_names, wBkg, wSig, edges, self.config["atag"])
 
             for NJets in NJetsRange:
            
@@ -1274,7 +1306,7 @@ class Validation:
 
                 # Get number of background and signal counts for each A, B, C, D region for every possible combination of cuts on disc 1 and disc 2
                 bc, sc = self.cutAndCount(c1s, c2s, y_eval_bg_disc1[bkgFullMaskEval], y_eval_bg_disc2[bkgFullMaskEval], evalBkg["weight"][bkgFullMaskEval], y_eval_sg_disc1[sigFullMaskEval], y_eval_sg_disc2[sigFullMaskEval], evalSig["weight"][sigFullMaskEval])
-                c1, c2, significance, closureErr, edges, signs, closeErrs, sFracs, wBkg, uwBkg, wSig, uwSig, normSigFracs = self.findABCDedges(bc, sc)
+                c1, c2, significance, closureErr, edges, signs, signsWNC, predsigns, closeErrs, sFracs, wBkg, uwBkg, wSig, uwSig, normSigFracs = self.findABCDedges(bc, sc)
                 if len(signs) > 0:
                     self.plotVarVsBinEdges(signs[:,0], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 20.0, 2.0, "Sign",    int(NJets))
                     self.plotVarVsBinEdges(signs[:,1], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 20.0, 0.5, "SignUnc", int(NJets))

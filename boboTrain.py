@@ -36,7 +36,7 @@ def generate_qsub_config(taskPath, workPath, jobid, com, cluster, walltime, memo
     g.write("cd %s/\n\n"%(taskPath))
     g.write(com + "\n\n")
     #g.write("module load texlive\n")
-    g.write("./makeQuickLook.py\n")
+    #g.write("./makeQuickLook.py\n")
     #g.write("pdflatex ./quickLook.tex\n")
     if replayAll:
         runPeriods = ["2016preVFP", "2016postVFP", "2017", "2018", "Run2"]
