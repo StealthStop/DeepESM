@@ -27,7 +27,7 @@ def make_shap_plots(model, data, outpath):
     # Need to be conservative about the number of events to make plots
     # For each event, Shap will remove one variable at a time and rerun inferencing
     # Modify numEvents below to change the number of points in each plot
-    numEvents = 100
+    numEvents = 500
 
     inputs = data["inputs"]
     inputs = inputs[:numEvents,:]
@@ -39,10 +39,10 @@ def make_shap_plots(model, data, outpath):
     explanation = shap.Explanation(values=shap_values, base_values=explainer.expected_value, data=inputs, feature_names=names)
 
     #making the plots for disc1
-    shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, max_display=50)
+    shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, max_display=25)
     save_plot("{}/summary_plot_disc1_plot.png".format(outpath))
   
-    shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="bar", max_display=50)
+    shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="bar", max_display=25)
     save_plot("{}/bar_plot_disc1_plot.png".format(outpath))
   
     shap.plots.heatmap(explanation, max_display=15)
@@ -61,10 +61,10 @@ def make_shap_plots(model, data, outpath):
     explanation = shap.Explanation(values=shap_values, base_values=explainer.expected_value, data=inputs, feature_names=names)
 
     #making the plots for disc2
-    shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, max_display=50)
+    shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, max_display=25)
     save_plot("{}/summary_plot_disc2_plot.png".format(outpath))
   
-    shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="bar", max_display=50)
+    shap.summary_plot(shap_values, features=inputs[:numEvents,:], feature_names=names, plot_type="bar", max_display=25)
     save_plot("{}/bar_plot_disc2_plot.png".format(outpath))
   
     shap.plots.heatmap(explanation, max_display=15)

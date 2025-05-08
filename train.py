@@ -6,7 +6,7 @@ import shutil
 import argparse
 import datetime
 import subprocess
-import tracemalloc
+#import tracemalloc
 import numpy as np
 from glob import glob
 import multiprocessing
@@ -137,6 +137,11 @@ class Train:
         TT_2016postVFP = ["2016postVFP_TT%s*"%(channel)]
         TT_2017        = ["2017_TT%s*"%(channel)]
         TT_2018        = ["2018_TT%s*"%(channel)]
+
+        #TT_2016preVFP  = ["2016preVFP_TT%s_"%(channel)]
+        #TT_2016postVFP = ["2016postVFP_TT%s_"%(channel)]
+        #TT_2017        = ["2017_TT%s_"%(channel)]
+        #TT_2018        = ["2018_TT%s_"%(channel)]
 
         ################### Samples to validate on #####################
         if   "vmad" in hyperconfig["atag"]:
@@ -455,6 +460,45 @@ class Train:
             return c * tf.cast(case, "float32") * (val_1_disco_loss + val_2_disco_loss)
         return loss_model_disc
 
+    def loss_disc_solo(self, c, current_epoch, start_epoch, i_disc):
+        def loss_model_disc(y_true, y_pred):         
+            case = tf.greater(current_epoch, start_epoch)
+
+            # Decat truth and predicted
+            val_1_disco_true = y_true[:, i_disc]
+            #val_2_disco_true = y_true[:, 1:]
+            #val_1_disco_true = tf.reshape(y_true[:, :4], [-1])
+            #val_2_disco_true = tf.reshape(y_true[:, 4:], [-1])
+            #val_disco_true = tf.reshape(y_true[:, :4], [-1])
+
+            val_1_disco_pred = y_pred[:, i_disc]
+            #val_2_disco_pred = y_pred[:, 1:]
+            #val_1_disco_pred = tf.reshape(y_pred[:, :4], [-1])
+            #val_2_disco_pred = tf.reshape(y_pred[:, 4:], [-1])
+            #val_disco_pred = tf.reshape(y_pred[:, :4], [-1])
+
+            cce = K.losses.BinaryCrossentropy()
+
+            # Calculate loss function
+            val_1_disco_loss = cce(val_1_disco_true, val_1_disco_pred)
+            #val_2_disco_loss = cce(val_2_disco_true, val_2_disco_pred)
+
+            #alpha = 0.90
+            #gamma = 2.0
+
+            #alpha1 = tf.math.abs(val_1_disco_true - alpha)
+            #alpha2 = tf.math.abs(val_2_disco_true - alpha)
+
+            #pt1 = tf.math.abs(1 - val_1_disco_true - val_1_disco_pred)
+            #pt2 = tf.math.abs(1 - val_2_disco_true - val_2_disco_pred)
+
+            #FL1 = tf.reduce_sum(-alpha1 * (1 - pt1) ** gamma * tf.math.log(pt1))
+            #FL2 = tf.reduce_sum(-alpha2 * (1 - pt2) ** gamma * tf.math.log(pt2))
+
+            #return c * tf.cast(case, "float32") * (FL1 + FL2)
+            return c * tf.cast(case, "float32") * (val_1_disco_loss)
+        return loss_model_disc
+
     def make_model(self, scales, means, regShape, discoShape, inputShape, bias):
 
         print("%s [INFO]: Constructing model."%(timeStamp()))
@@ -469,6 +513,10 @@ class Train:
         opt = K.optimizers.Adam(learning_rate=self.config["lr"])
 
         self.cb = CustomCallback(current_epoch)
+
+        #model.compile(loss={'disc': self.loss_disc(c=1., current_epoch=self.cb.current_epoch, start_epoch=self.config["disc_start"]), 'disco': self.loss_disco(c=1., current_epoch=self.cb.current_epoch, start_epoch=self.config["disco_start"]), 'closure': self.loss_closure(c=1., g=g, nBinEdge=1, current_epoch=self.cb.current_epoch, start_epoch=self.config["abcd_start"]), 'mass_reg': self.loss_mass_reg(c=1.)}, optimizer=opt, metrics={'disc': [K.metrics.Precision(), K.metrics.Recall()], 'mass_reg': K.metrics.MeanSquaredError()}, loss_weights={'disc': self.config["disc_lambda"], 'disco': self.config["bkg_disco_lambda"], 'closure': self.config["abcd_close_lambda"], 'mass_reg': self.config["mass_reg_lambda"]})
+
+        #model.compile(loss={'disc': self.loss_disc(c=1., current_epoch=self.cb.current_epoch, start_epoch=self.config["disc_start"]), 'disco': self.loss_disco(c=1., current_epoch=self.cb.current_epoch, start_epoch=self.config["disco_start"]), 'closure': self.loss_closure(c=1., g=g, nBinEdge=1, current_epoch=self.cb.current_epoch, start_epoch=self.config["abcd_start"]), 'mass_reg': self.loss_mass_reg(c=1.)}, optimizer=opt, metrics={'disc': [K.metrics.Precision(), K.metrics.Recall()], 'mass_reg': K.metrics.MeanSquaredError()}, loss_weights={'disc': self.config["disc_lambda"], 'disco': self.config["bkg_disco_lambda"], 'closure': self.config["abcd_close_lambda"], 'mass_reg': self.config["mass_reg_lambda"]})
         model.compile(loss={'disc': self.loss_disc(c=self.config["disc_lambda"], current_epoch=self.cb.current_epoch, start_epoch=self.config["disc_start"]), 'disco': self.loss_disco(c=self.config["bkg_disco_lambda"], current_epoch=self.cb.current_epoch, start_epoch=self.config["disco_start"]), 'closure': self.loss_closure(c=self.config["abcd_close_lambda"], g=g, nBinEdge=1, current_epoch=self.cb.current_epoch, start_epoch=self.config["abcd_start"]), 'mass_reg': self.loss_mass_reg(c=self.config["mass_reg_lambda"])}, optimizer=opt, metrics={'disc': [K.metrics.Precision(), K.metrics.Recall()], 'mass_reg': K.metrics.MeanSquaredError()})
         #model.compile(loss=[self.loss_disc(c=self.config["disc_lambda"]), self.loss_disco(c=self.config["bkg_disco_lambda"], current_epoch=1), self.loss_mass_reg(c=self.config["mass_reg_lambda"])], optimizer="adam")#, metrics=self.config["metrics"])
         return model, self.cb
@@ -548,8 +596,12 @@ class Train:
                 learningStr += trimStr
             else:
                 otherStr += key + str(d[key]) + "_"
-        
-        self.config["outputDir"] = outputDir + hyperStr + "_" + nodesStr + "_" + layersStr + "_" + learningStr + "_" + otherStr
+       
+
+        if not replay: 
+            self.config["outputDir"] = outputDir + hyperStr + "_" + nodesStr + "_" + layersStr + "_" + learningStr + "_" + otherStr
+        else:
+            self.config["outputDir"] = outputDirStub
         self.config["outputDir"] = self.config["outputDir"][:-1]
         if os.path.exists(self.config["outputDir"]) and not replay:
             print("%s [INFO]: Removing old training files: "%(timeStamp()), self.config["outputDir"])
@@ -647,20 +699,25 @@ class Train:
     def importData(self):
         # Import data
         temp = "*"
+        #temp = ""
 
         print("%s [INFO]: Preparing input data sets."%(timeStamp()))
         #Get Data set used in training and validation
         sgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+mass+temp+"Train.root") for mass in self.config["signal"]) , [])
         bgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Train.root") for bkgd in self.config["bkgd"][1]), [])
+        #bgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+"Train.root") for bkgd in self.config["bkgd"][1]), [])
 
         sgTestSet  = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+mass+temp+"Test.root")  for mass in self.config["signal"]) , [])
         bgTestSet  = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Test.root")  for bkgd in self.config["bkgd"][1]), [])
+        #bgTestSet  = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+"Test.root")  for bkgd in self.config["bkgd"][1]), [])
 
         sgEvalSet   = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+mass+temp+".root")      for mass in self.config["signalEval"]) , [])
         bgEvalSet   = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+".root")      for bkgd in self.config["bkgdEval"][1]), [])
-
+        #bgEvalSet   = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+".root")      for bkgd in self.config["bkgdEval"][1]), [])
+        
         sgValSet  = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+mass+temp+"Val.root")   for mass in self.config["signal"]) , [])
         bgValSet  = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Val.root")   for bkgd in self.config["bkgd"][1]), [])
+        #bgValSet  = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+"Val.root")   for bkgd in self.config["bkgd"][1]), [])
 
         sgSet = sgTrainSet + sgTestSet + sgValSet
         bgSet = bgTrainSet + bgTestSet + bgValSet
@@ -716,6 +773,7 @@ class Train:
         # Training model
         print("%s [INFO]: Training the model."%(timeStamp()))
         result_log = model.fit(self.loader, epochs=self.config["epochs"], callbacks=callbacks, validation_data=self.testLoader)
+        print(result_log)
 
         if self.saveAndPrint:
             # Model Visualization
@@ -748,8 +806,9 @@ class Train:
         #sgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+mass+temp+"Train.root") for mass in self.config["signal"]) , [])
         #bgTrainSet = sum( (glob(self.config["dataSet"]+"MyAnalysis_"+bkgd+temp+"Train.root") for bkgd in self.config["bkgd"][1]), [])
         #loader = DataLoader(self.config, sgTrainSet, bgTrainSet)
-        data = self.loader.getFlatData()
-        make_shap_plots(model, data, self.config["outputDir"])
+
+        #data = self.loader.getFlatData()
+        #make_shap_plots(model, data, self.config["outputDir"])
         
         metric = val.makePlots(self.doQuickVal, self.config["evalMass"], self.config["evalModel"])
         del val
@@ -775,18 +834,20 @@ class Train:
         self.config['outputDir'] += "/" + self.config['evalYear']
         if not os.path.isdir(self.config['outputDir']):        
             os.makedirs(self.config['outputDir'])
+
+        self.evalLoader = None
  
         #trainData, trainSg, trainBg = get_data(sgTrainSet, bgTrainSet, self.config)
-        val = Validation(model, self.config, self.loader, self.valLoader, self.evalLoader, self.testLoader)
+        val = Validation(model, self.config, self.loader, self.valLoader, self.evalLoader, self.testLoader, do_LRP=False, kfold=True)
         metric = val.makePlots(self.doQuickVal, self.config["evalMass"], self.config["evalModel"])
         del val
 
-        data = self.loader.getFlatData()
-        make_shap_plots(model, data, self.config["outputDir"])
+        #data = self.loader.getFlatData()
+        #make_shap_plots(model, data, self.config["outputDir"])
 
 if __name__ == '__main__':
 
-    tracemalloc.start()
+    #tracemalloc.start()
 
     usage = "usage: %prog [options]"
     parser = argparse.ArgumentParser(usage)
@@ -815,7 +876,7 @@ if __name__ == '__main__':
     parser.add_argument("--procCats",     dest="procCats",     help="Balance batches bkg/sig",        default=False,       action="store_true"                            )
     parser.add_argument("--massCats",     dest="massCats",     help="Balance batches among masses",   default=False,       action="store_true"                            )
     parser.add_argument("--njetsCats",    dest="njetsCats",    help="Balance batches among njets",    default=False,       action="store_true"                            )
-    parser.add_argument("--outputDir",    dest="outputDir",    help="Output directory path",          type=str,            default="/home/nstrobbe/USER/Train/DeepESM")
+    parser.add_argument("--outputDir",    dest="outputDir",    help="Output directory path",          type=str,            default="/home/nstrobbe/USER/Train/DeepESM/")
 
     args = parser.parse_args()
 
@@ -865,5 +926,5 @@ if __name__ == '__main__':
     else:
         t.train()
 
-    print("%s [INFO]: Maximum memory useage = %3.2f GB"%(timeStamp(), tracemalloc.get_traced_memory()[1]/1e9))
+    #print("%s [INFO]: Maximum memory useage = %3.2f GB"%(timeStamp(), tracemalloc.get_traced_memory()[1]/1e9))
     print("%s [INFO]: End of trainNew.py"%(timeStamp()))

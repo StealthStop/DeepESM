@@ -117,6 +117,7 @@ class DataLoader(K.utils.Sequence):
     def getColumnHeaders(self):
         if self.columnHeaders is None:
             try:
+                print(self.datasets[0])
                 sample = self.datasets[0][0]                
                 f = uproot.open(sample)
                 theVars = [v for v in self.variables]
@@ -140,8 +141,8 @@ class DataLoader(K.utils.Sequence):
         max_entries_bg = None
         max_entries_sg = None
         if self.config["debug"]:
-            max_entries_bg = 2000
-            max_entries_sg = 200
+            max_entries_bg = 500
+            max_entries_sg = 100
 
         variations = ["", "JECup", "JECdown", "JERup", "JERdown"]
         if self.config["debug"] or not self.config["useJECs"]:
@@ -224,6 +225,7 @@ class DataLoader(K.utils.Sequence):
     
         #return batchInputs, tuple((batchDisCo, batchDisCo, batchMassReg))
         return batchInputs, tuple((batchDisCo, batchDisCo, batchDisCo, batchMassReg))
+        #return batchInputs, tuple((batchDisCo, batchDisCo, batchDisCo, batchDisCo, batchMassReg))
 
     # Required function that tells tensorflow how many batches per epoch
     def __len__(self):
