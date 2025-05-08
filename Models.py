@@ -69,8 +69,11 @@ def main_model(config, scales, means, regShape, discoShape, inputShape, output_b
     second_output = K.layers.Dense(discoShape, activation='sigmoid', name='disc_%d'%(iD), bias_initializer=output_bias)(layer)
 
     disc = K.layers.concatenate([first_output, second_output], name='disc')
+    #disc1 = K.layers.concatenate([first_output, second_output], name='disc1')
+    #disc2 = K.layers.concatenate([first_output, second_output], name='disc2')
     disco = K.layers.concatenate([first_output, second_output], name='disco')
     closure = K.layers.concatenate([first_output, second_output], name='closure')
 
     model = K.models.Model(inputs=main_input, outputs=[disc, disco, closure, mass_reg], name='model')
+    #model = K.models.Model(inputs=main_input, outputs=[disc1, disc2, disco, closure, mass_reg], name='model')
     return model#, theOptimizer

@@ -34,15 +34,16 @@ def generate_qsub_config(taskPath, workPath, jobid, com, cluster, walltime, memo
     g.write("echo $TF_CUDNN_DETERMINISTIC\n")
     g.write("echo $TF_DETERMINISTIC_OPS\n\n")
     g.write("cd %s/\n\n"%(taskPath))
-    g.write(com + "\n\n")
+    if not replayAll:
+        g.write(com + "\n\n")
     #g.write("module load texlive\n")
     #g.write("./makeQuickLook.py\n")
     #g.write("pdflatex ./quickLook.tex\n")
     if replayAll:
-        runPeriods = ["2016preVFP", "2016postVFP", "2017", "2018", "Run2"]
+        runPeriods = ["Run2"]
 
         for r in runPeriods:
-            if evalYear == r: continue
+            #if evalYear == r: continue
             g.write(replayCom + " --evalYear {}\n".format(r))
 
     g.close()
@@ -155,7 +156,7 @@ if __name__ == '__main__':
 
     command = "python train.py --json temp${SLURM_ARRAY_TASK_ID}.json %s %s %s %s --maskNjet %s --minMass %d --maxMass %d --evalMass %d --trainModel %s --evalModel %s --evalYear %s --trainYear %s --seed %s --tree myMiniTree_%s --outputDir %s --scaleJetPt"%(jetStr,saveStr,jecStr,balanceStr,maskNjet,int(args.trainMass[0]),int(args.trainMass[1]),int(args.evalMass),args.trainModel,args.evalModel,args.evalYear,args.trainYear,args.seed,args.channel,args.output)
 
-    replayCommand = "python train.py --replay --evalModel %s --json temp${SLURM_ARRAY_TASK_ID}.json --outputDir %s --tree myMiniTree_%s --evalMass %d --scaleJetPt" % (args.evalModel, args.output, args.channel, args.evalMass)
+    replayCommand = "python train.py --replay --trainModel %s --evalModel %s --json temp${SLURM_ARRAY_TASK_ID}.json --outputDir %s --tree myMiniTree_%s --evalMass %d --scaleJetPt" % (args.trainModel, args.evalModel, args.output, args.channel, args.evalMass)
 
     pbsPath = generate_qsub_config(taskPath, workDir, jobid, command, args.cluster, args.walltime, args.memory, args.replayAll, replayCommand, args.evalYear) 
 

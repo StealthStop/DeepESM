@@ -16,12 +16,17 @@ mpl.use('Agg')
 
 import matplotlib.pyplot as plt
 import matplotlib.lines as ml
+import matplotlib.cm as CM
+
+import seaborn as sns
+import pickle
 
 import mplhep as hep
 plt.style.use([hep.style.ROOT,hep.style.CMS]) # For now ROOT defaults to CMS
 plt.style.use({'legend.frameon':False,'legend.fontsize':16,'legend.edgecolor':'black'})
 
 from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score, roc_auc_score
+from sklearn.model_selection import KFold
 
 import tracemalloc
 
@@ -34,7 +39,7 @@ def timeStamp():
 
 class Validation:
 
-    def __init__(self, model, config, loader, valLoader, evalLoader, testLoader, result_log=None):
+    def __init__(self, model, config, loader, valLoader, evalLoader, testLoader, result_log=None, do_LRP = False, kfold=False):
         self.model = model
         self.config = config
         self.result_log = result_log
@@ -44,8 +49,11 @@ class Validation:
         self.valLoader = valLoader 
         self.evalLoader = evalLoader
         self.testLoader = testLoader
+        self.kfold = kfold
 
         self.sample = {"RPV" : 100, "SYY" : 101, "SHH" : 102}
+
+        self.do_LRP = do_LRP
 
     def __del__(self):
         del self.model
@@ -90,8 +98,8 @@ class Validation:
     # are provided as a list argument.
     def plotDisc(self, hists, colors, labels, weights, name, xlab, ylab, bins=100, arange=(0,1), doLog=False):
         # Plot predicted mass
-        fig, ax = plt.subplots(figsize=(10, 10))
-        hep.cms.label(data=True, paper=False, year=self.config["evalYear"], ax=ax)
+        fig, ax = plt.subplots(figsize=(12, 12))
+        hep.cms.label(llabel="Simulation", data=False, paper=False, year="Run 2", ax=ax)
         ax.set_ylabel(xlab); ax.set_xlabel(ylab)
 
         for i in range(0, len(hists)): 
@@ -104,6 +112,8 @@ class Validation:
 
         ax.legend(loc=1, frameon=False)
         fig.savefig(self.config["outputDir"]+"/%s.png"%(name), dpi=fig.dpi)        
+        with open(self.config["outputDir"]+"/%s.pkl"%(name), 'wb') as f:
+            pickle.dump(fig, f)
         plt.close(fig)
 
     # Member function to plot the discriminant variable while making a selection on another discriminant
@@ -131,12 +141,12 @@ class Validation:
         if not np.any(sw2newBinned): sw2newBinned += 10e-2
         if not np.any(swnewBinned):  swnewBinned += 10e-2
 
-        fig = plt.figure()
+        fig = plt.figure(figsize=(12,12))
 
         ax = hep.histplot(h=bwnewBinned, bins=binEdges, w2=bw2newBinned, density=True, histtype="step", label="Background", alpha=0.9, lw=2)
         ax = hep.histplot(h=swnewBinned, bins=binEdges, w2=sw2newBinned, density=True, histtype="step", label="Signal (mass = %s GeV)"%(mass), alpha=0.9, lw=2, ax=ax)
 
-        hep.cms.label(data=True, paper=False, year=self.config["evalYear"], ax=ax)
+        hep.cms.label(llabel="Simulation", data=False, paper=False, year="Run 2", ax=ax)
         ax.set_ylabel('A.U.'); ax.set_xlabel('Disc. %s'%(tag1))
 
         plt.text(0.05, 0.85, r"$\bf{Disc. %s}$ > %.3f"%(tag2,c), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
@@ -145,8 +155,14 @@ class Validation:
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(handles[-2:], labels[-2:], loc=2, frameon=False)
  
-        if Njets == -1: fig.savefig(self.config["outputDir"]+"/Disc%s_BvsS_m%s.png"%(tag1,mass))
-        else:           fig.savefig(self.config["outputDir"]+"/Disc%s_BvsS_m%s_Njets%d.png"%(tag1,mass,Njets))
+        if Njets == -1: 
+            fig.savefig(self.config["outputDir"]+"/Disc%s_BvsS_m%s.png"%(tag1,mass))
+            with open(self.config["outputDir"]+"/Disc%s_BvsS_m%s.pkl"%(tag1,mass), 'wb') as f:
+                pickle.dump(fig, f)
+        else:          
+            fig.savefig(self.config["outputDir"]+"/Disc%s_BvsS_m%s_Njets%d.png"%(tag1,mass,Njets))
+            with open(self.config["outputDir"]+"/Disc%s_BvsS_m%s_Njets%d.pkl"%(tag1,mass,Njets), 'wb') as f:
+                pickle.dump(fig, f)
 
         plt.close(fig)
 
@@ -174,42 +190,58 @@ class Validation:
         if not np.any(dw2ltBinned): dw2ltBinned += 10e-2
         if not np.any(dwltBinned):  dwltBinned += 10e-2
 
-        fig = plt.figure()
+        fig = plt.figure(figsize=(12,12))
 
         ax = hep.histplot(h=dwgtBinned, bins=binEdges, w2=dw2gtBinned, density=True, histtype="step", label="Disc. %s > %.2f"%(tag2,c), alpha=0.9, lw=2)
         ax = hep.histplot(h=dwltBinned, bins=binEdges, w2=dw2ltBinned, density=True, histtype="step", label="Disc. %s < %.2f"%(tag2,c), alpha=0.9, lw=2, ax=ax)
 
-        hep.cms.label(data=True, paper=False, year=self.config["evalYear"], ax=ax)
+        hep.cms.label(llabel="Simulation", data=False, paper=False, year="Run 2", ax=ax)
         ax.set_ylabel('A.U.'); ax.set_xlabel('Disc. %s'%(tag1))
 
         # Stupid nonsense to remove duplicate entries in legend
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(handles[-2:], labels[-2:], loc=2, frameon=False)
 
-        if Njets == -1: fig.savefig(self.config["outputDir"]+"/%s%s_Disc%s_Compare_Shapes.png"%(tag3, mass, tag1))
-        else:           fig.savefig(self.config["outputDir"]+"/%s%s_Njets%d_Disc%s_Compare_Shapes.png"%(tag3, mass, Njets, tag1))
+        if Njets == -1: 
+            fig.savefig(self.config["outputDir"]+"/%s%s_Disc%s_Compare_Shapes.png"%(tag3, mass, tag1))
+            with open(self.config["outputDir"]+"/%s%s_Disc%s_Compare_Shapes.pkl"%(tag3, mass, tag1), 'wb') as f:
+                pickle.dump(fig, f)
+        else:           
+            fig.savefig(self.config["outputDir"]+"/%s%s_Njets%d_Disc%s_Compare_Shapes.png"%(tag3, mass, Njets, tag1))
+            with open(self.config["outputDir"]+"/%s%s_Njets%d_Disc%s_Compare_Shapes.pkl"%(tag3, mass, Njets, tag1), 'wb') as f:
+                pickle.dump(fig, f)
 
         plt.close(fig)
 
     # Plot loss of training vs test
     def plotAccVsEpoch(self, h1, h2, title, name):
-        fig = plt.figure()
-        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
+
+        lambda_names = {'disc': 'disc_lambda', 'disco': 'bkg_disco_lambda', 'closure': 'abcd_close_lambda', 'mass_reg': 'mass_reg_lambda'}
+
+        fig = plt.figure(figsize=(12,12))
+        if not title.split(" ")[0]:
+            #fig.axes[0].ticklabel_format(useOffset=False)
+            plt.ticklabel_format(useOffset=False)
+        hep.cms.label(llabel="Simulation", data=False, paper=False, year="Run 2")
         plt.plot(self.result_log.history[h1])
         plt.plot(self.result_log.history[h2])
-        plt.yscale("log")
-        plt.title(title, pad=45.0)
-        plt.ylabel('loss')
-        plt.xlabel('epoch')
+        if title.split(" ")[0] == "mass_reg":
+            plt.yscale("log")
+        #plt.title(title, pad=45.0)
+        plt.ylabel(title)
+        plt.xlabel('Epoch')
+
         plt.legend(['train', 'test'], loc='best')
-        fig.savefig(self.config["outputDir"]+"/%s.png"%(name), dpi=fig.dpi)
+        fig.savefig(self.config["outputDir"]+"/%s.pdf"%(name), dpi=fig.dpi)
+        with open(self.config["outputDir"]+"/%s.pkl"%(name), 'wb') as f:
+            pickle.dump(fig, f)
         plt.close(fig)
 
     def plotAccVsEpochAll(self, h, n, val, title, name):
-        fig = plt.figure()
-        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
-        plt.title(title, pad=45.0)
-        plt.ylabel('loss')
+        fig = plt.figure(figsize=(12,12))
+        hep.cms.label(llabel="Simulation", data=False, paper=False, year="Run 2")
+        #plt.title(title, pad=45.0)
+        plt.ylabel('training loss')
         plt.xlabel('epoch')
 
         l = []
@@ -219,7 +251,9 @@ class Validation:
 
         plt.yscale("log")
         plt.legend(l, loc='best')
-        fig.savefig(self.config["outputDir"]+"/%s.png"%(name), dpi=fig.dpi)
+        fig.savefig(self.config["outputDir"]+"/%s.pdf"%(name), dpi=fig.dpi)
+        with open(self.config["outputDir"]+"/%s.pkl"%(name), 'wb') as f:
+            pickle.dump(fig, f)
         plt.close(fig)
 
     def plotDiscPerNjet(self, tag, samples, sigMask, nBins=100):
@@ -228,8 +262,8 @@ class Validation:
             y_train_Sp = samples[sample][1]
             weights = samples[sample][2] 
             bins = np.linspace(0, 1, nBins)
-            fig, ax = plt.subplots(figsize=(10, 10))
-            hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
+            fig, ax = plt.subplots(figsize=(12, 12))
+            hep.cms.label(llabel="Simulation", data=False, paper=False, year="Run 2")
             ax.set_ylabel('Norm Events')
             ax.set_xlabel('Discriminator')
             for key in sorted(trainSample.keys()):
@@ -242,9 +276,11 @@ class Validation:
                         plt.hist(yt, bins, alpha=0.9, histtype='step', lw=2, label=sample+" Train "+key, density=True, log=self.doLog, weights=wt)
             plt.legend(loc='best')
             fig.savefig(self.config["outputDir"]+"/nJet_"+sample+tag+".png", dpi=fig.dpi)
+            with open(self.config["outputDir"]+"/nJet_"+sample+tag+".pkl", 'wb') as f:
+                pickle.dump(fig, f)
             plt.close(fig)
 
-    def plotROC(self, dataMaskEval=None, dataMaskVal=None, tag="", y_eval=None, y_val=None, evalData=None, valData=None, xEval=None, xVal=None, yEval=None, yVal=None, evalLab=None, valLab=None, doMass=False, minMass=300, maxMass=1400):
+    def plotROC(self, dataMaskEval=None, dataMaskVal=None, tag="", y_eval=None, y_val=None, evalData=None, valData=None, xEval=None, xVal=None, yEval=None, yVal=None, evalLab=None, valLab=None, doMass=False, minMass=300, maxMass=1400, y_val_err=None):
 
         extra = None
         if "disc1" in tag or "Disc1" in tag: extra = "disc1"
@@ -252,8 +288,8 @@ class Validation:
 
         if extra not in self.config: self.config[extra] = {"eval_auc" : {}, "val_auc" : {}}
 
-        fig = plt.figure()
-        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
+        fig = plt.figure(figsize=(12,12))
+        hep.cms.label(llabel="Simulation", data=False, paper=False, year="Run 2")
         plt.plot([0, 1], [0, 1], 'k--')
         plt.xlabel('False positive rate')
         plt.ylabel('True positive rate')
@@ -264,6 +300,63 @@ class Validation:
             plt.plot(xEval, yEval, color='xkcd:red', label='Train (area = {:.3f})'.format(evalLab))
             self.config[extra]["eval_auc"]["total"] = evalLab
             self.config[extra]["val_auc"]["total"] = valLab
+
+        # Adding a kfold cross-validation to add error bars to roc plots
+        # if you want to run this, use --kfold when training
+        elif self.kfold and doMass:
+
+            i_mass = [m for m in range(minMass, maxMass, 200)]
+
+            kf = KFold(n_splits=8, shuffle=True)
+
+            for mass in i_mass:
+
+                #try:        
+                massMask     = evalData["mass"] == float(mass)
+                massMask     |= evalData["mass"] == float(173.0)
+
+                labels            = evalData["label"][dataMaskEval&massMask]
+                weights           = evalData["weight"][dataMaskEval&massMask]
+
+                y = y_eval[dataMaskEval&massMask]
+                if len(y)==0:
+                    continue
+
+                res = []
+                val_res = []
+                auc_list = []
+                val_auc_list = []
+                first = None
+
+                for i, (train_idx, test_idx) in enumerate(kf.split(labels)):
+                    res.append(roc_curve(labels[train_idx], y[train_idx], sample_weight=weights[train_idx]))
+                    auc_list.append(roc_auc_score(labels[train_idx], y[train_idx]))
+
+                    val_res.append(roc_curve(labels[test_idx], y[test_idx], sample_weight=weights[test_idx]))
+                    val_auc_list.append(roc_auc_score(labels[test_idx], y[test_idx]))
+
+                    if first is None:
+                        first = res[0][0]
+                    
+ 
+                fpr_eval = first #np.mean([res[i][0] for i in range(len(res))], axis=0)
+                tpr_eval = np.mean([np.interp(first, res[i][0], res[i][1]) for i in range(len(res))], axis=0)
+                auc_eval = np.mean(auc_list)
+
+                fpr_val = first #np.mean([val_res[i][0] for i in range(len(val_res))], axis=0)
+                tpr_val = np.mean([np.interp(first, val_res[i][0], val_res[i][1]) for i in range(len(val_res))], axis=0)
+                auc_val = np.mean(val_auc_list)
+                tpr_val_std = np.std([np.interp(first, val_res[i][0], val_res[i][1]) for i in range(len(val_res))], axis=0)
+
+                color = next(plt.gca()._get_lines.prop_cycler)['color']
+                plt.plot(fpr_eval, tpr_eval, label="$M_{\mathregular{\\tilde{t}}}$ = %d (Train)"%(int(mass)) + " (area = {:.3f})".format(auc_eval), color=color)
+                plt.plot(fpr_val, tpr_val, linestyle=":", label="$M_{\mathregular{\\tilde{t}}}$ = %d (Val)"%(int(mass)) + " (area = {:.3f})".format(auc_val), color=color)
+                plt.fill_between(fpr_val, tpr_val-tpr_val_std, tpr_val+tpr_val_std, alpha=0.3, color=color)
+
+                self.config[extra]["eval_auc"]["Mass%d"%(int(mass))] = auc_eval
+                #except Exception as e:
+                #    print("\nplotROC: Could not plot ROC for Mass = %d ::"%(int(mass)), e, "\n")
+                #    continue
 
         elif doMass:
             i_mass = [m for m in range(minMass, maxMass, 200)]
@@ -359,15 +452,18 @@ class Validation:
                     continue
 
         newtag = tag.replace(" ", "_")
+        plt.grid()
         plt.legend(loc='best')
         fig.savefig(self.config["outputDir"]+"/roc_plot"+newtag+".png", dpi=fig.dpi)
+        with open(self.config["outputDir"]+"/roc_plot"+newtag+".pkl", 'wb') as f:
+            pickle.dump(fig, f)
         plt.close(fig)
 
     # Plot disc1 vs disc2 for both background and signal
     def plotD1VsD2SigVsBkgd(self, b1, b2, s1, s2, mass, Njets=-1):
-        fig = plt.figure()
+        fig = plt.figure(figsize=(12,12))
         ax1 = fig.add_subplot(111)
-        hep.cms.label(data=True, paper=False, year=self.config["evalYear"], ax=ax1)
+        hep.cms.label(llabel="Simulation", data=False, paper=False, year="Run 2", ax=ax1)
         ax1.scatter(b1, b2, s=10, c='b', marker="s", label='background')
         ax1.scatter(s1, s2, s=10, c='r', marker="o", label='signal (mass = %s GeV)'%(mass))
         ax1.set_xlim([0, 1])
@@ -375,13 +471,19 @@ class Validation:
         ax1.set_xlabel("Disc. 1")
         ax1.set_ylabel("Disc. 2")
         plt.legend(loc='best');
-        if Njets == -1: fig.savefig(self.config["outputDir"]+"/2D_SigVsBkgd_Disc1VsDisc2_m%s.png"%(mass), dpi=fig.dpi)        
-        else:           fig.savefig(self.config["outputDir"]+"/2D_SigVsBkgd_Disc1VsDisc2_m%s_Njets%d.png"%(mass,Njets), dpi=fig.dpi)  
+        if Njets == -1: 
+            fig.savefig(self.config["outputDir"]+"/2D_SigVsBkgd_Disc1VsDisc2_m%s.png"%(mass), dpi=fig.dpi)        
+            with open(self.config["outputDir"]+"/2D_SigVsBkgd_Disc1VsDisc2_m%s.pkl"%(mass), 'wb') as f:
+                pickle.dump(fig, f)
+        else:           
+            fig.savefig(self.config["outputDir"]+"/2D_SigVsBkgd_Disc1VsDisc2_m%s_Njets%d.png"%(mass,Njets), dpi=fig.dpi)  
+            with open(self.config["outputDir"]+"/2D_SigVsBkgd_Disc1VsDisc2_m%s_Njets%d.pkl"%(mass,Njets), 'wb') as f:
+                pickle.dump(fig, f)
         plt.close(fig)
 
     def plotPandR(self, pval, rval, ptrain, rtrain, valLab, trainLab, name):
-        fig = plt.figure()
-        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
+        fig = plt.figure(figsize=(12,12))
+        hep.cms.label(llabel="Simulation", data=False, paper=False, year="Run 2")
         plt.ylim(0,1)
         plt.xlim(0,1)
         plt.plot(pval, rval, color='xkcd:black', label='Val (AP = {:.3f})'.format(valLab))
@@ -391,6 +493,8 @@ class Validation:
         plt.title('Precision and Recall curve', pad=45.0)
         plt.legend(loc='best')
         fig.savefig(self.config["outputDir"]+"/PandR_plot_{}.png".format(name), dpi=fig.dpi)        
+        with open(self.config["outputDir"]+"/PandR_plot_{}.pkl".format(name), 'wb') as f:
+            pickle.dump(fig, f)
         plt.close(fig)
 
     def plotPandR2D(self, labels, d1_val, d2_val, sample_weight=None, name=None):
@@ -418,8 +522,8 @@ class Validation:
             bins[i]["rval"] = recall_val
             bins[i]["apVal"] = ap_val
 
-        fig = plt.figure()
-        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
+        fig = plt.figure(figsize=(12,12))
+        hep.cms.label(llabel="Simulation", data=False, paper=False, year="Run 2")
         plt.ylim(0,1)
         plt.xlim(0,1)
         for x in bins:
@@ -430,6 +534,8 @@ class Validation:
         plt.title('Precision and Recall curve', pad=45.0)
         plt.legend(loc='best')
         fig.savefig(self.config["outputDir"]+"/PandR2D_plot_{}.png".format(name), dpi=fig.dpi)        
+        with open(self.config["outputDir"]+"/PandR2D_plot_{}.pkl".format(name), 'wb') as f:
+            pickle.dump(fig, f)
         plt.close(fig)
 
     def cutAndCount(self, c1s, c2s, b1, b2, bw, s1, s2, sw):
@@ -689,21 +795,27 @@ class Validation:
     def plotDisc1vsDisc2(self, disc1, disc2, bw, c1, c2, significance, tag, mass = "", Njets = -1, nBins = 100):
         #self.countPeaks(disc1, disc2)
         
-        fig = plt.figure() 
+        fig = plt.figure(figsize=(12,12)) 
         corr = 999.0
         try: corr = cor.pearson_corr(disc1, disc2)
         except: print("Correlation coefficient could not be calculated!")
-        plt.hist2d(disc1, disc2, bins=[nBins, nBins], range=[[0, 1], [0, 1]], cmap=plt.cm.jet, weights=bw, cmin = bw.min())
-        plt.colorbar()
+        plt.hist2d(disc1, disc2, bins=[nBins, nBins], range=[[0, 1], [0, 1]], cmap=plt.cm.viridis, weights=bw, cmin = bw.min())#, norm=mpl.colors.LogNorm())
+        plt.colorbar(label="Num. Events")
         ax = plt.gca()
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="red", linewidth=2); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="red", linewidth=2)
         ax.add_line(l1); ax.add_line(l2)
         ax.set_ylabel("Disc. 2"); ax.set_xlabel("Disc. 1")
-        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
+        hep.cms.label(llabel="Simulation", data=False, paper=False, year="Run 2")
 
         fig.tight_layout()
-        if Njets == -1: fig.savefig(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2.png"%(tag,mass), dpi=fig.dpi)
-        else:           fig.savefig(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2_Njets%d.png"%(tag,mass,Njets), dpi=fig.dpi)
+        if Njets == -1: 
+            fig.savefig(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2.png"%(tag,mass), dpi=fig.dpi)
+            with open(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2.pkl"%(tag,mass), 'wb') as f:
+                pickle.dump(fig, f)
+        else:           
+            fig.savefig(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2_Njets%d.png"%(tag,mass,Njets), dpi=fig.dpi)
+            with open(self.config["outputDir"]+"/2D_%s%s_Disc1VsDisc2_Njets%d.pkl"%(tag,mass,Njets), 'wb') as f:
+                pickle.dump(fig, f)
 
         plt.close(fig)
 
@@ -713,84 +825,109 @@ class Validation:
 
         nBins = int((1.0 + edgeWidth)/edgeWidth)
 
-        fig = plt.figure() 
-        plt.hist2d(edges[:,0], edges[:,1], bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.jet, weights=var, cmin=10e-10, cmax=cmax, vmin = 0.0, vmax = vmax)
-        cb = plt.colorbar()
-        cb.set_label(label="{}".format(tag), loc='center')
+        if tag == "NonClosure":
+            lab_tag = "Non-Closure"
+        elif tag == "Sign":
+            lab_tag = "Significance"
+        else:
+            lab_tag = tag
+
+        fig = plt.figure(figsize=(12,12)) 
+        plt.hist2d(edges[:,0], edges[:,1], bins=[nBins, nBins], range=[[-edgeWidth/2.0, 1+edgeWidth/2.0], [-edgeWidth/2.0, 1+edgeWidth/2.0]], cmap=plt.cm.viridis, weights=var, cmin=10e-10, cmax=cmax, vmin = 0.0, vmax = vmax)
+        cb = plt.colorbar(label=lab_tag)
+        cb.set_label(label="{}".format(lab_tag), loc='center')
         ax = plt.gca()
         ax.set_ylabel("Disc. 2 Bin Edge"); ax.set_xlabel("Disc. 1 Bin Edge");
-        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
+        hep.cms.label(llabel="Simulation", data=False, paper=False, year="Run 2")
 
         l1 = ml.Line2D([c1, c1], [0.0, 1.0], color="black", linewidth=2, linestyle="dashed"); l2 = ml.Line2D([0.0, 1.0], [c2, c2], color="black", linewidth=2, linestyle="dashed")
         ax.add_line(l1); ax.add_line(l2)
         fig.tight_layout()
 
-        if Njets == -1: fig.savefig(self.config["outputDir"]+"/%s_vs_Disc1Disc2.png"%(tag), dpi=fig.dpi)
-        else:           fig.savefig(self.config["outputDir"]+"/%s_vs_Disc1Disc2_Njets%s.png"%(tag,Njets), dpi=fig.dpi)
+        if Njets == -1: 
+            fig.savefig(self.config["outputDir"]+"/%s_vs_Disc1Disc2.png"%(tag), dpi=fig.dpi)
+            with open(self.config["outputDir"]+"/%s_vs_Disc1Disc2.pkl"%(tag), 'wb') as f:
+                pickle.dump(fig, f)
+        else:           
+            fig.savefig(self.config["outputDir"]+"/%s_vs_Disc1Disc2_Njets%s.png"%(tag,Njets), dpi=fig.dpi)
+            with open(self.config["outputDir"]+"/%s_vs_Disc1Disc2_Njets%s.pkl"%(tag,Njets), 'wb') as f:
+                pickle.dump(fig, f)
 
         plt.close(fig)
 
-    def plotVarVsDisc(self, var, edges, edgeWidth, ylim = -1.0, ylog = False, ylabel = "", tag = "", disc = -1, Njets = -1):
+    def plotVarVsDisc(self, vars, edges, ylim = -1.0, ylog = False, ylabel = "", tag = "", Njets = -1):
 
-       x25   = []; x50   = []; x75   = []; xDiag   = []
-       var25 = []; var50 = []; var75 = []; varDiag = []
+        print("Plotting var vs disc for {}".format(ylabel))
 
-       var25unc = []; var50unc = []; var75unc = []; varDiagUnc = []
+        x1 = []; x2 = []
+       
+        var = []
+        varUnc = []
 
-       for i in range(0, len(var)):
-           if   edges[i][disc-1] == 0.24: 
-               x25.append(edges[i][2-disc])
-               var25.append(var[i][0])
-               var25unc.append(var[i][1])
-           elif edges[i][disc-1] == 0.50: 
-               x50.append(edges[i][2-disc])
-               var50.append(var[i][0])
-               var50unc.append(var[i][1])
-           elif edges[i][disc-1] == 0.76: 
-               x75.append(edges[i][2-disc])
-               var75.append(var[i][0])
-               var75unc.append(var[i][1])
+        for i in range(0, int(len(vars)/10)):
+            x1.append(edges[0][i][0])
+            x2.append(edges[0][i][1])
+            var.append(vars[i])
 
-           if edges[i][0] == edges[i][1]: 
-               xDiag.append(edges[i][2-disc])
-               varDiag.append(var[i][0])
-               varDiagUnc.append(var[i][1])
+        fig, ax = plt.subplots(figsize=(12,12))
 
-       fig, ax = plt.subplots(figsize=(10, 10))
+        #Z1, xedges, yedges = np.histogram2d(var, x1, bins=100)
+        #Z2, xedges, yedges = np.histogram2d(var, x2, bins=(xedges, yedges))
 
-       xWidths25   = [edgeWidth for i in range(0, len(x25))]
-       xWidths50   = [edgeWidth for i in range(0, len(x50))]
-       xWidths75   = [edgeWidth for i in range(0, len(x75))]
-       xWidthsDiag = [edgeWidth for i in range(0, len(xDiag))]
+        #Z /= np.max(Z) if abs(np.max(Z)) >= abs(np.min(Z)) else np.min(Z)
 
-       ax.errorbar(x25, var25, yerr=var25unc, label="Disc. %d = 0.25"%(disc), xerr=xWidths25, fmt='', color="red",   lw=0, elinewidth=2, marker="o", markerfacecolor="red")
-       ax.errorbar(x50, var50, yerr=var50unc, label="Disc. %d = 0.50"%(disc), xerr=xWidths50, fmt='', color="blue",  lw=0, elinewidth=2, marker="o", markerfacecolor="blue")
-       ax.errorbar(x75, var75, yerr=var75unc, label="Disc. %d = 0.75"%(disc), xerr=xWidths75, fmt='', color="green", lw=0, elinewidth=2, marker="o", markerfacecolor="green")
-       ax.errorbar(xDiag, varDiag, yerr=varDiagUnc, label="Disc. %d = Disc. %d"%(disc,3-disc), xerr=xWidthsDiag, fmt='', color="purple", lw=0, elinewidth=2, marker="o", markerfacecolor="purple")
+        #normalize = mpl.colors.Normalize(vmin=-1, vmax=1)
+        #hist = ax.pcolormesh(xedges, yedges, Z, cmap = CM.RdBu_r, norm=normalize)
+        #c1 = ax.contour(var, x1, Z1)
+        #cbar1 = plt.colorbar(c1, ax=ax)
+        #cbar1.ax.set_ylabel("Normalized Events Disc. 1")
 
-       if ylim != -1.0:
-            ax.set_ylim((0.0, ylim))
+        data1 = {"var": var, "x": x1}
+        data2 = {"var": var, "x": x2}
 
-       ax.set_ylabel(ylabel); ax.set_xlabel("Disc. %d Value"%(3-disc))
+        sns.kdeplot(data=data1, x="var", y="x", ax=ax, label="Disc. 1")
 
-       if ylog:
-           ax.set_yscale("log")
+        #c2 = ax.contour(var, x2, Z2)
+        #cbar2 = plt.colorbar(c2, ax=ax)
+        #cbar2.ax.set_ylabel("Normalized Events Disc. 2")
 
-       plt.legend(loc='best')
+        sns.kdeplot(data=data2, x="var", y="x", ax=ax, label="Disc. 2")
 
-       hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
+        #ax.hist2d(var, x, label="Disc. 1 - Disc. 2", weights = w)
+        #ax[1].hist2d(x2, var, label="Disc. 2")
 
-       fig.tight_layout()
+        if ylim != -1.0:
+             ax.set_ylim((0.0, ylim))
+             #ax[1].set_ylim((0.0, ylim))
 
-       if Njets == -1: fig.savefig(self.config["outputDir"]+"/%s_Slices_Disc%d.png"%(tag,disc), dpi=fig.dpi)
-       else:           fig.savefig(self.config["outputDir"]+"/%s_Slices_Disc%d_Njets%s.png"%(tag,disc,Njets), dpi=fig.dpi)
+        ax.set_ylabel("Disc. Output"); ax.set_xlabel(ylabel)
+        #ax[1].set_ylabel(ylabel); ax[1].set_xlabel("Disc. 2")
 
-       plt.close(fig)
+        if ylog:
+            ax.set_yscale("log")
+            #ax[1].set_yscale("log")
+
+        plt.legend(loc='best')
+
+        hep.cms.label(llabel="Simulation", data=False, paper=False, year="Run 2")
+
+        fig.tight_layout()
+
+        if Njets == -1: 
+            fig.savefig(self.config["outputDir"]+"/%sbyDisc.png"%(tag), dpi=fig.dpi)
+            with open(self.config["outputDir"]+"/%sbyDisc.pkl"%(tag), 'wb') as f:
+                pickle.dump(fig, f)
+        else:           
+            fig.savefig(self.config["outputDir"]+"/%sbyDisc_Njets%s.png"%(tag,Njets), dpi=fig.dpi)
+            with open(self.config["outputDir"]+"/%sbyDisc_Njets%s.pkl"%(tag,Njets), 'wb') as f:
+                pickle.dump(fig, f)
+
+        plt.close(fig)
 
     def plotBinEdgeMetricComps(self, finalSign, finalClosureErr, sign, closeErr, edges, d1edge, d2edge, Njets = -1):
 
-        fig = plt.figure()
-        hep.cms.label(data=True, paper=False, year=self.config["evalYear"])
+        fig = plt.figure(figsize=(12,12))
+        hep.cms.label(llabel="Simulation", data=False, paper=False, year="Run 2")
         ax = plt.gca()
         plt.scatter(np.reciprocal(sign[0]), closeErr[0], color='xkcd:silver', marker="o", label="1 - Pred./Obs. vs 1 / Significance")
 
@@ -811,8 +948,12 @@ class Validation:
 
         if Njets == -1:
             fig.savefig(self.config["outputDir"]+"/InvSign_vs_NonClosure.png", dpi=fig.dpi)        
+            with open(self.config["outputDir"]+"/InvSign_vs_NonClosure.pkl", 'wb') as f:
+                pickle.dump(fig, f)
         else:
             fig.savefig(self.config["outputDir"]+"/InvSign_vs_NonClosure_Njets%d.png"%(Njets), dpi=fig.dpi)        
+            with open(self.config["outputDir"]+"/InvSign_vs_NonClosure_Njets%d.pkl"%(Njets), 'wb') as f:
+                pickle.dump(fig, f)
 
         plt.close(fig)
 
@@ -828,7 +969,7 @@ class Validation:
             if bkgd[i][0] > 0.0: sign += (sig[i][0] / (bkgd[i][0] + (0.3*bkgd[i][0])**2.0)**0.5)**2.0
         sign = sign**0.5
 
-        fig = plt.figure()
+        fig = plt.figure(figsize=(12,12))
         ax = plt.gca()
         ax.set_yscale("log")
         ax.set_ylim([1,10e4])
@@ -836,7 +977,7 @@ class Validation:
         ax.errorbar(binCenters, bkgd[:,0], yerr=bkgd[:,1], label="Background", xerr=xErr, fmt='', color="black",   lw=0, elinewidth=2, marker="o", markerfacecolor="black")
         ax.errorbar(binCenters, sig[:,0],  yerr=sig[:,1],  label="Signal",     xerr=xErr, fmt='', color="red",     lw=0, elinewidth=2, marker="o", markerfacecolor="red")
 
-        hep.cms.label(data=True, paper=False, year=self.config["evalYear"], ax=ax)
+        hep.cms.label(llabel="Simulation", data=False, paper=False, year="Run 2", ax=ax)
 
         plt.xlabel('$N_{jets}$')
         plt.ylabel('Events')
@@ -844,6 +985,8 @@ class Validation:
         plt.text(0.05, 0.94, r"Significance = %.2f"%(sign), transform=ax.transAxes, fontfamily='sans-serif', fontsize=16, bbox=dict(facecolor='white', alpha=1.0))
 
         fig.savefig(self.config["outputDir"]+"/Njets_Region_%s.png"%(label))
+        with open(self.config["outputDir"]+"/Njets_Region_%s.pkl"%(label), 'wb') as f:
+            pickle.dump(fig, f)
 
         plt.close(fig)
 
@@ -885,7 +1028,7 @@ class Validation:
                 totalSig += bkgdSign[i]
                 ndof += 1
 
-        fig = plt.figure()
+        fig = plt.figure(figsize=(12,12))
         gs = fig.add_gridspec(8, 1)
         ax = fig.add_subplot(111)
         ax1 = fig.add_subplot(gs[0:6])
@@ -917,7 +1060,7 @@ class Validation:
         ax2.axhline(y=0.0, color="black", linestyle="dashed", lw=1)
         ax2.grid(color="black", which="both", axis="y")
 
-        hep.cms.label(data=True, paper=False, year=self.config["evalYear"], ax=ax1)
+        hep.cms.label(llabel="Simulation", data=False, paper=False, year="Run 2", ax=ax1)
         
         ax2.set_xlabel('$N_{jets}$')
         ax2.set_ylabel('1 - Pred./Obs.', fontsize="small")
@@ -928,8 +1071,12 @@ class Validation:
         
         if tag != "":
             fig.savefig(self.config["outputDir"]+"/Njets_Region_A_PredVsActual_%s.png"%(tag))
+            with open(self.config["outputDir"]+"/Njets_Region_A_PredVsActual_%s.pkl"%(tag), 'wb') as f:
+                pickle.dump(fig, f)
         else:
             fig.savefig(self.config["outputDir"]+"/Njets_Region_A_PredVsActual.png")
+            with open(self.config["outputDir"]+"/Njets_Region_A_PredVsActual.pkl", 'wb') as f:
+                pickle.dump(fig, f)
         
         plt.close(fig)
 
@@ -942,6 +1089,8 @@ class Validation:
         
         out_dict = {}
         for k,meta in enumerate(metavar_list):
+            print(k,meta)
+            print(metavar_names[k])
             if "BE" in metavar_names[k]:
                 out_dict[metavar_names[k]] = "({},{})".format(meta[0], meta[1])
             else:
@@ -966,6 +1115,26 @@ class Validation:
         with open("{}/ValData_{}.json".format(self.config["outputDir"],tag), "w") as outfile:
             outfile.write(valData_json)
         outfile.close()
+    #roc_curve(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_dist[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
+    def roc_curve_2D(self, labels, disc1, disc2, sample_weight=None):
+
+        thresholds = [x for x in arange(0.0, 1.0, 0.001)]
+        tprs = []
+        fprs = []
+
+        for t in thresholds:
+
+            t_labels = np.array((disc1 > t) & (disc2 > t)).astype(int)
+            tps = np.array((labels == t_labels) & (labels == 1)).astype(int)
+            fps = np.array((labels != t_labels) & (t_labels == 1)).astype(int)
+
+            tpr = float(tps.sum()) / len(tps)
+            fpr = float(fps.sum()) / len(fps)
+
+            tprs.append(tpr)
+            fprs.append(fpr)
+
+        return np.array(fprs), np.array(tprs), np.array(thresholds)
 
     def makePlots(self, doQuickVal=True, evalMass="400", evalModel="RPV_SYY_SHH"):
         NJetsRange = range(self.config["minNJetBin"], self.config["maxNJetBin"]+1)
@@ -991,6 +1160,8 @@ class Validation:
         valData = self.valLoader.getFlatData()
         valSig  = self.valLoader.getFlatData(process=self.sample[valModel])
         valBkg  = self.valLoader.getFlatData(process=0)
+
+        variables = self.valLoader.getColumnHeaders()
 
         # If there is a xvalLoader that means we are evaluating the network
         # on events it has not seen and are not in the train+val+test sets
@@ -1132,6 +1303,12 @@ class Validation:
 
         # Separately loaded samples that can have nothing to do with the what was loaded for training
         output_train, output_eval_sg, output_eval_bg = self.getOutput(self.model, evalData["inputs"], evalSig["inputs"], evalBkg["inputs"])
+        #if self.do_LRP:
+        #    p_list, xaugs_list = get_lrp_score(evalData["inputs"], self.model, 0, len(evalData["inputs"]), len(evalData["inputs"])) 
+        #    print("="*30)
+        #    print(plist)
+        #    print("="*30)
+
         del evalData["inputs"]; del evalSig["inputs"]; del evalBkg["inputs"]
         gc.collect()
 
@@ -1141,6 +1318,12 @@ class Validation:
 
         # Part of the training samples that were not used for training
         output_val, output_val_sg, output_val_bg = self.getOutput(self.model, valData["inputs"], valSig["inputs"], valBkg["inputs"])
+
+        #for i, var in enumerate(valData["vars"]):
+
+        #    self.plotVarVsDisc(valBkg["inputs"][:, i], output_val_bg, ylabel = var, tag = var+ "_Bg_")
+        #    self.plotVarVsDisc(valSig["inputs"][:, i], output_val_sg, ylabel = var, tag = var+ "_Sg_")
+
         del valData["inputs"]; del valSig["inputs"]; del valBkg["inputs"]
         gc.collect()
 
@@ -1219,11 +1402,15 @@ class Validation:
             self.plotAccVsEpoch('loss', 'val_loss', 'model loss', 'loss_train_val')
             #for rank in ["disco", "disc", "mass_reg"]: self.plotAccVsEpoch('%s_loss'%(rank), 'val_%s_loss'%(rank), '%s loss'%(rank), '%s_loss_train_val'%(rank))        
             for rank in ["disco", "disc", "closure", "mass_reg"]: self.plotAccVsEpoch('%s_loss'%(rank), 'val_%s_loss'%(rank), '%s loss'%(rank), '%s_loss_train_val'%(rank))        
+            #for rank in ["disco", "disc1", "disc2", "closure", "mass_reg"]: self.plotAccVsEpoch('%s_loss'%(rank), 'val_%s_loss'%(rank), '%s loss'%(rank), '%s_loss_train_val'%(rank))        
 
             #self.plotAccVsEpochAll(['disc', 'mass_reg' , 'disco'], ['Combined Disc Loss', 'Mass Regression Loss', 'DisCo Loss'], '',     'train output loss',      'output_loss_train')
             #self.plotAccVsEpochAll(['disc', 'mass_reg' , 'disco'], ['Combined Disc Loss', 'Mass Regression Loss', 'DisCo Loss'], 'val_', 'validation output loss', 'output_loss_val')
             self.plotAccVsEpochAll(['disc', 'disco', 'closure', 'mass_reg'], ['Combined Disc Loss', 'DisCo Loss', 'Closure Loss', 'Mass Reg. Loss'], '',     'train output loss',      'output_loss_train')
             self.plotAccVsEpochAll(['disc', 'disco', 'closure', 'mass_reg'], ['Combined Disc Loss', 'DisCo Loss', 'Closure Loss', 'Mass Reg. Loss'], 'val_', 'validation output loss', 'output_loss_val')
+
+            #self.plotAccVsEpochAll(['disc1', 'disc2', 'disco', 'closure', 'mass_reg'], ['Disc 1 Loss', 'Disc 2 Loss', 'DisCo Loss', 'Closure Loss', 'Mass Reg. Loss'], '',     'train output loss',      'output_loss_train')
+            #self.plotAccVsEpochAll(['disc1', 'disc2', 'disco', 'closure', 'mass_reg'], ['Disc 1 Loss', 'Disc 2 Loss', 'DisCo Loss', 'Closure Loss', 'Mass Reg. Loss'], 'val_', 'validation output loss', 'output_loss_val')
 
         # Plot disc per njet
         self.plotDiscPerNjet("_Disc1", {"Bkg": [evalBkg, y_eval_bg_disc1, evalBkg["weight"]], "Sig": [evalSig, y_eval_sg_disc1, evalSig["weight"]]}, sigMaskEval, nBins=nBins)
@@ -1281,15 +1468,22 @@ class Validation:
             c1, c2, significance, closureErr, edges, signs, signsWNC, predsigns, closeErrs, sFracs, wBkg, uwBkg, wSig, uwSig, normSigFracs= self.findABCDedges(bc, sc)
 
 
-            avg_sign = np.mean(signs[:, 0])
-            max_sign = np.max(signs[:, 0])
-            max_sign_be = edges[np.argmax(signs[:, 0])]
-            avg_closure = np.mean(closeErrs[:, 0])
-            count_close = np.count_nonzero(closeErrs[:,0] < 0.3)
+            #avg_sign = np.mean(signs[:, 0])
+            #max_sign = np.max(signs[:, 0])
+            #max_sign_be = edges[np.argmax(signs[:, 0])]
+            #avg_closure = np.mean(closeErrs[:, 0])
+            #var_closure = np.var(closeErrs[:, 0])
+            #count_close = np.count_nonzero(closeErrs[:,0] < 0.3)
 
-            var_names = ["Sign", "SignWithNonClosure", "PredictedSign", "NonClosure", "normSigFracs"]
-            metavar_names = ["AvgNonClosure", "AvgSign", "MaxSign", "MaxSignBE", "CountReasonable"]
-            self.saveValData([signs, signsWNC, predsigns, closeErrs, normSigFracs], var_names, [avg_closure, avg_sign, max_sign, max_sign_be, count_close/closeErrs.shape[0]], metavar_names, wBkg, wSig, edges, self.config["atag"])
+            #var_names = ["Sign", "SignWithNonClosure", "PredictedSign", "NonClosure", "normSigFracs"]
+            #metavar_names = ["AvgNonClosure", "VarNonClosure", "AvgSign", "MaxSign", "MaxSignBE", "CountReasonable"]
+            #self.saveValData([signs, signsWNC, predsigns, closeErrs, normSigFracs], var_names, [avg_closure, var_closure, avg_sign, max_sign, max_sign_be, count_close/closeErrs.shape[0]], metavar_names, wBkg, wSig, edges, self.config["atag"])
+
+            bc, sc = self.cutAndCount(c1s, c2s, y_eval_bg_disc1, y_eval_bg_disc2, evalBkg["weight"], y_eval_sg_disc1, y_eval_sg_disc2, evalSig["weight"])
+            c1, c2, significance, closureErr, edges, signs, signsWNC, predsigns, closeErrs, sFracs, wBkg, uwBkg, wSig, uwSig, normSigFracs = self.findABCDedges(bc, sc)
+
+            self.plotVarVsBinEdges(closeErrs[:,0], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 20.0, 1.0, "NonClosure")
+            self.plotVarVsBinEdges(signs[:,0], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 900.0, None, "Sign")
 
             for NJets in NJetsRange:
            
@@ -1311,8 +1505,8 @@ class Validation:
                     self.plotVarVsBinEdges(signs[:,0], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 20.0, 2.0, "Sign",    int(NJets))
                     self.plotVarVsBinEdges(signs[:,1], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 20.0, 0.5, "SignUnc", int(NJets))
 
-                    self.plotVarVsBinEdges(closeErrs[:,0], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 20.0, 0.5, "NonClosure",    int(NJets))
-                    self.plotVarVsBinEdges(closeErrs[:,1], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 20.0, 0.5, "NonClosureUnc", int(NJets))
+                    self.plotVarVsBinEdges(closeErrs[:,0], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 20.0, 1.0, "NonClosure",    int(NJets))
+                    self.plotVarVsBinEdges(closeErrs[:,1], edges, float(c1), float(c2), minEdge, maxEdge, edgeWidth, 20.0, 1.0, "NonClosureUnc", int(NJets))
 
                     tempAveClose, tempStdClose = self.plotBinEdgeMetricComps(significance, closureErr, signs, closeErrs, c1s, c1, c2, int(NJets))
 
@@ -1447,15 +1641,50 @@ class Validation:
             if    self.config["TotalSignificance"] > 0.0: self.metric["InvTotalSignificance"] = 1.0/self.config["TotalSignificance"]
             else: self.metric["InvTotalSignificance"] = 999.0
 
+        y_val_avg = (y_val_disc1 + y_val_disc2) / 2
+        y_eval_avg = (y_eval_disc1 + y_eval_disc2) / 2
+
+        y_val_dist = np.sqrt(y_val_disc1**2 + y_val_disc2**2) / np.sqrt(2)
+        y_eval_dist = np.sqrt(y_eval_disc1**2 + y_eval_disc2**2) / np.sqrt(2)
+
+        y_val_stack = np.stack([y_val_disc1, y_val_disc2], axis=-1)
+        y_val_idx = np.unravel_index(np.argmax(y_val_stack, axis=1), y_val_stack.shape)
+        y_val_double = y_val_stack[y_val_idx]
+
+        y_eval_stack = np.stack([y_eval_disc1, y_eval_disc2], axis=-1)
+        y_eval_idx = np.unravel_index(np.argmax(y_eval_stack, axis=1), y_eval_stack.shape)
+        y_eval_double = y_eval_stack[y_eval_idx]
+
         # Plot validation roc curve
         fpr_val_disc1, tpr_val_disc1, thresholds_val_disc1    = roc_curve(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_disc1[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
         fpr_val_disc2, tpr_val_disc2, thresholds_val_disc2    = roc_curve(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_disc2[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
         fpr_eval_disc1, tpr_eval_disc1, thresholds_eval_disc1 = roc_curve(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_disc1[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
         fpr_eval_disc2, tpr_eval_disc2, thresholds_eval_disc2 = roc_curve(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_disc2[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
+
+        fpr_val_avg, tpr_val_avg, thresholds_val_avg    = roc_curve(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_avg[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
+        fpr_eval_avg, tpr_eval_avg, thresholds_eval_avg = roc_curve(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_avg[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
+        fpr_val_dist, tpr_val_dist, thresholds_val_dist    = roc_curve(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_dist[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
+        fpr_eval_dist, tpr_eval_dist, thresholds_eval_dist = roc_curve(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_dist[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
+        fpr_val_double, tpr_val_double, thresholds_val_double    = roc_curve(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_double[massMaskDataVal&sigMaskDataVal],   sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
+        fpr_eval_double, tpr_eval_double, thresholds_eval_double = roc_curve(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_double[massMaskDataEval&sigMaskDataEval], sample_weight=evalData["weight"][massMaskDataEval&sigMaskDataEval])
+
         auc_val_disc1  = roc_auc_score(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_disc1[massMaskDataVal&sigMaskDataVal])
         auc_val_disc2  = roc_auc_score(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_disc2[massMaskDataVal&sigMaskDataVal])
         auc_eval_disc1 = roc_auc_score(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_disc1[massMaskDataEval&sigMaskDataEval])
         auc_eval_disc2 = roc_auc_score(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_disc2[massMaskDataEval&sigMaskDataEval])
+
+        auc_val_avg  = roc_auc_score(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_avg[massMaskDataVal&sigMaskDataVal])
+        auc_eval_avg = roc_auc_score(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_avg[massMaskDataEval&sigMaskDataEval])
+        auc_val_dist  = roc_auc_score(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_dist[massMaskDataVal&sigMaskDataVal])
+        auc_eval_dist = roc_auc_score(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_dist[massMaskDataEval&sigMaskDataEval])
+        auc_val_double  = roc_auc_score(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_double[massMaskDataVal&sigMaskDataVal])
+        auc_eval_double = roc_auc_score(evalData["label"][massMaskDataEval&sigMaskDataEval], y_eval_double[massMaskDataEval&sigMaskDataEval])
+
+        #fpr_val_double, tpr_val_double, thresholds_val_double    = self.roc_curve_2D(valData["label"][massMaskDataVal&sigMaskDataVal],   y_val_disc1[massMaskDataVal&sigMaskDataVal],  y_val_disc2[massMaskDataVal&sigMaskDataVal],  sample_weight=valData["weight"][massMaskDataVal&sigMaskDataVal])
+        #fpr_eval_double, tpr_eval_double, thresholds_eval_double    = self.roc_curve_2D(evalData["label"][massMaskDataVal&sigMaskDataVal],   y_eval_disc1[massMaskDataVal&sigMaskDataVal],  y_eval_disc2[massMaskDataVal&sigMaskDataVal],  sample_weight=evalData["weight"][massMaskDataVal&sigMaskDataVal])
+
+        #auc_val_double = np.trapz(tpr_val_double, fpr_val_double)
+        #auc_eval_double = np.trapz(tpr_eval_double, fpr_eval_double)
 
         # Define metrics for the training
         self.metric["OverTrain_Disc1"]   = abs(auc_val_disc1 - auc_eval_disc1)
@@ -1466,6 +1695,10 @@ class Validation:
         # Plot some ROC curves
         self.plotROC(None, None, "_Disc1", None, None, None, None, fpr_eval_disc1, fpr_val_disc1, tpr_eval_disc1, tpr_val_disc1, auc_eval_disc1, auc_val_disc1)
         self.plotROC(None, None, "_Disc2", None, None, None, None, fpr_eval_disc2, fpr_val_disc2, tpr_eval_disc2, tpr_val_disc2, auc_eval_disc2, auc_val_disc2)
+        self.plotROC(None, None, "_Avg", None, None, None, None, fpr_eval_avg, fpr_val_avg, tpr_eval_avg, tpr_val_avg, auc_eval_avg, auc_val_avg)
+        self.plotROC(None, None, "_Dist", None, None, None, None, fpr_eval_dist, fpr_val_dist, tpr_eval_dist, tpr_val_dist, auc_eval_dist, auc_val_dist)
+        self.plotROC(None, None, "_Double", None, None, None, None, fpr_eval_double, fpr_val_double, tpr_eval_double, tpr_val_double, auc_eval_double, auc_val_double)
+
         self.plotROC(massMaskDataEval&sigMaskDataEval, massMaskDataVal&sigMaskDataVal, "_"+self.config["bkgd"][0]+"_nJet_disc1", y_eval_disc1, y_val_disc1, evalData, valData)
         self.plotROC(massMaskDataEval&sigMaskDataEval, massMaskDataVal&sigMaskDataVal, "_"+self.config["bkgd"][0]+"_nJet_disc2", y_eval_disc2, y_val_disc2, evalData, valData)
         self.plotROC(sigMaskDataEval, sigMaskDataVal, "_mass_split_disc1", y_eval_disc1, y_val_disc1, evalData, valData, doMass=True, minMass=self.config['minStopMass'], maxMass=self.config['maxStopMass'])
